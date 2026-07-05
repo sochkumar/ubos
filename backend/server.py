@@ -31,6 +31,8 @@ from routes.media import router as media_router
 from routes.relationship_instances import router as rel_inst_router
 from routes.shares import router as shares_router
 from routes.labels import router as labels_router
+from routes.search import router as search_router
+from routes.dashboard import router as dashboard_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -84,6 +86,8 @@ api.include_router(media_router)
 api.include_router(rel_inst_router)
 api.include_router(shares_router)
 api.include_router(labels_router)
+api.include_router(search_router)
+api.include_router(dashboard_router)
 
 app.include_router(api)
 

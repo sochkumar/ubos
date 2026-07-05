@@ -29,6 +29,8 @@ import RelationshipsPage from "@/pages/RelationshipsPage";
 import TemplatesPage from "@/pages/TemplatesPage";
 import MediaPage from "@/pages/MediaPage";
 import PublicRecordPage from "@/pages/PublicRecordPage";
+import DashboardPage from "@/pages/DashboardPage";
+import SearchPage from "@/pages/SearchPage";
 
 function App() {
   return (
@@ -78,7 +80,9 @@ function App() {
                 </RequireAuth>
               }
             >
-              <Route path="/" element={<Navigate to="/entity-types" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/entity-types" element={<EntityTypesPage />} />
               <Route path="/entity-types/:id/fields" element={<FieldsPage />} />
               <Route path="/entity-types/:id/records" element={<RecordsPage />} />
@@ -88,15 +92,11 @@ function App() {
               <Route path="/entity-types/:id/relationships" element={<RelationshipsPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/media" element={<MediaPage />} />
-              <Route
-                path="/dashboard"
-                element={<ComingSoonPage title="Dashboard" phase="Phase 4" description="Charts, KPIs, and quick actions across your workspace." />}
-              />
               <Route path="/settings/organization" element={<OrgSettingsPage />} />
               <Route path="/settings/members" element={<MembersPage />} />
               <Route path="/settings/audit-log" element={<AuditLogPage />} />
               <Route path="/settings/profile" element={<ProfilePage />} />
-              <Route path="*" element={<Navigate to="/entity-types" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
         </AuthProvider>

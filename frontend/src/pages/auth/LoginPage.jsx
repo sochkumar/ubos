@@ -29,7 +29,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login({ email, password });
-      const next = params.get("next") || "/entity-types";
+      const next = params.get("next") || "/dashboard";
       nav(decodeURIComponent(next), { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err));

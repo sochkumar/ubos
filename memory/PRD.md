@@ -293,3 +293,25 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 **Tests**: 28/28 backend pass (`/app/backend/tests/test_ubos_phase4a.py`); frontend flows verified via testing agent.
 
 **Deferred to Sub-pass B**: Global data-search UI, Dashboard widgets. Password-protected shares, whole-view sharing, and CSV import/export are Phase 5.
+
+## Phase 4 Sub-pass A — LOCKED (verified 12/13, 3/3 bugs fixed Feb 2026)
+Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch at explicit wire-up points.
+
+## Phase 4 Sub-pass B — Global Search + Dashboard (SHIPPED Feb 2026)
+
+**Backend**
+- `GET /api/search?q=&types=&entity_type_ids=&limit=&cursor=` — org-scoped fan-out over records, entity_types, categories, tags, media. Records ranked by `$text` on `search_text` (Phase 0 index), with title-exact / title-contains / record-number boosts. Other kinds use case-insensitive regex on `name`/`filename`/etc. Response: `{results, next_cursor, facets:{kinds, entity_types}, totals, took_ms}`. Cursor is opaque base64 skip.
+- `GET /api/dashboard/summary` — returns the four widgets in one payload: `recent_records`, `activity` (audit_logs with actor-name & avatar; non-admins see only their own actions), `storage` (used/quota + mime-family breakdown), `entity_types` (with `record_count`). Process-level cache: 30 s TTL per `(org_id, user_id)`.
+- `POST /api/dashboard/refresh` — manual cache bust (returns 204).
+- Both endpoints require `records.read`.
+
+**Frontend**
+- **Command palette** (`⌘K` / `Ctrl+K`) — global keyboard listener registered by `useCommandPalette` in `AppLayout`. Debounced 200 ms input, keyboard nav (↑↓ Enter / ⌘+Enter opens new tab), recent-searches in `localStorage`, `took_ms` in footer, "View all results →" navigates to `/search?q=…`.
+- **`/search`** — full-page with sidebar facets (kinds + entity types), deep-linkable URL state (`?q=&types=&entity_type=`), one-column result list with breadcrumb + snippet + kind badge.
+- **`/dashboard`** — 2×2 grid of widgets (Recent records, Activity, Storage, Entity types overview). Each widget has consistent chrome (icon + title + right-side action link/button) and a graceful empty state. Refresh button busts the 30 s cache.
+- **Topbar** — replaced the disabled search stub with a clickable "Search anything… ⌘K" trigger that opens the palette.
+- **Sidebar** — Dashboard + Search both unchipped in `Overview`.
+- **Post-login route** — changed default from `/entity-types` to `/dashboard` (LoginPage, GoogleCallback, `RequireGuest`).
+
+**Non-goals still deferred**: AI/semantic search (later phase), custom dashboard/widget arrangement (P6+), multi-org search (P5+), widget-level filters (P6+).
+

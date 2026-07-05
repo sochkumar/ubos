@@ -18,13 +18,15 @@ import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
+import { CommandPalette, useCommandPalette } from "@/components/CommandPalette";
 
 // Sidebar nav groups
 const NAV_GROUPS = [
   {
     label: "Overview",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, soon: "Phase 4" },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/search", label: "Search", icon: Search },
     ],
   },
   {
@@ -59,6 +61,7 @@ export default function AppLayout() {
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useCommandPalette();
 
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
 
@@ -285,15 +288,20 @@ export default function AppLayout() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Global search (stub) */}
+          {/* Global search — opens the ⌘K palette */}
           <div className="relative flex-1 max-w-md ml-3">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search (coming in Phase 2)…"
-              className="pl-8 h-9 bg-muted/40 border-transparent"
-              disabled
-              data-testid="global-search"
-            />
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="w-full h-9 pl-8 pr-16 flex items-center rounded-md border border-transparent bg-muted/40 text-sm text-muted-foreground hover:border-border hover:bg-muted/60 transition-colors text-left"
+              data-testid="global-search-trigger"
+            >
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" />
+              <span className="truncate">Search anything…</span>
+              <kbd className="ml-auto hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-white px-1.5 h-5 text-[10px] font-mono">
+                ⌘K
+              </kbd>
+            </button>
           </div>
 
           <div className="ml-auto flex items-center gap-1">
@@ -357,6 +365,9 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global cmd+K palette */}
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

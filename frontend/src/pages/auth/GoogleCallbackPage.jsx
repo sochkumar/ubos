@@ -36,7 +36,7 @@ export default function GoogleCallbackPage() {
         if ((me.organizations || []).length === 0) {
           nav("/onboarding", { replace: true });
         } else {
-          nav("/entity-types", { replace: true });
+          nav("/dashboard", { replace: true });
         }
       } catch (e) {
         setError(extractErrorMessage(e));

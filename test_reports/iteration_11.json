@@ -1,0 +1,37 @@
+{
+  "summary": "UBOS Phase 4 Sub-pass B (Global Search + Dashboard) verified end-to-end. 16/16 new backend tests pass (test_ubos_phase4b.py) covering search shape, auth gating, empty-q, limit=51→422, per-kind fan-out slicing (max(3, limit/kinds)), records-only depth, positive-only kind facets, cursor pagination (no duplicates across pages), cross-org isolation (owner org vs editor org), snippet length; dashboard shape, cached=false→cached=true within 30s, POST /dashboard/refresh 204 cache-bust, per-user cache key, activity RBAC (editor sees only own audit rows), viewer read. 28/28 Sub-pass A regression tests still green — no locked files touched. Frontend: post-login lands on /dashboard (both fresh login and RequireGuest redirect), all 4 widgets render with correct data-testids, Refresh button POSTs /dashboard/refresh + reloads, storage-manage-btn present, et-tile clicks → /entity-types/:id/records, recent-record clicks → /records/:id. Command palette opens on Ctrl/⌘K from /dashboard, autofocuses palette-input, closes on Escape; global-search-trigger shows '⌘K' hint and opens the palette on click; debounced fetch renders palette-results with icon/title/breadcrumb; Enter navigates to top result (record→/records/:id, entity_type→/entity-types/:id/records verified); took_ms rendered in footer; palette-no-results shown for gibberish query; recent searches persisted in localStorage 'ubos.search.recent'. /search page deep-linkable — ?q=chair&types=record,tag correctly checks Record + Tag facet checkboxes (verified data-state='checked'); unchecking Records updates ?types=tag; search-clear-filters resets to just ?q=chair; sidebar 'Dashboard' and 'Search' items un-chipped. Fixed one CRITICAL backend bug (search 500 on regex-fallback due to textScore meta projection).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase4b.py",
+    "/app/test_reports/pytest/phase4b.xml"
+  ],
+  "action_items": [
+    "Please review the small backend fix applied in /app/backend/routes/search.py (_search_records regex fallback now strips the textScore meta projection). This was causing HTTP 500 on any query where $text returned zero hits (e.g. very short queries like 'a', or terms not in the text index). If you want the ranking of regex-fallback hits to still be text-score-flavoured, you'll need a different scoring strategy since MongoDB rejects the meta projection without a $text stage."
+  ],
+  "critical_code_review_comments": [
+    "routes/search.py _search_records: the fallback regex path reused `projection` verbatim including `{'score': {'$meta':'textScore'}}`, which MongoDB rejects with `OperationFailure: query requires text score metadata, but it is not available` (code 40218). Any q that missed the text index triggered a 500. Fixed by cloning projection without the meta key.",
+    "routes/search.py cursor pagination is uniform across all kinds — the same skip value is used per kind, and next_cursor is skip+limit regardless of which kinds had hits. That's fine for a palette but on /search with types=record only it means pages 2+ will skip the whole `limit` even if only records exist. Considered correct behaviour but worth documenting.",
+    "routes/search.py facets.entity_types uses `$text` aggregation, so an EN-stopword query (or one that matches only via the regex fallback) will produce an empty entity_types facet even though records[] is non-empty. Acceptable per the spec ('populated ONLY from records-slice aggregation') but users may find it surprising.",
+    "routes/dashboard.py _CACHE is a module-level dict with no size cap. In a long-running worker with many users/orgs, entries never evict beyond the 30s freshness check on read. Consider a max-size LRU or periodic sweep of stale entries.",
+    "routes/dashboard.py _activity for non-admins filters ONLY by actor_id=self, and the code comment says 'own activity + org-wide broadcast events' but there's no broadcast-event branch — so viewers/editors truly only see their own rows. That matches the review request. If broadcast semantics are desired later, add an `$or` with a broadcast flag."
+  ],
+  "updated_files": [
+    "/app/backend/routes/search.py — regex-fallback projection no longer requests textScore meta (fixes 500)",
+    "/app/backend/tests/test_ubos_phase4b.py — new Sub-pass B suite (16 tests)"
+  ],
+  "success_rate": {"backend": "100% (16/16 new + 28/28 regression = 44/44)", "frontend": "100% (all data-testids + flows verified)"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123, editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123 (all from /app/memory/test_credentials.md; owner and editor are in different orgs which enabled the cross-org isolation assertion).",
+  "seed_data_creation": "Tests call POST /api/dev/seed-demo idempotently per user to guarantee some searchable records/entity types exist. No test-only entities are created outside of that.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sub-pass B is fully green. Backend suite at /app/backend/tests/test_ubos_phase4b.py — run with `pytest tests/test_ubos_phase4b.py -o addopts=''` (xdist off, same reason as 4a). Reproduce the fixed 500 by reverting search.py L102 to use `projection` instead of `rgx_projection` and hitting /api/search?q=a with a fresh (unindexed) query. Sub-pass A locked files remain untouched. Notable: `owner@ubos.test` and `editor@ubos.test` are in different orgs (Acme vs the editor's own org) — this made the cross-org search isolation test trivial; if a future test needs same-org editor RBAC, seed the editor into 'Acme Furniture'.",
+  "rca of the issue": "Bug: GET /api/search returned 500 for many common queries (e.g. ?q=a, ?q=chair when no $text hits).\nRoot cause: In routes/search.py::_search_records, the fallback regex code path (executed when the $text search yielded zero docs on the first page) reused the same projection dict `{... 'score': {'$meta': 'textScore'}}`. MongoDB rejects any find/aggregate that projects textScore metadata unless a $text stage is present, raising `OperationFailure` code 40218: 'query requires text score metadata, but it is not available'. FastAPI surfaced this as HTTP 500.\nRepro: With any owner token, `curl -H 'Authorization: Bearer …' 'https://…/api/search?q=a&types=record'` → 500 (before fix).\nFix: Build a shallow copy of `projection` with the 'score' key removed before running the regex query — `rgx_projection = {k: v for k, v in projection.items() if k != 'score'}`. Verified with the new pytest suite (test_search_records_only_gets_full_limit, test_search_fanout_all_kinds, test_search_shape all fail before the fix and pass after)."
+}

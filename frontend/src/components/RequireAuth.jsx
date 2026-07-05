@@ -29,6 +29,6 @@ export function RequireAuth({ children }) {
 export function RequireGuest({ children }) {
   const { status } = useAuth();
   if (status === "checking") return null;
-  if (status === "authed") return <Navigate to="/entity-types" replace />;
+  if (status === "authed") return <Navigate to="/dashboard" replace />;
   return children;
 }
