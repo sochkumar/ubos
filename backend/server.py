@@ -19,6 +19,10 @@ from routes.auth import router as auth_router
 from routes.oauth_google import router as oauth_router
 from routes.orgs import router as orgs_router
 from routes.data import router as data_router
+from routes.categories import router as categories_router
+from routes.tags import router as tags_router
+from routes.relationships import router as relationships_router
+from routes.templates import router as templates_router
 from routes.audit import router as audit_router
 from routes.dev import router as dev_router
 from routes._org_helpers import create_organization, add_membership
@@ -62,6 +66,10 @@ api.include_router(auth_router)
 api.include_router(oauth_router)
 api.include_router(orgs_router)
 api.include_router(data_router)
+api.include_router(categories_router)
+api.include_router(tags_router)
+api.include_router(relationships_router)
+api.include_router(templates_router)
 api.include_router(audit_router)
 api.include_router(dev_router)
 

@@ -100,3 +100,37 @@ async def ensure_indexes() -> None:
     # Audit logs — indexed by org + ts descending, keep forever
     await db.audit_logs.create_index([("org_id", 1), ("ts", -1)])
     await db.audit_logs.create_index([("actor_id", 1), ("ts", -1)])
+
+    # ── Phase 2 collections ──
+    # Categories: hierarchical, materialized path
+    await db.categories.create_index([("org_id", 1), ("entity_type_id", 1), ("deleted_at", 1)])
+    await db.categories.create_index([("org_id", 1), ("entity_type_id", 1), ("parent_id", 1)])
+    await db.categories.create_index([("org_id", 1), ("path", 1)])
+    await db.categories.create_index(
+        [("org_id", 1), ("entity_type_id", 1), ("parent_id", 1), ("slug", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_cat_slug_per_parent_active",
+    )
+
+    # Tags: org-wide (entity_type_id null) or entity-scoped
+    await db.tags.create_index([("org_id", 1), ("entity_type_id", 1)])
+    await db.tags.create_index(
+        [("org_id", 1), ("entity_type_id", 1), ("slug", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_tag_slug_per_scope_active",
+    )
+
+    # Relationship definitions (schema-level)
+    await db.relationship_definitions.create_index([("org_id", 1), ("from_entity_type_id", 1)])
+    await db.relationship_definitions.create_index(
+        [("org_id", 1), ("from_entity_type_id", 1), ("key", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_rel_key_per_from_active",
+    )
+
+    # Record category/tag lookup indexes
+    await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("category_ids", 1)])
+    await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("tag_ids", 1)])

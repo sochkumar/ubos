@@ -1,0 +1,38 @@
+{
+  "key": "demo_basic",
+  "name": "Demo (Products + Machines)",
+  "description": "Original Phase-0 demo — Products with categories + a Machines entity type.",
+  "icon": "Sparkles",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "products",
+      "name_singular": "Product",
+      "name_plural": "Products",
+      "icon": "Package",
+      "color": "#0f766e",
+      "fields": [
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "price", "label": "Price", "type": "currency", "required": true, "config": {"min": 0}, "order": 2},
+        {"key": "in_stock", "label": "In stock", "type": "boolean", "order": 3},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["chair", "table", "sofa"]}, "order": 4},
+        {"key": "launch_date", "label": "Launch date", "type": "date", "order": 5},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 6}
+      ]
+    },
+    {
+      "key": "machines",
+      "name_singular": "Machine",
+      "name_plural": "Machines",
+      "icon": "Cog",
+      "color": "#b45309",
+      "fields": [
+        {"key": "serial_no", "label": "Serial No.", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "manufacturer", "label": "Manufacturer", "type": "text", "required": true, "order": 2},
+        {"key": "installed_at", "label": "Installed at", "type": "date", "order": 3}
+      ]
+    }
+  ],
+  "relationships": [],
+  "tags": []
+}

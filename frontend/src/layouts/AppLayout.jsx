@@ -36,11 +36,8 @@ const NAV_GROUPS = [
   {
     label: "Config",
     items: [
-      { to: "/config/entity-types", label: "Entity Types", icon: FolderKanban, soon: "Phase 2", disabledDup: true },
-      { to: "/config/categories", label: "Categories", icon: Tags, soon: "Phase 2" },
-      { to: "/config/tags", label: "Tags", icon: Tags, soon: "Phase 2" },
-      { to: "/config/views", label: "Views", icon: ListChecks, soon: "Phase 2" },
-      { to: "/config/relationships", label: "Relationships", icon: GitBranch, soon: "Phase 3" },
+      { to: "/templates", label: "Templates", icon: FolderKanban },
+      { to: "/config/views", label: "Views", icon: ListChecks, soon: "Phase 3" },
     ],
   },
   {

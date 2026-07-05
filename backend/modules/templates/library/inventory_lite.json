@@ -1,0 +1,44 @@
+{
+  "key": "inventory_lite",
+  "name": "Inventory-lite",
+  "description": "Track stock items and where they live. Includes an Items→Locations relationship.",
+  "icon": "Boxes",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "items",
+      "name_singular": "Item",
+      "name_plural": "Items",
+      "icon": "Package",
+      "color": "#0369a1",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "quantity", "label": "Quantity", "type": "number", "required": true, "config": {"min": 0}, "order": 2},
+        {"key": "min_stock", "label": "Min stock", "type": "number", "config": {"min": 0}, "order": 3},
+        {"key": "unit", "label": "Unit", "type": "dropdown", "config": {"options": ["pcs", "kg", "L", "m"]}, "order": 4}
+      ]
+    },
+    {
+      "key": "locations",
+      "name_singular": "Location",
+      "name_plural": "Locations",
+      "icon": "MapPin",
+      "color": "#b45309",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "address", "label": "Address", "type": "longtext", "order": 2}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_key": "items", "to_key": "locations",
+      "key": "stored_at",
+      "from_label": "Stored at",
+      "to_label": "Stores",
+      "cardinality": "one_to_many",
+      "required": false
+    }
+  ],
+  "tags": []
+}

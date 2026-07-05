@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Layers, LayoutGrid } from "lucide-react";
+import { Sparkles, Layers, LayoutGrid, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,13 +27,16 @@ export default function OnboardingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [createdOrgId, setCreatedOrgId] = useState(null);
+  const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
-    // If user already has orgs and lands here, skip to /entity-types.
-    if (orgs.length > 0) {
-      nav("/entity-types", { replace: true });
-    }
+    if (orgs.length > 0) nav("/entity-types", { replace: true });
   }, [orgs, nav]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    api.get("/templates").then((r) => setTemplates(r.data)).catch(() => {});
+  }, [step]);
 
   const createOrg = async (e) => {
     e.preventDefault();
@@ -61,6 +64,20 @@ export default function OnboardingPage() {
     try {
       await api.post("/dev/seed-demo");
       toast.success("Demo workspace loaded");
+      await refreshMe();
+      nav("/entity-types", { replace: true });
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyTemplate = async (key, name) => {
+    setBusy(true);
+    try {
+      await api.post(`/templates/${key}/apply`, { conflict_policy: "skip" });
+      toast.success(`Template '${name}' applied`);
       await refreshMe();
       nav("/entity-types", { replace: true });
     } catch (err) {
@@ -180,21 +197,28 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center shrink-0">
-                  <LayoutGrid className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    Starter templates
-                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                      coming soon
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    CRM · Inventory · Assets · HR — one-click ready workspaces in Phase 2.
-                  </p>
-                </div>
+              <div className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground mb-3">
+                Starter templates
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {templates.filter((t) => t.key !== "demo_basic").map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => applyTemplate(t.key, t.name)}
+                    disabled={busy}
+                    className="text-left rounded-md border border-border bg-white p-3 hover:border-primary/50 transition-colors disabled:opacity-60"
+                    data-testid={`onboarding-template-${t.key}`}
+                  >
+                    <div className="text-sm font-medium flex items-center gap-1.5">
+                      {t.name}
+                      <ArrowRight className="w-3 h-3 opacity-40" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {t.description}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

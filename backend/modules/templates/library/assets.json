@@ -1,0 +1,53 @@
+{
+  "key": "assets",
+  "name": "Assets",
+  "description": "Track fixed assets and their maintenance history.",
+  "icon": "Cog",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "assets",
+      "name_singular": "Asset",
+      "name_plural": "Assets",
+      "icon": "Cog",
+      "color": "#4338ca",
+      "fields": [
+        {"key": "asset_id", "label": "Asset ID", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 2},
+        {"key": "purchase_date", "label": "Purchase date", "type": "date", "order": 3},
+        {"key": "value", "label": "Value", "type": "currency", "config": {"min": 0}, "order": 4},
+        {"key": "condition", "label": "Condition", "type": "dropdown", "config": {"options": ["Excellent", "Good", "Fair", "Poor"]}, "order": 5}
+      ],
+      "categories": [
+        {"name": "IT Equipment"},
+        {"name": "Vehicles"},
+        {"name": "Machinery"},
+        {"name": "Furniture"}
+      ]
+    },
+    {
+      "key": "maintenance_records",
+      "name_singular": "Maintenance record",
+      "name_plural": "Maintenance records",
+      "icon": "Wrench",
+      "color": "#dc2626",
+      "fields": [
+        {"key": "asset_ref", "label": "Asset ref", "type": "text", "required": true, "order": 1},
+        {"key": "date", "label": "Date", "type": "date", "required": true, "order": 2},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 3},
+        {"key": "cost", "label": "Cost", "type": "currency", "config": {"min": 0}, "order": 4}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_key": "maintenance_records", "to_key": "assets",
+      "key": "on_asset",
+      "from_label": "On asset",
+      "to_label": "Maintenance history",
+      "cardinality": "one_to_many",
+      "required": true
+    }
+  ],
+  "tags": []
+}

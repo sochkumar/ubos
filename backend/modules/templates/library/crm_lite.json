@@ -1,0 +1,49 @@
+{
+  "key": "crm_lite",
+  "name": "CRM-lite",
+  "description": "Lightweight contact + company book with a Contact→Company relationship.",
+  "icon": "Users",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "contacts",
+      "name_singular": "Contact",
+      "name_plural": "Contacts",
+      "icon": "User",
+      "color": "#7c3aed",
+      "fields": [
+        {"key": "full_name", "label": "Full name", "type": "text", "required": true, "order": 1},
+        {"key": "email", "label": "Email", "type": "email", "order": 2},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 3},
+        {"key": "role", "label": "Role", "type": "text", "order": 4},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Lead", "Active", "Churned"]}, "order": 5}
+      ]
+    },
+    {
+      "key": "companies",
+      "name_singular": "Company",
+      "name_plural": "Companies",
+      "icon": "Building2",
+      "color": "#0f766e",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "website", "label": "Website", "type": "url", "order": 2},
+        {"key": "industry", "label": "Industry", "type": "text", "order": 3},
+        {"key": "size", "label": "Size", "type": "dropdown", "config": {"options": ["1-10", "11-50", "51-200", "201-1000", "1000+"]}, "order": 4}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_key": "contacts", "to_key": "companies",
+      "key": "works_at",
+      "from_label": "Works at",
+      "to_label": "Employees",
+      "cardinality": "one_to_many"
+    }
+  ],
+  "tags": [
+    {"name": "vip", "color": "#f59e0b"},
+    {"name": "newsletter", "color": "#2563eb"}
+  ]
+}

@@ -136,6 +136,8 @@ class RecordCreate(BaseModel):
     title: str | None = None
     description: str | None = None
     fields: dict[str, Any] = Field(default_factory=dict)
+    category_ids: list[str] = Field(default_factory=list)
+    tag_ids: list[str] = Field(default_factory=list)
 
 
 class RecordUpdate(BaseModel):
@@ -143,6 +145,8 @@ class RecordUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     fields: dict[str, Any] | None = None
+    category_ids: list[str] | None = None
+    tag_ids: list[str] | None = None
 
 
 class Record(BaseModel):
@@ -152,6 +156,8 @@ class Record(BaseModel):
     title: str | None = None
     description: str | None = None
     fields: dict[str, Any] = Field(default_factory=dict)
+    category_ids: list[str] = Field(default_factory=list)
+    tag_ids: list[str] = Field(default_factory=list)
     record_number: str
     search_text: str = ""
     version: int = 1
@@ -207,3 +213,76 @@ class MemberRoleUpdate(BaseModel):
 
 class GoogleExchange(BaseModel):
     code: str
+
+
+# ─────────────────────── Categories ───────────────────────
+class CategoryBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = Field(min_length=1, max_length=120)
+    parent_id: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    color: str | None = None
+    icon: str | None = None
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+class CategoryUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = None
+    description: str | None = None
+    color: str | None = None
+    icon: str | None = None
+
+
+class CategoryMove(BaseModel):
+    new_parent_id: str | None = None
+
+
+class CategoryReorder(BaseModel):
+    new_order: int
+
+
+# ─────────────────────── Tags ───────────────────────
+class TagCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = Field(min_length=1, max_length=80)
+    entity_type_id: str | None = None
+    color: str | None = None
+
+
+class TagUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = None
+    color: str | None = None
+
+
+# ─────────────────────── Relationship Definitions ───────────────────────
+class RelDefCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    to_entity_type_id: str
+    key: str = Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
+    from_label: str = Field(min_length=1, max_length=120)
+    to_label: str = Field(min_length=1, max_length=120)
+    cardinality: Literal["one_to_one", "one_to_many", "many_to_many"] = "one_to_many"
+    required: bool = False
+    cascade_delete: bool = False
+    description: str | None = None
+
+
+class RelDefUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    from_label: str | None = None
+    to_label: str | None = None
+    cardinality: Literal["one_to_one", "one_to_many", "many_to_many"] | None = None
+    required: bool | None = None
+    cascade_delete: bool | None = None
+    description: str | None = None
+
+
+# ─────────────────────── Templates ───────────────────────
+class TemplateApplyBody(BaseModel):
+    conflict_policy: Literal["skip", "rename", "error"] = "skip"
+    dry_run: bool = False

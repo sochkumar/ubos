@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Boxes, Plus, Trash2, Layers, ListChecks } from "lucide-react";
+import { Boxes, Plus, Trash2, Layers, ListChecks, FolderTree, Tags, GitBranch } from "lucide-react";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
@@ -243,14 +243,34 @@ export default function EntityTypesPage() {
                     )}
                   </p>
                 </CardContent>
-                <CardFooter className="flex gap-2">
+                <CardFooter className="flex flex-wrap gap-2">
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="outline" size="sm"
                     onClick={() => nav(`/entity-types/${et.id}/fields`)}
                     data-testid={`fields-btn-${et.key}`}
                   >
                     <Layers className="w-3.5 h-3.5 mr-1.5" /> Fields
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => nav(`/entity-types/${et.id}/categories`)}
+                    data-testid={`categories-btn-${et.key}`}
+                  >
+                    <FolderTree className="w-3.5 h-3.5 mr-1.5" /> Categories
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => nav(`/entity-types/${et.id}/tags`)}
+                    data-testid={`tags-btn-${et.key}`}
+                  >
+                    <Tags className="w-3.5 h-3.5 mr-1.5" /> Tags
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => nav(`/entity-types/${et.id}/relationships`)}
+                    data-testid={`rels-btn-${et.key}`}
+                  >
+                    <GitBranch className="w-3.5 h-3.5 mr-1.5" /> Rels
                   </Button>
                   <Button
                     size="sm"

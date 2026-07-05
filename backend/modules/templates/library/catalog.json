@@ -1,0 +1,35 @@
+{
+  "key": "catalog",
+  "name": "Catalog",
+  "description": "Digital product catalog with categories, pricing, and stock status.",
+  "icon": "Package",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "products",
+      "name_singular": "Product",
+      "name_plural": "Products",
+      "icon": "Package",
+      "color": "#0d9488",
+      "description": "Physical products in the catalog",
+      "fields": [
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "price", "label": "Price", "type": "currency", "required": true, "config": {"min": 0}, "order": 2},
+        {"key": "in_stock", "label": "In stock", "type": "boolean", "order": 3},
+        {"key": "category_label", "label": "Category label", "type": "dropdown", "config": {"options": ["Chair", "Table", "Sofa", "Other"]}, "order": 4},
+        {"key": "launch_date", "label": "Launch date", "type": "date", "order": 5},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 6}
+      ],
+      "categories": [
+        {"name": "Furniture", "children": [
+          {"name": "Chairs"}, {"name": "Tables"}, {"name": "Sofas"}
+        ]}
+      ]
+    }
+  ],
+  "relationships": [],
+  "tags": [
+    {"name": "new-arrival", "color": "#0d9488"},
+    {"name": "clearance", "color": "#dc2626"}
+  ]
+}

@@ -22,6 +22,10 @@ import OrgSettingsPage from "@/pages/settings/OrgSettingsPage";
 import MembersPage from "@/pages/settings/MembersPage";
 import AuditLogPage from "@/pages/settings/AuditLogPage";
 import ComingSoonPage from "@/pages/ComingSoonPage";
+import CategoriesPage from "@/pages/CategoriesPage";
+import TagsPage from "@/pages/TagsPage";
+import RelationshipsPage from "@/pages/RelationshipsPage";
+import TemplatesPage from "@/pages/TemplatesPage";
 
 function App() {
   return (
@@ -74,25 +78,17 @@ function App() {
               <Route path="/entity-types" element={<EntityTypesPage />} />
               <Route path="/entity-types/:id/fields" element={<FieldsPage />} />
               <Route path="/entity-types/:id/records" element={<RecordsPage />} />
+              <Route path="/entity-types/:id/categories" element={<CategoriesPage />} />
+              <Route path="/entity-types/:id/tags" element={<TagsPage />} />
+              <Route path="/entity-types/:id/relationships" element={<RelationshipsPage />} />
+              <Route path="/templates" element={<TemplatesPage />} />
               <Route
                 path="/dashboard"
                 element={<ComingSoonPage title="Dashboard" phase="Phase 4" description="Charts, KPIs, and quick actions across your workspace." />}
               />
               <Route
-                path="/config/categories"
-                element={<ComingSoonPage title="Categories" phase="Phase 2" />}
-              />
-              <Route
-                path="/config/tags"
-                element={<ComingSoonPage title="Tags" phase="Phase 2" />}
-              />
-              <Route
                 path="/config/views"
-                element={<ComingSoonPage title="Views" phase="Phase 2" />}
-              />
-              <Route
-                path="/config/relationships"
-                element={<ComingSoonPage title="Relationships" phase="Phase 3" />}
+                element={<ComingSoonPage title="Views" phase="Phase 3" />}
               />
               <Route path="/settings/organization" element={<OrgSettingsPage />} />
               <Route path="/settings/members" element={<MembersPage />} />

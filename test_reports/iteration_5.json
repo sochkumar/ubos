@@ -1,0 +1,45 @@
+{
+  "summary": "UBOS Phase 2 tested end-to-end: templates gallery (5 built-ins), catalog dry-run/skip/rename/error, categories tree (materialized path with depth cap=10, move, rename cascades to descendants, delete-without-cascade reparents), tags idempotent create + editor RBAC, records with category_ids/tag_ids + descendant filter + counter maintenance, relationships CRUD with dup 409 and cascade on entity-type delete, viewer RBAC. Backend: 19/19 test_ubos_phase2.py passing + full Phase 1 regression (34/34 test_ubos_phase1 + test_jti_slugify_bonus still green). Frontend: /templates renders 5 cards, preview drawer opens with product entity + Furniture > Chairs/Tables/Sofas visible, Apply dialog with policy radios lands on /entity-types with success toast; /entity-types/{id}/categories shows the iterative tree renderer with Furniture + 3 children; /tags lists seeded new-arrival + clearance with org-wide scope pill; /relationships shows empty-state; /records has CategoryFilter dropdown + tag pill toggles above table, and New-record dialog embeds Categories picker + Tags combobox. Fixed one real backend bug: template_applier caught HTTPException in generic except and re-raised as 500, hiding the 409 for `conflict_policy=error`.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Records · New record dialog", "issues": ["Launch date field renders as browser-native mm/dd/yyyy HTML5 date input instead of a shadcn Calendar/Popover — Chrome/Firefox/Safari all render this differently and it clashes with the rest of the shadcn-styled form. Recommend swapping to shadcn Popover + Calendar for consistency (same feedback given historically for Phase 0). Non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase2.py",
+    "/app/test_reports/pytest/pytest_iter5.xml"
+  ],
+  "action_items": [
+    "Optional: swap native <input type=date> for shadcn Calendar+Popover in RecordsPage record dialog for visual consistency."
+  ],
+  "critical_code_review_comments": [
+    "FIXED IN THIS RUN: services/template_applier.py apply_template() wrapped the inner `except Exception` with `raise HTTPException(500, ...)`. FastAPI's HTTPException inherits from Exception, so a 409 from _ensure_entity_type (conflict_policy='error') was being re-thrown as `500 template apply failed: 409: entity type 'products' already exists`. Split into `except HTTPException: raise` (still runs rollback) then `except Exception:`. This is a common Python trap — worth eyeballing other route handlers for the same pattern.",
+    "record_signals.validate_ids_belong_to_org_and_et silently drops unknown category_ids / tag_ids on POST /records. Intentional per the handoff, but there is no server-side warning header or `dropped_ids` field returned — a client that sent a stale id will never know. Consider adding X-Warning header or a `warnings.dropped_category_ids` in the response.",
+    "categories tree endpoint always returns full path[] + path_names[] + record_count for every node — no pagination and cap of 10_000 to_list. Fine for phase 2 (max ~1000 categories) but worth remembering when a tenant scales past ~5k nodes.",
+    "template_applier._seed_categories recurses into nested children — no depth guard here (MAX_DEPTH=10 is only enforced in categories service on manual create). If a future template ships an 11-deep tree, the 11th create_category call raises HTTPException(400) which now correctly rolls back (thanks to my fix). Consider a static lint on library/*.json to reject depth>10 at load time.",
+    "Records list endpoint: when category_id is passed but resolves to no descendants (e.g. deleted node), it falls back to `filt['category_ids'] = category_id` which will match records with that literal string. Small edge case — probably harmless.",
+    "backend/pytest.ini pins `-n 2 --dist loadscope` — test_ubos_phase2.py has cross-class state (products entity_type created by TestTemplates, consumed by TestCategoryOps/Records/etc), so I had to run with `-n 0` to get deterministic passes. All 19 tests pass serially; when run under xdist gw0/gw1 races, ~6 fail with `StopIteration` from stale tree state. NOT a product bug — but recommend adding `@pytest.mark.serial` or module-scope isolation for phase2 in CI. I did NOT touch pytest.ini per the AGENT: warning comment inside it.",
+    "test_ubos_phase2 relies on the Acme Furniture workspace starting empty. The handoff said it was wiped, but it wasn't — I ran a one-off cleanup (backend/tests/_reset_acme.py) to restore that invariant before the run. Recommend the seeder ship a `reset_acme` idempotent step or the test module include a session-scoped 'wipe phase-2 collections for acme' fixture."
+  ],
+  "updated_files": [
+    "/app/backend/services/template_applier.py (split HTTPException from generic Exception in rollback try/except so 409 is preserved)",
+    "/app/backend/tests/test_ubos_phase2.py (new — 19 tests)",
+    "/app/backend/tests/_reset_acme.py (new — one-off DB reset helper)"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 phase2 + 34/34 phase1 regression = 53/53)",
+    "frontend": "100% (templates gallery, preview drawer, apply dialog, categories tree, tags list, relationships empty-state, record dialog with cat picker + tag combobox — all verified)"
+  },
+  "test_credentials": "owner@ubos.test / OwnerPass!123, editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123",
+  "seed_data_creation": "Applied catalog template via UI + backend during tests; renamed products_2 was cleaned up. Acme Furniture Phase 2 collections may contain residual data from the test run — safe to wipe with backend/tests/_reset_acme.py before another run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 fully green. If you re-run test_ubos_phase2.py, use `pytest -n 0` (serial) because tests share workspace state; xdist loadscope will race across TestTemplates/TestCategoryOps. Before running, execute backend/tests/_reset_acme.py to wipe the Acme workspace (delete_many on entity_types, field_definitions, records, categories, tags, relationship_definitions for org 9920200c-bc27-4d96-8031-af215afd0e08). The one backend bug found (template_applier swallowing HTTPException into 500) has been fixed and covered by TestTemplates::test_apply_error_conflicts. HTML5-drag-drop was NOT playwright-driven — categories page confirmed rendering the iterative flat tree renderer with correct nesting; POST /categories/{id}/move + descendant recompute is covered exhaustively by backend tests.",
+  "rca of the issue": "template_applier bug: `try: ... await _ensure_entity_type(conflict_policy='error') ... except Exception as e: raise HTTPException(500, f'template apply failed: {e}')` — since HTTPException(409) inherits from Exception, the 409 from `_ensure_entity_type` was masked as 500. Reproduction: POST /api/templates/catalog/apply with `{conflict_policy:'error'}` after catalog was already applied → observed 500 body `{'detail':'template apply failed: 409: entity type products already exists'}`. Fix: added `except HTTPException: <rollback>; raise` BEFORE the generic `except Exception` so FastAPI HTTPException propagates its intended status_code. Verified fix by re-running test_apply_error_conflicts which now asserts r.status_code == 409."
+}

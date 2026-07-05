@@ -123,7 +123,43 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - Tenant scoping via `X-Org-Id` header + `tenant_filter()`
 - POC UI with sidebar, 3 routes, dynamic form/table, demo seed CTA
 
-## What's Implemented (Phase 1 — Feb 2026) ✅ COMPLETE
+## What's Implemented (Phase 2 — Feb 2026) ✅ COMPLETE
+**Backend:**
+- **Categories** — hierarchical, materialized path (`path[]` + `path_names[]` + `depth`, max 10). Endpoints for CRUD + `/move` + `/reorder`. Circular guard + descendant recompute on move/rename. Soft-delete supports `?cascade=true` (delete descendants + strip from records) or default orphan (reparent children).
+- **Tags** — org-wide or entity-scoped. `GET /tags?entity_type_id=&q=`, POST/PATCH/DELETE. Inline creation is `records.create`-gated; rename/delete is `entity_types.manage`. Auto color hash on create.
+- **Relationship definitions** — schema-only (`from → to`, cardinality, required, cascade_delete). Instance CRUD deferred to Phase 3.
+- **Records × Categories/Tags** — `records.category_ids[]` + `records.tag_ids[]`. Validated at save. Denormalized `category.record_count` + `tag.usage_count` maintained via `apply_record_diff` on create/update/delete. `GET /entity-types/{id}/records?category_id=&tag_ids=` — `category_id` matches descendants via materialized-path lookup.
+- **Templates** — `TemplateApplier` service with rollback + skip/rename/error policies + dry_run. `GET /templates`, `GET /templates/{key}`, `POST /templates/{key}/apply`. 4 built-in libraries: catalog, inventory_lite, assets, crm_lite + `demo_basic`. `/api/dev/seed-demo` is now a thin wrapper around `apply_template("demo_basic")`.
+- Audit events: category.*, tag.*, relationship.*, template.applied.
+
+**Frontend:**
+- `/templates` gallery with preview drawer + apply dialog (conflict-policy radio).
+- `/entity-types/:id/categories` tree editor: HTML5 native drag-to-reparent, iterative tree renderer, right-side detail panel with rename/color/description + Move-to picker, delete dialog with cascade checkbox.
+- `/entity-types/:id/tags` — list, inline create with color + scope toggle, delete with usage warning.
+- `/entity-types/:id/relationships` — table + create dialog (target picker, key auto-slugify, cardinality radio, required/cascade switches).
+- Onboarding wizard Step 2 shows the 4 real templates as one-click starters.
+- Record dialog gains Categories multi-picker (tree checkboxes) + Tags combobox (autocomplete + inline "Create '..."'). Records table has Category column + inline tag chips + filter bar (category filter + toggleable tag chips + Clear).
+- Entity type cards now expose 5 per-entity buttons: Fields · Categories · Tags · Rels · Records. Sidebar Config has Templates as a real link; Views chipped Phase 3.
+
+
+
+## What's Implemented (Phase 2 — Feb 2026) ✅ COMPLETE
+**Backend:**
+- **Categories** (`categories` collection) — hierarchical with materialized path (`path[]` + `path_names[]` + `depth`), max depth 10. Endpoints: `GET|POST /entity-types/{id}/categories`, `GET|PATCH|DELETE /categories/{id}`, `POST /categories/{id}/move`, `POST /categories/{id}/reorder`. Circular-parenting guard + descendant path/name recompute on move+rename. Soft-delete with `?cascade=true` (removes descendants) or default orphan (children reparent to node's parent).
+- **Tags** (`tags` collection) — org-wide (`entity_type_id: null`) or entity-scoped. Endpoints: `GET /tags?entity_type_id=&q=`, `POST /tags`, `PATCH|DELETE /tags/{id}`. Inline creation from records is `records.create`-gated (editor+); rename/delete is `entity_types.manage`. Auto color hash on create if not provided.
+- **Relationship definitions** (`relationship_definitions` collection) — schema-only. `GET|POST /entity-types/{id}/relationships`, `GET|PATCH|DELETE /relationships/definitions/{id}`. Cardinality: one_to_one/one_to_many/many_to_many. **No instance CRUD** (Phase 3).
+- **Records × Categories/Tags** — `records` doc gains `category_ids[]` + `tag_ids[]`. Save/update validates ids belong to same org+entity_type. Denormalized `category.record_count` + `tag.usage_count` maintained via `apply_record_diff()` service on create/update/delete. `GET /entity-types/{id}/records?category_id=&tag_ids=` — `category_id` filter matches descendants via materialized-path lookup, `tag_ids` uses `$in`.
+- **Templates** — `GET /templates`, `GET /templates/{key}` (preview), `POST /templates/{key}/apply` with `{conflict_policy, dry_run}`. `TemplateApplier` service: rollback on failure, skip/rename/error policies, dry_run returns the plan without writes. 4 built-in libraries: **catalog**, **inventory_lite**, **assets**, **crm_lite**, plus `demo_basic` (old seed). `POST /api/dev/seed-demo` is now a thin wrapper around `apply_template("demo_basic")`.
+- **Audit** — added events: `category.created/updated/moved/deleted`, `tag.created/updated/deleted`, `relationship.created/updated/deleted`, `template.applied`.
+
+**Frontend:**
+- **Templates gallery** at `/templates` with 4 template cards, Preview drawer (entity types + fields breakdown), Apply dialog with conflict-policy radio (skip/rename/error).
+- **Categories tree editor** at `/entity-types/{id}/categories`: left = tree with HTML5 native drag-to-reparent + expand/collapse + inline "+ subcategory" and delete; right = detail panel with rename/color/description + "Move to…" parent picker. Delete dialog offers cascade checkbox.
+- **Tags page** at `/entity-types/{id}/tags`: table with usage counts, scope pill (entity/org-wide), inline create dialog with color + scope toggle, delete with usage warning.
+- **Relationships page** at `/entity-types/{id}/relationships`: table + "New relationship" dialog with target picker, key auto-slugify from `from_label`, cardinality radio, required/cascade switches.
+- **Onboarding wizard** — Step 2 now shows the 4 real templates as one-click starters alongside "Start blank" and "Load demo workspace".
+- **Records list + form updated** — record dialog has Categories multi-picker (tree checkboxes) and Tags combobox (autocomplete + inline "Create '...'" for editors). Records table has Category column + inline colored tag chips + filter bar (single-select tree category filter + toggleable tag chips + "Clear" button).
+- **Entity Type cards** — now show 5 buttons: Fields · Categories · Tags · Rels · Records. Sidebar Config group has "Templates" as a real link + "Views" chipped Phase 3.
 **Backend (auth + orgs + RBAC):**
 - Email/password auth with bcrypt hashing + brute-force lockout (5 attempts / 15 min per ip+email)
 - JWT access (15 min, python-jose HS256) + refresh (30 days, hashed in `refresh_tokens`, ROTATED on every refresh)
