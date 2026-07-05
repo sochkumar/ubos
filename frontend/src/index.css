@@ -1,0 +1,116 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family:
+        "IBM Plex Sans",
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+}
+
+.font-mono,
+code,
+kbd,
+pre {
+    font-family:
+        "IBM Plex Mono",
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        monospace;
+}
+
+@layer base {
+    :root {
+        /* stone-50 based light workspace */
+        --background: 60 9% 98%;
+        --foreground: 20 14% 12%;
+        --card: 0 0% 100%;
+        --card-foreground: 20 14% 12%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 20 14% 12%;
+        /* teal-700 primary */
+        --primary: 174 77% 26%;
+        --primary-foreground: 60 9% 98%;
+        --secondary: 30 6% 94%;
+        --secondary-foreground: 20 14% 12%;
+        --muted: 30 6% 96%;
+        --muted-foreground: 25 5% 45%;
+        --accent: 30 6% 94%;
+        --accent-foreground: 20 14% 12%;
+        --destructive: 0 72% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 30 5% 88%;
+        --input: 30 5% 88%;
+        --ring: 174 77% 26%;
+        --chart-1: 174 77% 26%;
+        --chart-2: 32 95% 44%;
+        --chart-3: 217 91% 60%;
+        --chart-4: 262 60% 55%;
+        --chart-5: 340 75% 55%;
+        --radius: 0.55rem;
+    }
+    .dark {
+        --background: 20 14% 8%;
+        --foreground: 60 9% 96%;
+        --card: 20 14% 10%;
+        --card-foreground: 60 9% 96%;
+        --popover: 20 14% 10%;
+        --popover-foreground: 60 9% 96%;
+        --primary: 174 60% 55%;
+        --primary-foreground: 20 14% 8%;
+        --secondary: 20 8% 16%;
+        --secondary-foreground: 60 9% 96%;
+        --muted: 20 8% 16%;
+        --muted-foreground: 25 5% 65%;
+        --accent: 20 8% 16%;
+        --accent-foreground: 60 9% 96%;
+        --destructive: 0 62% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 20 8% 18%;
+        --input: 20 8% 18%;
+        --ring: 174 60% 55%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family:
+            "IBM Plex Sans",
+            ui-sans-serif,
+            system-ui,
+            sans-serif;
+        letter-spacing: -0.01em;
+    }
+}
+
+/* Custom selection */
+::selection {
+    background: hsl(174 77% 26% / 0.18);
+    color: hsl(20 14% 12%);
+}

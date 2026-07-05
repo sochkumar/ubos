@@ -1,0 +1,4 @@
+/* App.css intentionally minimal — layout lives in Tailwind classes. */
+.App {
+    min-height: 100vh;
+}
