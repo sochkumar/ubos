@@ -664,15 +664,18 @@ async def qr_for_shared_record(
     size: int = Query(default=256, ge=64, le=1024),
     margin: int = Query(default=4, ge=0, le=16),
     level: Literal["L", "M", "Q", "H"] = Query(default="M"),
+    ctx: AuthContext | None = Depends(try_auth),
 ):
     _check_rate(f"pub_qr:{_client_ip(request)}", per_minute=_CODE_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
     v = share["visibility"]
     if v == "password":
-        _check_password_gate(share, request)
+        if not (ctx and ctx.org_id == share["org_id"]):
+            _check_password_gate(share, request)
     elif v != "public":
-        raise HTTPException(401, "public QR only available for public shares")
+        if not (ctx and ctx.org_id == share["org_id"]):
+            raise HTTPException(401, "public QR only available for public shares")
     base = _public_base()
     url = f"{base}/s/{token}" if base else f"/s/{token}"
     png = make_qr_png(url, size=size, border=margin, level=level)
@@ -685,15 +688,18 @@ async def barcode_for_shared_record(
     token: str, request: Request,
     height: int = Query(default=80, ge=30, le=300),
     text: bool = Query(default=True),
+    ctx: AuthContext | None = Depends(try_auth),
 ):
     _check_rate(f"pub_bc:{_client_ip(request)}", per_minute=_CODE_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
     v = share["visibility"]
     if v == "password":
-        _check_password_gate(share, request)
+        if not (ctx and ctx.org_id == share["org_id"]):
+            _check_password_gate(share, request)
     elif v != "public":
-        raise HTTPException(401, "public barcode only available for public shares")
+        if not (ctx and ctx.org_id == share["org_id"]):
+            raise HTTPException(401, "public barcode only available for public shares")
     rec = await db.records.find_one(
         tenant_filter(share["org_id"], {"_id": share["record_id"]}),
         {"record_number": 1},
