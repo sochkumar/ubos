@@ -166,7 +166,25 @@ async def ensure_indexes() -> None:
     await db.share_links.create_index("token", unique=True, name="uniq_share_token")
     await db.share_links.create_index([("org_id", 1), ("record_id", 1), ("created_at", -1)])
     await db.share_links.create_index([("org_id", 1), ("revoked_at", 1)])
+    # Phase 5-B: view-share discriminator
+    await db.share_links.create_index([("org_id", 1), ("view_id", 1), ("created_at", -1)])
+    await db.share_links.create_index([("org_id", 1), ("kind", 1)])
 
     # Import jobs
     await db.import_jobs.create_index([("org_id", 1), ("status", 1), ("created_at", -1)])
     await db.import_jobs.create_index([("org_id", 1), ("user_id", 1), ("created_at", -1)])
+
+    # ── Phase 5-B: invitations ──
+    await db.invitations.create_index("token", unique=True, name="uniq_invitation_token")
+    await db.invitations.create_index([("org_id", 1), ("created_at", -1)])
+    await db.invitations.create_index([("org_id", 1), ("status", 1)])
+    # Prevent duplicate pending invites per (org, email)
+    await db.invitations.create_index(
+        [("org_id", 1), ("email", 1)],
+        unique=True,
+        partialFilterExpression={"status": "pending"},
+        name="uniq_pending_invite_per_org_email",
+    )
+
+    # ── Phase 5-B: views collaborator index ──
+    await db.views.create_index([("org_id", 1), ("shared_with.user_id", 1)])

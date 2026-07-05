@@ -13,7 +13,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(params.get("email") || "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);

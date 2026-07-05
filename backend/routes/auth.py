@@ -13,6 +13,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from audit import audit
 from auth_deps import get_current_user
+from core.email import get_email_provider
+from core.email.templates import password_reset_email
 from db import get_db
 from models import (
     ChangePassword,
@@ -248,6 +250,7 @@ async def forgot_password(
     email = payload.email.lower().strip()
     user = await db.users.find_one({"email": email, "is_active": True})
     reset_url = None
+    provider_name = "dev"
     if user:
         raw = secrets.token_urlsafe(32)
         exp = _now_dt() + timedelta(hours=1)
@@ -259,15 +262,30 @@ async def forgot_password(
             "used_at": None,
             "created_at": _iso(_now_dt()),
         })
-        origin = os.environ.get("APP_BASE_URL", "").rstrip("/")
+        origin = (os.environ.get("PUBLIC_APP_URL") or os.environ.get("APP_BASE_URL", "")).rstrip("/")
         reset_url = f"{origin}/reset-password?token={raw}" if origin else f"/reset-password?token={raw}"
         log.warning("[dev] password reset for %s → %s", email, reset_url)
+        # Send via email factory
+        try:
+            provider = get_email_provider()
+            subject, html, text = password_reset_email(reset_url=reset_url, expires_hours=1)
+            result = await provider.send(
+                to=email, subject=subject, html=html, text=text,
+            )
+            provider_name = result.provider
+            action = "email.sent" if result.ok else "email.send_failed"
+            audit(bg, action=action, actor_id=user["_id"], org_id=None,
+                  target_type="user", target_id=user["_id"],
+                  diff={"provider": result.provider, "purpose": "password_reset"}, request=request)
+        except Exception as e:
+            log.warning("password reset email send failed: %s", e)
 
     # Always return the same message so we don't leak account existence.
-    # But in dev, include the raw reset_url for convenience.
+    # Include dev_reset_url only when provider is dev so it's not leaked in prod.
     return {
         "message": "If an account exists for that email, a reset link has been sent.",
-        "dev_reset_url": reset_url,  # frontend hides this in prod later
+        "dev_reset_url": reset_url if provider_name == "dev" else None,
+        "email_provider": provider_name,
     }
 
 

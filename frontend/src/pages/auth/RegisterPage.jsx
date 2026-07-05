@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,12 @@ import { extractErrorMessage } from "@/lib/errors";
 export default function RegisterPage() {
   const { register } = useAuth();
   const nav = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [params] = useSearchParams();
+  const [form, setForm] = useState({
+    name: "",
+    email: params.get("email") || "",
+    password: "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -31,7 +36,8 @@ export default function RegisterPage() {
     setError(null);
     try {
       await register(form);
-      nav("/onboarding", { replace: true });
+      const next = params.get("next");
+      nav(next ? decodeURIComponent(next) : "/onboarding", { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {

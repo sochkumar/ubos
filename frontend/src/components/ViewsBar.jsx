@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Bookmark, Star, Trash2, Save, Copy, Share2, Plus, Check,
+  Bookmark, Star, Trash2, Save, Copy, Share2, Plus, Check, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,14 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
+import { ViewShareDialog, ViewCollaboratorsDialog } from "@/components/ViewShareDialog";
 
 export function ViewsBar({
   entityTypeId,
   activeViewId, onSelectView,
   currentState,        // { layout, q, category_id, tag_ids, filters, sort, visible_fields }
   canShare,            // owner/admin?
+  fields,              // for view share dialog column picker
 }) {
   const [views, setViews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,8 @@ export function ViewsBar({
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveShared, setSaveShared] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [collabOpen, setCollabOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -159,9 +163,17 @@ export function ViewsBar({
       </Popover>
 
       {active ? (
-        <Button variant="ghost" size="sm" onClick={updateActive} className="h-8" data-testid="view-update-btn">
-          <Save className="w-3.5 h-3.5 mr-1" /> Update
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" onClick={updateActive} className="h-8" data-testid="view-update-btn">
+            <Save className="w-3.5 h-3.5 mr-1" /> Update
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShareOpen(true)} className="h-8" data-testid="view-share-btn">
+            <Share2 className="w-3.5 h-3.5 mr-1" /> Share view
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setCollabOpen(true)} className="h-8" data-testid="view-collab-btn">
+            <Users className="w-3.5 h-3.5 mr-1" /> People
+          </Button>
+        </>
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setSaveOpen(true)} className="h-8" data-testid="view-save-btn">
           <Plus className="w-3.5 h-3.5 mr-1" /> Save as view
@@ -192,6 +204,20 @@ export function ViewsBar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ViewShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        view={active}
+        fields={fields || []}
+        onChanged={load}
+      />
+      <ViewCollaboratorsDialog
+        open={collabOpen}
+        onOpenChange={setCollabOpen}
+        view={active}
+        onChanged={load}
+      />
     </div>
   );
 }

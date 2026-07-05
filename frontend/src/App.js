@@ -29,8 +29,11 @@ import RelationshipsPage from "@/pages/RelationshipsPage";
 import TemplatesPage from "@/pages/TemplatesPage";
 import MediaPage from "@/pages/MediaPage";
 import PublicRecordPage from "@/pages/PublicRecordPage";
+import PublicViewPage from "@/pages/PublicViewPage";
+import PublicViewRecordPage from "@/pages/PublicViewRecordPage";
 import DashboardPage from "@/pages/DashboardPage";
 import SearchPage from "@/pages/SearchPage";
+import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 
 function App() {
   return (
@@ -63,6 +66,9 @@ function App() {
             {/* Standalone (no chrome) */}
             <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
             <Route path="/s/:token" element={<PublicRecordPage />} />
+            <Route path="/v/:token" element={<PublicViewPage />} />
+            <Route path="/v/:token/r/:record_id" element={<PublicViewRecordPage />} />
+            <Route path="/invitations/:token/accept" element={<AcceptInvitationPage />} />
             <Route
               path="/onboarding"
               element={

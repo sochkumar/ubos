@@ -20,11 +20,30 @@ def _now() -> str:
 
 
 def _scope_query(ctx: AuthContext, et_id: str) -> dict:
-    """Views visible to this user in this et: their own + org-shared."""
+    """Views visible to this user in this et: their own + org-shared +
+    views where they've been added as a collaborator."""
     return {
         "org_id": ctx.org_id, "entity_type_id": et_id, "deleted_at": None,
-        "$or": [{"user_id": ctx.user["_id"]}, {"is_shared": True}],
+        "$or": [
+            {"user_id": ctx.user["_id"]},
+            {"is_shared": True},
+            {"shared_with.user_id": ctx.user["_id"]},
+        ],
     }
+
+
+def _view_permission(ctx: AuthContext, view: dict) -> str:
+    """Return the current user's permission on `view`: 'owner', 'edit', 'view', or None."""
+    if view.get("user_id") == ctx.user["_id"]:
+        return "owner"
+    if ctx.role in ("owner", "admin"):
+        return "owner"
+    for c in (view.get("shared_with") or []):
+        if c.get("user_id") == ctx.user["_id"]:
+            return c.get("permission", "view")
+    if view.get("is_shared"):
+        return "view"
+    return None
 
 
 @router.get("/entity-types/{et_id}/views")
@@ -50,7 +69,7 @@ async def create_view(
     vid = str(uuid.uuid4())
     doc = {
         "_id": vid, "org_id": ctx.org_id, "entity_type_id": et_id,
-        "user_id": None if payload.is_shared else ctx.user["_id"],
+        "user_id": ctx.user["_id"],  # owner always set even for shared views
         "name": payload.name, "description": payload.description,
         "layout": payload.layout,
         "filters": [f.model_dump() for f in payload.filters],
@@ -62,6 +81,7 @@ async def create_view(
         "column_widths": payload.column_widths,
         "is_default": False,
         "is_shared": payload.is_shared,
+        "shared_with": [],  # collaborators
         "created_at": _now(), "updated_at": _now(), "deleted_at": None,
     }
     await db.views.insert_one(doc)
@@ -75,11 +95,17 @@ async def create_view(
 async def get_view(vid: str, ctx: AuthContext = Depends(require_permission("records.read"))):
     doc = await get_db().views.find_one({
         "_id": vid, "org_id": ctx.org_id, "deleted_at": None,
-        "$or": [{"user_id": ctx.user["_id"]}, {"is_shared": True}],
+        "$or": [
+            {"user_id": ctx.user["_id"]},
+            {"is_shared": True},
+            {"shared_with.user_id": ctx.user["_id"]},
+        ],
     })
     if not doc:
         raise HTTPException(404, "view not found")
-    return strip_id(doc)
+    out = strip_id(doc)
+    out["my_permission"] = _view_permission(ctx, doc) or "view"
+    return out
 
 
 @router.patch("/views/{vid}")
@@ -94,9 +120,14 @@ async def update_view(
         raise HTTPException(404, "view not found")
     is_owner_of_view = doc.get("user_id") == ctx.user["_id"]
     is_admin = ctx.role in ("owner", "admin")
-    if doc.get("is_shared") and not is_admin:
-        raise HTTPException(403, "only owners/admins can edit shared views")
-    if not doc.get("is_shared") and not is_owner_of_view:
+    # Collaborators with edit permission can also edit
+    collab_edit = any(
+        c.get("user_id") == ctx.user["_id"] and c.get("permission") == "edit"
+        for c in (doc.get("shared_with") or [])
+    )
+    if doc.get("is_shared") and not (is_admin or is_owner_of_view or collab_edit):
+        raise HTTPException(403, "only owners/admins/edit-collaborators can edit shared views")
+    if not doc.get("is_shared") and not (is_owner_of_view or collab_edit):
         raise HTTPException(403, "cannot edit another user's private view")
 
     updates = {}
@@ -109,10 +140,7 @@ async def update_view(
     # is_shared flip needs admin
     if "is_shared" in updates and updates["is_shared"] != doc.get("is_shared") and not is_admin:
         raise HTTPException(403, "only owners/admins can toggle sharing")
-    if updates.get("is_shared") and doc.get("user_id"):
-        updates["user_id"] = None
-    if updates.get("is_shared") is False and not doc.get("user_id"):
-        updates["user_id"] = ctx.user["_id"]
+    # user_id is now always the owner — do not null it out on shared toggle.
 
     updates["updated_at"] = _now()
     fresh = await db.views.find_one_and_update(
@@ -170,7 +198,11 @@ async def duplicate_view(vid: str, ctx: AuthContext = Depends(require_permission
     db = get_db()
     doc = await db.views.find_one({
         "_id": vid, "org_id": ctx.org_id, "deleted_at": None,
-        "$or": [{"user_id": ctx.user["_id"]}, {"is_shared": True}],
+        "$or": [
+            {"user_id": ctx.user["_id"]},
+            {"is_shared": True},
+            {"shared_with.user_id": ctx.user["_id"]},
+        ],
     })
     if not doc:
         raise HTTPException(404, "view not found")
@@ -179,6 +211,7 @@ async def duplicate_view(vid: str, ctx: AuthContext = Depends(require_permission
     new["name"] = f"{doc['name']} (copy)"
     new["is_default"] = False
     new["is_shared"] = False
+    new["shared_with"] = []
     new["user_id"] = ctx.user["_id"]
     new["created_at"] = _now()
     new["updated_at"] = _now()

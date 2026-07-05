@@ -338,7 +338,11 @@ async def search_records(
         view = await db.views.find_one({
             "_id": body.view_id, "org_id": ctx.org_id, "entity_type_id": et_id,
             "deleted_at": None,
-            "$or": [{"user_id": ctx.user["_id"]}, {"is_shared": True}],
+            "$or": [
+                {"user_id": ctx.user["_id"]},
+                {"is_shared": True},
+                {"shared_with.user_id": ctx.user["_id"]},
+            ],
         })
         if not view:
             raise HTTPException(404, "view not found")

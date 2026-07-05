@@ -13,6 +13,10 @@ export function extractErrorMessage(err) {
     const first = Object.values(detail.errors)[0];
     if (first) return String(first);
   }
+  // {detail: {code:"...", detail:"..."}} → prefer inner detail
+  if (detail && typeof detail === "object" && typeof detail.detail === "string") {
+    return detail.detail;
+  }
   if (Array.isArray(detail)) {
     return detail
       .map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e)))

@@ -356,3 +356,48 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 
 **Env knobs**: `EXPORT_MAX_ROWS`, `IMPORT_MAX_FILE_MB`, `IMPORT_MAX_ROWS`, `IMPORT_TMP_ROOT`.
 
+
+## Phase 5 Sub-pass B — User Invitations + View Sharing (SHIPPED Feb 2026)
+
+**Invitations**
+- `invitations` collection `{token, org_id, email, role_name, role_id, invited_by, status:pending|accepted|revoked|expired, expires_at, email_sent, email_provider, email_sent_at, ...}`. Indexes: unique `token`, partial-unique `(org_id, email)` for `status="pending"`.
+- Endpoints (admin+ except last four): `GET/POST /orgs/:id/invitations`, `POST /orgs/:id/invitations/:iid/resend`, `POST /orgs/:id/invitations/:iid/revoke`, `DELETE /orgs/:id/invitations/:iid`. Public: `GET /invitations/:token`, authed: `POST /invitations/:token/accept` (403 `email_mismatch` when logged-in email doesn't match invitee).
+- Batch create accepts up to 50 emails at once; each invite is rate-limited via env `INVITE_RATE_LIMIT_PER_HOUR=20` (429 on overflow).
+- Auto-expire on read: any pending invitation whose `expires_at` has passed transitions to `status=expired`.
+- **Pluggable email provider** (`/app/backend/core/email/`) with `EmailProvider` ABC + concrete `DevEmailProvider` (logs to stdout + `/app/backend/dev_emails.log`), `ResendProvider`, `SendGridProvider`, `SESProvider`. Factory picks in order: `RESEND_API_KEY` → `SENDGRID_API_KEY` → `AWS_SES_REGION` → dev fallback.
+- Password reset flow (`/api/auth/forgot-password`) refactored to use the same email factory (single email codepath). `dev_reset_url` is only returned when the resolved provider is `dev`.
+- Audit events: `invitation.created/resent/revoked/accepted/deleted`, `email.sent`, `email.send_failed`.
+
+**View sharing (public tokenised)**
+- `share_links` gained `kind: "record"|"view"` discriminator + `view_id` + `visible_columns`. Existing record-share behaviour unchanged.
+- Endpoints: `GET /views/:id/shares`, `POST /views/:id/shares`, `PATCH /view-shares/:sid`, `POST /shares/:sid/revoke` (existing), `DELETE /shares/:sid` (existing).
+- Public reads: `GET /api/public/views/:token` (paginated, respects view filters/sort/layout, strips sensitive fields), `GET /api/public/views/:token/records/:record_id` (single record subview), `POST /api/public/views/:token/unlock` (password gate mirroring record-share unlock cookie).
+- Visibility semantics identical to record shares (`private`/`org_only`/`public`/`password`) + same `try_auth` bypass for signed-in org members.
+- Rate limited via `PUBLIC_READ_RATE_LIMIT`. Underlying view or entity type deleted → 404 (not 410). Org gone → 410 with `code:"org_gone"`.
+- Frontend: `/v/:token` public view page (Table / Gallery / Grid / Card / List layouts mirroring the app's saved views), `/v/:token/r/:record_id` subview. Password gate identical to record shares.
+
+**View sharing (internal RBAC)**
+- `views.shared_with: [{user_id, permission:"view"|"edit", added_at, added_by}]`.
+- Endpoints: `GET/POST /views/:vid/collaborators`, `PATCH /views/:vid/collaborators/:user_id`, `DELETE /views/:vid/collaborators/:user_id`.
+- Read scope query (list + duplicate + `records/search view_id`) now includes `shared_with.user_id` in the `$or` alongside `user_id` and `is_shared:true`.
+- Edit permission: owner (`view.user_id`) or org admin+ or a collaborator with `permission="edit"`.
+- Audit events: `view.shared_public`, `view.shared_internal`, `view.access_revoked`.
+
+**After-import nudge**
+- `GET /api/nudges/invite-after-import` returns `{show, rows, reason}` — shows when the user has a completed import ≥50 rows in the last 30 days AND hasn't dismissed the `invite_after_import` prompt.
+- `POST /api/users/me/dismissed-prompts {prompt_key}` idempotently adds to `users.dismissed_prompts[]`.
+- Frontend: dismissable card on `RecordsPage` with "Invite by email" CTA that opens the invite modal.
+
+**Frontend UI**
+- `/settings/members` unchipped Invite users button + `InviteModal` (chip input, role dropdown, expiry dropdown) + Pending Invitations table (Copy link / Resend / Revoke) + History table (Delete for revoked/expired).
+- `/invitations/:token/accept` public page: shows org / role / inviter + "Sign in and accept" / "Create account" CTAs (email prefilled). Handles expired/revoked/mismatch/accepted states.
+- `LoginPage` and `RegisterPage` honour `?next=` + `?email=` query params to round-trip the accept flow.
+- `ViewsBar` gains "Share view" + "People" buttons next to Update when a saved view is active.
+- `ViewShareDialog` — public link CRUD with visibility/password/expiry/column-picker.
+- `ViewCollaboratorsDialog` — org-member autocomplete + per-row permission dropdown + remove.
+- `AfterImportNudge` — small dismissable card above RecordsPage records list.
+
+**Env additions** (`backend/.env`): `EMAIL_FROM`, `EMAIL_FROM_NAME`, `RESEND_API_KEY`, `SENDGRID_API_KEY`, `AWS_SES_REGION`, `INVITE_RATE_LIMIT_PER_HOUR`.
+**Deps added**: `resend`, `sendgrid` (boto3 already present).
+
+

@@ -1,0 +1,44 @@
+{
+  "summary": "Phase 5-B (Invitations + View Sharing + Collaborators + Nudges) tested end-to-end. Backend: 27/27 pytest cases pass. Frontend: invite modal + members page + accept-invite (unauth CTAs + email-mismatch banner) + /v/:token public view + share dialog flows verified visually. No critical issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/invitations/:token/accept",
+        "issues": [
+          "React hydration warning: <Badge> (renders as <div>) is nested inside a <p> element in AcceptInvitationPage (line ~131). Cosmetic but produces console errors. Fix: swap outer <p> for a <div> or wrap Badge in <span>."
+        ]
+      },
+      {
+        "screen": "AcceptInvitationPage — email-mismatch state",
+        "issues": [
+          "The amber mismatch banner renders correctly with the sign-in-with-invitee-email link, but the outer container is missing the [data-testid=\"invite-state-banner\"] hook in the mismatch branch (only present in generic error/warning states). Adding it would make e2e coverage more robust — not user-facing."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase5b.py",
+    "/app/test_reports/pytest/phase5b.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Fix <p><Badge/></p> nested-div hydration warning in /app/frontend/src/pages/AcceptInvitationPage.jsx around line 131-134 (swap <p> → <div> or wrap Badge in <span>).",
+    "OPTIONAL: Add data-testid=\"invite-mismatch-banner\" (or reuse invite-state-banner) on the amber mismatch banner in AcceptInvitationPage."
+  ],
+  "critical_code_review_comments": [
+    "invitations.py:_check_rate_limit is called INSIDE a for-loop over body.emails BEFORE any invitations are created. If a batch of N pushes the rolling hour count over the limit mid-batch, some emails get counted while later ones 429 — but the whole HTTP call errors out and no per-email results are returned. Consider computing the delta up front and returning a partial result, or documenting all-or-nothing semantics.",
+    "invitations.py accept flow: after invalid revoked/expired/mismatch checks, if the invitation had status='accepted' and user has no matching membership, we raise 409 already_accepted instead of allowing re-accept — reasonable but ensure UI surfaces this.",
+    "view_shares.py list_collaborators uses a for-c-in-collabs then nested `for u in [users.get(...)]` — clever but a bit magic; a simple loop would be clearer.",
+    "view_shares.py _apply_view_share_gate: `private` and `org_only` share visibilities require ctx.org_id == share['org_id']; on public /v/:token that's fine since only public/password should be exposed publicly, but consider explicit denial for private shares when not authed rather than 401 (matches record-share behaviour)."
+  ],
+  "updated_files": ["/app/backend/tests/test_ubos_phase5b.py"],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% of critical flows"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (Acme owner), editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123",
+  "seed_data_creation": "Test created ~5 pending invitations in Acme (batch+*@ubos.test, newuser+testagent-*@ubos.test, mismatch-target@ubos.test) + one temporary entity type (TestET_*) with a sensitive SSN field + one record + view + a public share and a password share. Housekeeping snippet in /app/backend/tests/_reset_acme.py should clean these on next run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 5-B fully green. Backend regression: `pytest backend/tests/test_ubos_phase5b.py` = 27/27 in ~5s. Key coverage: invitation batch create + dev-email delivery, public token meta (200 + 404 unknown), email-mismatch 403 (code:email_mismatch), duplicate_pending, already_member, resend rotates token (old 404), revoke → accept returns 410 code:invitation_revoked, editor RBAC 403 on POST, viewer 403 on GET list. View shares: public share create + /public/views/:token returns view+records+pagination, sensitive field 'ssn' stripped from both list & single-record public endpoints, password gate flow 401→unlock→200 with cookie, soft-deleted view returns 404 code:view_deleted. Collaborators: add view perm makes editor see private view, view-perm collab gets 403 on PATCH, edit-perm allows PATCH, list hydrates user email, DELETE removes. Nudges: /api/nudges/invite-after-import respects dismissed_prompts. /api/auth/forgot-password returns email_provider='dev' + dev_reset_url. OpenAPI paths all present. Frontend: /settings/members invite modal creates invitation → shows dev-mode + Copy link → appears in Pending Invitations; /invitations/:token/accept shows Sign-in/Create-account CTAs when unauthed and amber mismatch banner when signed-in as a different email; /v/:token public view renders 30 records for existing Test Public View share. Rate-limit test intentionally skipped per instructions.",
+  "rca of the issue": "N/A — no bugs identified in Sub-pass B scope."
+}

@@ -23,6 +23,8 @@ import { BulkToolbar } from "@/components/BulkToolbar";
 import { RecordsLayoutRenderer, LAYOUTS } from "@/components/RecordLayouts";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ImportWizard } from "@/components/ImportWizard";
+import { AfterImportNudge } from "@/components/AfterImportNudge";
+import { InviteModal } from "@/components/InviteModal";
 import { useAuth } from "@/lib/auth";
 
 const LAYOUT_ICONS = {
@@ -217,6 +219,7 @@ export default function RecordsPage() {
   const toggleFilterTag = (tid) => setFilterTags((p) => p.includes(tid) ? p.filter((x) => x !== tid) : [...p, tid]);
 
   const [importOpen, setImportOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const currentState = { layout, q, category_id: filterCat, tag_ids: filterTags, filters, sort, visible_fields: [] };
 
@@ -267,6 +270,7 @@ export default function RecordsPage() {
           />
         ) : (
           <div className="space-y-4">
+            {canShare && <AfterImportNudge onInviteClick={() => setInviteOpen(true)} />}
             {/* Top row: view picker + layout switch + search */}
             <div className="flex items-center gap-3 flex-wrap">
               <ViewsBar
@@ -275,6 +279,7 @@ export default function RecordsPage() {
                 onSelectView={applyView}
                 currentState={currentState}
                 canShare={canShare}
+                fields={fields}
               />
               <div className="inline-flex bg-muted/40 border border-border rounded-md p-0.5">
                 {LAYOUTS.map((L) => {
@@ -424,6 +429,11 @@ export default function RecordsPage() {
         entityTypeId={etId}
         fields={fields}
         onImported={() => { setImportOpen(false); loadRecords(); }}
+      />
+
+      <InviteModal
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
       />
     </>
   );
