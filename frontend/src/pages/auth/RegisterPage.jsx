@@ -100,12 +100,16 @@ export default function RegisterPage() {
         </span>
       </div>
 
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="block w-full">
+            <span
+              className="block w-full"
+              data-testid="google-register-wrap"
+              tabIndex={!googleEnabled ? 0 : -1}
+            >
               <Button
-                type="button" variant="outline" className="w-full"
+                type="button" variant="outline" className="w-full pointer-events-auto"
                 onClick={startGoogle} disabled={!googleEnabled}
                 data-testid="google-register-btn"
               >
@@ -114,7 +118,12 @@ export default function RegisterPage() {
             </span>
           </TooltipTrigger>
           {!googleEnabled && (
-            <TooltipContent side="bottom">Google Sign-In not configured</TooltipContent>
+            <TooltipContent
+              side="bottom"
+              data-testid="google-register-tooltip"
+            >
+              Google Sign-In not configured for this environment
+            </TooltipContent>
           )}
         </Tooltip>
       </TooltipProvider>

@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
+import { slugifyKey as slugify } from "@/lib/slugify";
 
 const FIELD_TYPES = [
   { value: "text", group: "Basic" },
@@ -60,14 +61,6 @@ const FIELD_TYPES = [
   { value: "file", group: "Media (Phase 3)" },
   { value: "relation", group: "Media (Phase 3)" },
 ];
-
-const slugify = (s) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9_]+/g, "_")
-    .replace(/^[^a-z]+/, "")
-    .slice(0, 64);
 
 const emptyForm = () => ({
   label: "",

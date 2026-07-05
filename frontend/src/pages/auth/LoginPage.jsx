@@ -111,14 +111,18 @@ export default function LoginPage() {
         </span>
       </div>
 
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="block w-full">
+            <span
+              className="block w-full"
+              data-testid="google-signin-wrap"
+              tabIndex={!googleEnabled ? 0 : -1}
+            >
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
+                className="w-full pointer-events-auto"
                 onClick={startGoogle}
                 disabled={!googleEnabled}
                 data-testid="google-signin-btn"
@@ -128,7 +132,12 @@ export default function LoginPage() {
             </span>
           </TooltipTrigger>
           {!googleEnabled && (
-            <TooltipContent side="bottom">Google Sign-In not configured</TooltipContent>
+            <TooltipContent
+              side="bottom"
+              data-testid="google-signin-tooltip"
+            >
+              Google Sign-In not configured for this environment
+            </TooltipContent>
           )}
         </Tooltip>
       </TooltipProvider>

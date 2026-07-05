@@ -60,6 +60,7 @@ def create_access_token(
         "permissions": permissions,
         "iat": int(now.timestamp()),
         "exp": int(exp.timestamp()),
+        "jti": secrets.token_urlsafe(12),
         "type": "access",
     }
     return jwt.encode(payload, _secret(), algorithm=JWT_ALGORITHM), exp

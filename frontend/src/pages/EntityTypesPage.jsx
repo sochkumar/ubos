@@ -25,14 +25,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
-
-const slugify = (s) =>
-  s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9_]+/g, "_")
-    .replace(/^[^a-z]+/, "")
-    .slice(0, 64);
+import { slugifyKey as slugify } from "@/lib/slugify";
 
 export default function EntityTypesPage() {
   const [items, setItems] = useState([]);

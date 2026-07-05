@@ -1,0 +1,23 @@
+{
+  "summary": "Verified all 3 fixes: (1) slugify — 'Serial No.'→'serial_no', 'In stock'→'in_stock', 'Price ($)'→'price' in Fields dialog; 'Sales Orders'→'sales_orders', 'Prices ($)'→'prices', '2024 Model'→'f2024_model' in Entity Types dialog. Both pages import slugifyKey from @/lib/slugify (no local slugify remains). (2) Tooltip — hovering google-signin-wrap on /login and google-register-wrap on /register both show tooltip containing 'Google Sign-In not configured for this environment' immediately (delayDuration=0). (3) jti bonus — two consecutive POST /api/auth/login for owner return different access_token strings with different jti payload claims; same holds for consecutive /api/auth/refresh calls. Full Phase 1 regression suite still 32/32 green.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_jti_slugify_bonus.py",
+    "/app/backend/tests/test_ubos_phase1.py",
+    "/app/test_reports/pytest/pytest_iter4.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "slugify policy for digit-leading strings prefixes 'f' (e.g. '2024 Model' → 'f2024_model'). Confirmed intentional in header comment. Alternative that some teams prefer: reject on UI with inline hint ('key cannot start with a digit') so the user renames the label deliberately. Current auto-prefix is silent — a user may not notice the key became 'f2024_model'. Non-blocking; ship as is unless product wants louder UX.",
+    "Tooltip content is announced twice by screen readers because Radix renders both the visible tooltip and an sr-only aria-describedby copy. Not a bug per se, but if you want a single announcement consider setting aria-label on the wrapper and hiding the tooltip from AT."
+  ],
+  "updated_files": ["/app/backend/tests/test_jti_slugify_bonus.py (new)"],
+  "success_rate": {"backend": "100% (34/34: 32 phase1 + 2 jti)", "frontend": "100% (all UI assertions passed)"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 1 is fully green. slugify util at /app/frontend/src/lib/slugify.js is the single source of truth used by FieldsPage and EntityTypesPage. jti is in access-token payload (secrets.token_urlsafe(12)). Google OAuth remains env-gated (GOOGLE_CLIENT_ID=REPLACE_ME) and the disabled button shows tooltip on hover on both /login and /register.",
+  "rca of the issue": "n/a — verification pass only."
+}
