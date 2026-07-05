@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 import { PrintLabelsDialog } from "@/components/PrintLabelsDialog";
+import { DatePicker } from "@/components/DatePicker";
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL;
 
@@ -334,9 +335,10 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
 
           <div>
             <Label className="text-sm">Expires on <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input
-              type="date" value={expires} onChange={(e) => setExpires(e.target.value)}
-              data-testid="share-expires"
+            <DatePicker
+              value={expires || null}
+              onChange={(v) => setExpires(v || "")}
+              testId="share-expires"
             />
           </div>
 

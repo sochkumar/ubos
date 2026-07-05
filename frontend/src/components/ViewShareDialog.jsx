@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { DatePicker } from "@/components/DatePicker";
 
 function toDateInput(iso) {
   if (!iso) return "";
@@ -255,8 +256,11 @@ function CreateViewShareDialog({ open, onOpenChange, view, fields, onCreated }) 
 
           <div>
             <Label className="text-sm">Expires on (optional)</Label>
-            <Input type="date" value={expires} onChange={(e) => setExpires(e.target.value)}
-              data-testid="view-share-expires" />
+            <DatePicker
+              value={expires || null}
+              onChange={(v) => setExpires(v || "")}
+              testId="view-share-expires"
+            />
           </div>
 
           <div className="flex gap-6">

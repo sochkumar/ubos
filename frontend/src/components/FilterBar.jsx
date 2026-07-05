@@ -8,6 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { OP_LABELS, opsForField, needsValue, isRangeOp, isListOp } from "@/lib/filterOps";
+import { DatePicker, DateTimePicker } from "@/components/DatePicker";
 
 const SYSTEM_FIELDS = [
   { key: "title", label: "Title", type: "text" },
@@ -21,11 +22,42 @@ function fieldDefsWithSystem(fields) {
 }
 
 function ValueInput({ field, op, value, onChange }) {
+  const isDate = field.type === "date";
+  const isDT = field.type === "datetime";
+
   if (isRangeOp(op)) {
     const [lo, hi] = Array.isArray(value) ? value : ["", ""];
-    const type = (field.type === "number" || field.type === "currency") ? "number"
-      : field.type === "date" ? "date"
-      : field.type === "datetime" ? "datetime-local" : "text";
+    if (isDate) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <div className="w-[150px]">
+            <DatePicker value={lo ?? null} onChange={(v) => onChange([v, hi])}
+              testId="filter-value-lo" placeholder="from" />
+          </div>
+          <span className="text-xs text-muted-foreground">→</span>
+          <div className="w-[150px]">
+            <DatePicker value={hi ?? null} onChange={(v) => onChange([lo, v])}
+              testId="filter-value-hi" placeholder="to" />
+          </div>
+        </div>
+      );
+    }
+    if (isDT) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <div className="w-[180px]">
+            <DateTimePicker value={lo ?? null} onChange={(v) => onChange([v, hi])}
+              testId="filter-value-lo" placeholder="from" />
+          </div>
+          <span className="text-xs text-muted-foreground">→</span>
+          <div className="w-[180px]">
+            <DateTimePicker value={hi ?? null} onChange={(v) => onChange([lo, v])}
+              testId="filter-value-hi" placeholder="to" />
+          </div>
+        </div>
+      );
+    }
+    const type = (field.type === "number" || field.type === "currency") ? "number" : "text";
     return (
       <div className="flex items-center gap-1.5">
         <Input value={lo ?? ""} type={type} placeholder="from"
@@ -95,10 +127,22 @@ function ValueInput({ field, op, value, onChange }) {
       </Select>
     );
   }
+  if (field.type === "date") {
+    return (
+      <div className="w-[180px]">
+        <DatePicker value={value ?? null} onChange={onChange} testId="filter-value" />
+      </div>
+    );
+  }
+  if (field.type === "datetime") {
+    return (
+      <div className="w-[220px]">
+        <DateTimePicker value={value ?? null} onChange={onChange} testId="filter-value" />
+      </div>
+    );
+  }
   const type =
     field.type === "number" || field.type === "currency" ? "number"
-    : field.type === "date" ? "date"
-    : field.type === "datetime" ? "datetime-local"
     : field.type === "email" ? "email"
     : field.type === "url" ? "url"
     : "text";

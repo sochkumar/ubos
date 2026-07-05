@@ -131,7 +131,13 @@ def _check_rate(key: str, per_minute: int) -> None:
     while hits and hits[0] < cutoff:
         hits.pop(0)
     if len(hits) >= per_minute:
-        raise HTTPException(429, {"code": "rate_limited", "detail": "Too many requests"})
+        retry_after = max(1, int(60 - (now - hits[0])) + 1)
+        raise HTTPException(
+            429,
+            {"code": "rate_limited", "detail": "Too many requests",
+             "retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
     hits.append(now)
 
 
@@ -540,11 +546,13 @@ async def public_unlock_record(
         hits.pop(0)
     if len(hits) >= _UNLOCK_ATTEMPT_LIMIT:
         retry_after = int(_UNLOCK_ATTEMPT_WINDOW - (now - hits[0])) + 1
-        raise HTTPException(429, {
-            "code": "too_many_attempts",
-            "detail": "Too many attempts. Please wait a minute and try again.",
-            "retry_after": retry_after,
-        })
+        raise HTTPException(
+            429,
+            {"code": "too_many_attempts",
+             "detail": "Too many attempts. Please wait a minute and try again.",
+             "retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
 
     if not _verify_password(body.password, share["password_hash"]):
         hits.append(now)

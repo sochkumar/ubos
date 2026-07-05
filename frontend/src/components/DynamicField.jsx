@@ -106,22 +106,22 @@ export function DynamicField({ field, value, onChange, error }) {
         );
       case "date":
         return (
-          <Input
+          <DatePicker
             id={id}
-            data-testid={testId}
-            type="date"
-            value={value ?? ""}
-            onChange={(e) => onChange(e.target.value || null)}
+            testId={testId}
+            value={value ?? null}
+            required={field.required}
+            onChange={(v) => onChange(v)}
           />
         );
       case "datetime":
         return (
-          <Input
+          <DateTimePicker
             id={id}
-            data-testid={testId}
-            type="datetime-local"
-            value={value ?? ""}
-            onChange={(e) => onChange(e.target.value || null)}
+            testId={testId}
+            value={value ?? null}
+            required={field.required}
+            onChange={(v) => onChange(v)}
           />
         );
       case "dropdown": {
@@ -212,6 +212,15 @@ export function DynamicField({ field, value, onChange, error }) {
           />
         );
       default:
+        // Guard: warn loudly if a date/datetime slipped past the case above and
+        // fell through to a plain Input. Should never happen now, but this
+        // catches accidental regressions.
+        if (field.type === "date" || field.type === "datetime") {
+          console.warn(
+            `[UBOS DynamicField] fell back to native input for field.type="${field.type}" (${field.key}). ` +
+            "This is a regression — the switch above should have handled it via DatePicker/DateTimePicker.",
+          );
+        }
         return (
           <Input
             id={id}

@@ -512,11 +512,13 @@ async def public_view_unlock(
         hits.pop(0)
     if len(hits) >= _UNLOCK_ATTEMPT_LIMIT:
         retry_after = int(_UNLOCK_ATTEMPT_WINDOW - (now - hits[0])) + 1
-        raise HTTPException(429, {
-            "code": "too_many_attempts",
-            "detail": "Too many attempts. Please wait a minute and try again.",
-            "retry_after": retry_after,
-        })
+        raise HTTPException(
+            429,
+            {"code": "too_many_attempts",
+             "detail": "Too many attempts. Please wait a minute and try again.",
+             "retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
 
     if not _verify_password(body.password, share["password_hash"]):
         hits.append(now)

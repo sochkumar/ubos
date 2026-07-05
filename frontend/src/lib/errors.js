@@ -141,9 +141,16 @@ export function handleApiError(err, opts = {}) {
       return message;
     }
     case 429: {
-      const retryAfter = err?.response?.headers?.["retry-after"];
-      const hint = retryAfter ? ` Try again in ${retryAfter}s.` : "";
-      emit("error", `Too many requests.${hint}`);
+      const raHeader = err?.response?.headers?.["retry-after"];
+      const raBody = (detail && typeof detail === "object") ? detail.retry_after : null;
+      const seconds = Number(raHeader ?? raBody);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        emit("error", `Too many requests — try again in ${Math.ceil(seconds)}s.`, {
+          duration: Math.max(4000, Math.min(10000, seconds * 1000)),
+        });
+      } else {
+        emit("error", `Too many requests — try again in a moment.`);
+      }
       return message;
     }
     case 500:

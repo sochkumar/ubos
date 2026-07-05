@@ -23,24 +23,42 @@ export function iconForMime(mime) {
   return { Icon: File, color: "#6b7280", short: "FILE" };
 }
 
-/** Show a thumbnail — image if mime is image/*, else colored icon block. */
+/** Which mimes have a real thumbnail rendered by the backend? */
+function hasRenderedThumb(mime) {
+  const m = (mime || "").toLowerCase();
+  if (m.startsWith("image/") && m !== "image/svg+xml") return true;
+  if (m === "application/pdf") return true;
+  return false;
+}
+
+/** Show a thumbnail — image / rendered PDF preview if available, else colored icon block. */
 export function MediaThumb({ media, size = 96, className = "" }) {
   const [url, setUrl] = useState(null);
   const [failed, setFailed] = useState(false);
-  const isImage = (media?.mime || "").startsWith("image/") && media?.mime !== "image/svg+xml";
+  const wantsThumb = hasRenderedThumb(media?.mime);
 
   useEffect(() => {
     let cancel = false;
-    if (!isImage || !media?.id) return;
+    setUrl(null);
+    setFailed(false);
+    if (!wantsThumb || !media?.id) return;
     api.get(`/media/${media.id}/thumb`).then((r) => {
-      if (!cancel && r.data?.url) setUrl(makeSignedUrl(r.data.url));
+      if (cancel) return;
+      // Only use the returned URL if the server rendered an actual image.
+      // For unrenderable PDFs the endpoint returns image/svg+xml → fall through to icon.
+      const rMime = (r.data?.mime || "").toLowerCase();
+      if (r.data?.url && rMime.startsWith("image/") && rMime !== "image/svg+xml") {
+        setUrl(makeSignedUrl(r.data.url));
+      } else {
+        setFailed(true);
+      }
     }).catch(() => { if (!cancel) setFailed(true); });
     return () => { cancel = true; };
-  }, [media?.id, isImage]);
+  }, [media?.id, wantsThumb]);
 
   if (!media) return null;
 
-  if (isImage && !failed && url) {
+  if (wantsThumb && !failed && url) {
     return (
       <img
         src={url} alt={media.filename || ""}

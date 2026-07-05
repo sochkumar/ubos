@@ -130,7 +130,12 @@ async def _check_lockout(db, ident: str) -> None:
     if doc.get("count", 0) >= MAX_FAILED_ATTEMPTS:
         exp = doc.get("expires_at")
         if isinstance(exp, datetime) and exp > _now_dt():
-            raise HTTPException(status_code=429, detail="too many failed attempts — try again later")
+            retry_after = max(1, int((exp - _now_dt()).total_seconds()))
+            raise HTTPException(
+                status_code=429,
+                detail="too many failed attempts — try again later",
+                headers={"Retry-After": str(retry_after)},
+            )
 
 
 async def _record_failure(db, ident: str) -> None:

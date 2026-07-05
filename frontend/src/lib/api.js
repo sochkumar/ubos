@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
@@ -81,6 +82,14 @@ api.interceptors.response.use(
       return api.request(config);
     } catch (e) {
       tokenStore.clear();
+      // Mark for handleApiError so it doesn't re-toast, and surface a session-
+      // expired toast BEFORE navigation so the user has context on the login
+      // page.
+      error._retriedRefresh = true;
+      if (config) config._retriedRefresh = true;
+      try {
+        toast.error("Session expired — please sign in again.", { duration: 6000 });
+      } catch { /* toaster might not be mounted yet */ }
       if (onAuthLostCallback) onAuthLostCallback();
       throw error;
     }

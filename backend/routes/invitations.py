@@ -76,10 +76,14 @@ def _check_rate_limit(org_id: str) -> None:
     while hits and hits[0] < cutoff:
         hits.pop(0)
     if len(hits) >= limit:
-        raise HTTPException(429, {
-            "code": "invite_rate_limited",
-            "detail": f"You've sent {limit} invitations in the past hour. Please wait.",
-        })
+        retry_after = max(1, int(3600 - (now - hits[0])) + 1)
+        raise HTTPException(
+            429,
+            {"code": "invite_rate_limited",
+             "detail": f"You've sent {limit} invitations in the past hour. Please wait.",
+             "retry_after": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
     hits.append(now)
 
 

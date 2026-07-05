@@ -1,6 +1,7 @@
 """Media upload / list / thumb / serve / attach endpoints."""
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
@@ -19,6 +20,8 @@ from db import get_db, tenant_filter
 from models import strip_id
 from services import media as media_svc
 from services import quota as quota_svc
+
+log = logging.getLogger("ubos.media")
 
 router = APIRouter(tags=["media"])
 
@@ -132,6 +135,20 @@ async def upload_media(
             dims = await media_svc.image_dimensions(data)
             if dims:
                 doc["width"], doc["height"] = dims
+        # PDF page-1 thumbnail (Phase 6-A). Fail-safe: falls back to icon.
+        if mime == "application/pdf":
+            try:
+                thumb = await media_svc.make_pdf_thumb(data, size=256)
+                if thumb:
+                    thumb_key = obj.storage_key + ".thumb.jpg"
+                    await adapter.put_bytes_at_key(thumb_key, thumb)
+                    doc["thumb_key"] = thumb_key
+                    log.info("pdf thumb generated on upload for %s (%d bytes)",
+                             doc["filename"], len(thumb))
+                else:
+                    log.info("pdf thumb skipped (unrenderable) for %s", doc["filename"])
+            except Exception as e:
+                log.warning("pdf thumb failed for %s: %s", doc["filename"], e)
         await db.media.insert_one(doc)
         await quota_svc.add_bytes(db, ctx.org_id, size)
 
