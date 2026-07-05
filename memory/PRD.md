@@ -184,18 +184,22 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 **Bug fixes carried into Phase 1:**
 - Field-key slugifier no longer strips underscores — it only strips non-alpha prefixes (backend regex `^[a-z][a-z0-9_]*$`)
 
-## Phase 3 Sub-pass A — Records Core (2026-02) — DONE ✅
+## Phase 3 Sub-pass A — Records Core (2026-02) — LOCKED ✅
+
+**Status:** e1_tester independent verification 23/23 PASS. No open issues.
+
+**Explicit design decision (locked):** `GET /records/{id}/activity` + `/versions` return 404 for soft-deleted records. Users restore first, then inspect history. `tenant_filter` is NOT relaxed on these endpoints in Sub-pass B.
 
 **Backend:**
-- **Query Builder** (`services/query_builder.py`) — 10 operators (eq/ne/contains/gt/lt/gte/lte/between/in/not_in/is_empty/is_not_empty) with strict per-field-type validation (422 on invalid op × type). Supports system fields (title/record_number/created_at/updated_at) and dynamic `fields.*`. Mirrored client-side in `frontend/src/lib/filterOps.js`.
+- **Query Builder** (`services/query_builder.py`) — 10 operators (eq/ne/contains/gt/lt/gte/lte/between/in/not_in/is_empty/is_not_empty) with strict per-field-type validation (422 on invalid op × type). `in`/`not_in` reserved for `dropdown`/`multi_select` only; unknown fields fall back to `text` and reject `in`/`not_in`. Supports system fields (title/record_number/created_at/updated_at) and dynamic `fields.*`. Mirrored client-side in `frontend/src/lib/filterOps.js`.
 - **Saved Views** (`routes/views.py` + `views` collection) — CRUD + `/duplicate` + `/set-default`. Private per-user with optional org-wide sharing (owner/admin only). Stores layout, q, filters, sort, category_ids, tag_ids, visible_fields, column_widths.
-- **`POST /entity-types/{et_id}/records/search`** — accepts `{q, category_id, tag_ids, filters, sort, limit(≤200), skip, view_id}`. When `view_id` supplied, hydrates saved state as base; body overrides win.
+- **`POST /entity-types/{et_id}/records/search`** — accepts `{q, category_id, tag_ids, filters, sort, limit(≤200), skip, view_id}`. Auto-applies caller's default view when `view_id` omitted (user-scoped default takes priority over org-shared default). Body override semantics: `q`/`sort`/`category_id`/`tag_ids` — body wins when truthy; `filters` — merged per `field` key (body's condition on a field replaces the view's condition on that same field, other view filters survive). Response includes `applied_view_id`. Documented in OpenAPI description.
 - **Activity Timeline** (`record_activity` collection) — created/updated/deleted/comment/restored events with actor_name denormalized. `GET/POST /records/{id}/activity`. Update payload includes per-field before/after diff. Comment endpoint validates non-empty text; requires `records.update`.
-- **Version History** (`record_versions` collection) — every mutating operation snapshots the pre-update state. `GET /records/{id}/versions` + `GET /records/{id}/versions/{v}` + `POST /records/{id}/versions/{v}/restore` (writes pre-restore snapshot, applies fields/cats/tags, increments version, emits restored activity).
-- **Bulk Actions** — `POST /entity-types/{et_id}/records/bulk` with `action` = delete | assign_categories | assign_tags | update_field. `assign_*` supports mode add/remove/replace. `update_field` allowed for `text/longtext/number/currency/boolean/dropdown/date/datetime/email/phone/url`; blocked with 422 for richtext/multi_select/image/file/relation; blocks bulk-set of unique fields to a non-empty value across multiple records. Every action emits activity + audit.
+- **Version History** (`record_versions` collection) — every mutating operation snapshots the pre-update state. `GET /records/{id}/versions` + `GET /records/{id}/versions/{v}` + `POST /records/{id}/versions/{v}/restore` (writes pre-restore snapshot, applies fields/cats/tags, increments version, emits restored activity). Unique index on `(org_id, record_id, version_number)` guarantees exactly one row per version_number; `services/history.snapshot_version` swallows `DuplicateKeyError` so the earliest snapshot wins. Startup migration `_dedupe_record_versions` collapses any pre-existing duplicates before the unique index builds.
+- **Bulk Actions** — `POST /entity-types/{et_id}/records/bulk` with typed discriminated union: `BulkDeleteAction` / `BulkAssignCategoriesAction` / `BulkAssignTagsAction` / `BulkUpdateFieldAction`. Each carries a per-action payload model with `extra="forbid"` — OpenAPI publishes `oneOf` + `discriminator.mapping` keyed on `action`. `assign_*` supports `mode` add/remove/replace. `update_field` allowed for `text/longtext/number/currency/boolean/dropdown/date/datetime/email/phone/url`; blocked with 422 for richtext/multi_select/image/file/relation; blocks bulk-set of unique fields to a non-empty value across multiple records. Every action emits activity + audit.
 - **qr_payload** — set on record create as `{PUBLIC_APP_URL || APP_BASE_URL}/r/{record_id}`. Startup migration `_backfill_qr_payload` (re)writes any record whose qr_payload doesn't match the current base. `PUBLIC_APP_URL` added to `backend/.env` pointing at the public preview URL.
-- **Indexes** — `(org_id, entity_type_id, category_ids)`, `(org_id, entity_type_id, tag_ids)`, `(org_id, entity_type_id, updated_at desc)`, `(org_id, entity_type_id, deleted_at)` on records. Compound indexes on views, record_activity (ts desc), record_versions (version desc).
-- **Snapshot ordering fix** — `update_record` now snapshots *after* validation succeeds so failed PATCH payloads don't create orphan versions.
+- **Indexes** — `(org_id, entity_type_id, category_ids)`, `(org_id, entity_type_id, tag_ids)`, `(org_id, entity_type_id, updated_at desc)`, `(org_id, entity_type_id, deleted_at)` on records. Compound indexes on views, record_activity (ts desc), record_versions (version desc + unique constraint).
+- **Snapshot ordering** — `update_record` snapshots *after* validation succeeds so failed PATCH payloads don't create orphan versions.
 
 **Frontend:**
 - **RecordsPage rewritten** — top row has Views picker + 5-layout switch (Table/Gallery/Grid/Card/List) + search. Second row has Category filter dropdown + toggleable tag pills + Filter chips + Sort popover + Clear button.
@@ -206,17 +210,27 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - **RecordDetailPage** (`pages/RecordDetailPage.jsx`) — route `/records/:id`. Tabs Overview / Activity / Versions / Attachments (stub) / Relationships (stub). Overview grid of all fields. Activity has comment box + timeline with actor avatars and diff rendering. Versions shows all versions with actor + timestamp; clicking opens a side-by-side diff dialog with Restore action. Right rail: metadata (created/updated/version/QR payload), categories, tags.
 - **Route added** in `App.js`, "Views" chip in the sidebar removed since it's now real.
 
-## Phase 3 Sub-pass A — Patch (2026-02) — DONE ✅
+**Verification history:**
+- First testing pass: `/app/test_reports/iteration_6.json` — 16/16 backend + all critical frontend flows PASS. Surfaced 4 items (qr_payload localhost env, orphan-version race, redundant right-rail stub, in/not_in gap).
+- Patch pass (4 fixes): all confirmed via curl locally.
+- e1_tester independent re-verification: 23/23 PASS. Sub-pass A LOCKED.
 
-Independent verification found 4 issues (2 blocking bugs, 2 polish). All fixed:
+## Phase 3 Sub-pass B — PENDING (fresh session)
 
-1. **`in`/`not_in` operator validation gap** — `OPS_BY_TYPE` in `services/query_builder.py` (and the client mirror in `lib/filterOps.js`) now reserves `in`/`not_in` strictly for `dropdown` and `multi_select`. Any other field type — including unknown / system fields that fall back to `text` — returns 422 `"op 'in' not valid for type '{type}'"`.
-2. **Default view not auto-applied server-side** — `POST /records/search` without a `view_id` now auto-loads the caller's default view (user-scoped default first, then org-scoped shared default). Body overrides use these semantics: `q` / `sort` / `category_id` / `tag_ids` — body wins when truthy; `filters` — MERGED per `field` key so an explicit body condition on a field replaces the view's condition on that same field while other view filters survive. Response now includes `applied_view_id`. Documented in the endpoint's OpenAPI description.
-3. **Version numbering duplicated at v=1** — `record_versions` now carries a unique index `(org_id, record_id, version_number)`. `services/history.snapshot_version` swallows `DuplicateKeyError`, keeping the earliest snapshot per version_number (the `created` snapshot at v=1 wins over the redundant `pre-update` snapshot before the first edit). A startup migration `_dedupe_record_versions` collapses any existing duplicates before the unique index builds. Result: versions list shows exactly one row per version_number (v1, v2, v3, …).
-4. **BulkAction discriminated union** — `BulkAction` is now a proper Pydantic v2 discriminated union with four action-specific payload models (`BulkDeletePayload`, `BulkAssignCategoriesPayload`, `BulkAssignTagsPayload`, `BulkUpdateFieldPayload`), each with `extra="forbid"`. OpenAPI now exposes `oneOf` + `discriminator.mapping` keyed on `action`. Wrong payload keys (e.g. `field` instead of `field_key`) return precise 422s pointing to the exact problem.
+**Status:** Not started. Will be initiated in a fresh session for full context budget.
+
+**Scope (locked at Sub-pass A kickoff):**
+- **Media storage** — LocalDiskAdapter (dev) + S3-compatible adapter (stub for prod)
+- **image / file dynamic field wiring** — currently stubbed in the validator; will get real upload → attach → validate → render behaviour
+- **Relationship instances** — Record ↔ Record link CRUD using existing `relationship_definitions`, with bidirectional saving
+- **Wire up Attachments tab + Relationships tab** on RecordDetailPage (currently rendering "Coming in the next update" empty states)
+
+**Do NOT touch these in the meantime:**
+- The 404 behaviour of `/records/{id}/activity` + `/versions` for soft-deleted records — this is intentional, do not relax `tenant_filter`.
+- Existing Sub-pass A code paths — no refactors, no incidental cleanups.
 
 ## Prioritized Backlog
-- P0 (Sub-pass B, next): Media library, image/file dynamic field wiring, relationship instance CRUD + picker
-- P1: QR PNG / barcode generation / printable labels; Public share links; Dashboard widgets; Global search UI
-- P2: CSV/Excel import-export; User invitations flow
-- P3: Electron wrapper; Expo mobile mirror; Migrate FastAPI on_event → lifespan
+- **P0 (Sub-pass B, next session)**: Media library, image/file dynamic field wiring, relationship instance CRUD + picker, Attachments/Relationships tab wire-up
+- **P1**: QR PNG / barcode generation / printable labels; Public share links; Dashboard widgets; Global search UI
+- **P2**: CSV/Excel import-export; User invitations flow
+- **P3**: Electron wrapper; Expo mobile mirror; Migrate FastAPI on_event → lifespan
