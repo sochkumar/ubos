@@ -924,85 +924,85 @@ async def _run_import_job(job_id: str, plan: dict, meta: dict) -> None:
         {"$set": {"status": "running", "started_at": now_iso()}},
     )
 
-    # Re-parse the input to avoid holding memory for hours
-    ext = meta["format"]
-    cached = _cache_path(plan["import_token"], f".{ext}")
-    if ext == "csv":
-        headers, rows, _ = _parse_csv_to_rows(cached)
-    else:
-        headers, rows, _, _ = _parse_xlsx_to_rows(cached, plan.get("sheet_name"))
-
-    field_defs = await _load_field_defs(db, ctx_org, et_id)
-    defs_by_key = {d["key"]: d for d in field_defs}
-    unsupported = {d["key"] for d in field_defs if d["type"] in ("image", "file", "relation")}
-
-    mapping = plan["mapping"]
-    match_by = plan.get("match_by")
-    conflict_policy = plan.get("conflict_policy", "error")
-    auto_create_tags = plan.get("auto_create_tags", True)
-    default_values = plan.get("default_values") or {}
-
-    # Preload existing records by match_by for updates
-    existing_by_key: dict[str, dict] = {}
-    if match_by:
-        proj = "record_number" if match_by == "record_number" else f"fields.{match_by}"
-        _projection = {proj: 1, "_id": 1, "record_number": 1}
-        if match_by == "record_number":
-            _projection["fields"] = 1  # not colliding
-        cursor = db.records.find(
-            tenant_filter(ctx_org, {"entity_type_id": et_id}),
-            _projection,
-        )
-        async for r in cursor:
-            kv = r.get("record_number") if match_by == "record_number" else (r.get("fields") or {}).get(match_by)
-            if kv:
-                existing_by_key[str(kv)] = r
-
-    # Tag pre-cache
-    tag_map: dict[str, str] = {}  # lowercase name → id
-    async for t in db.tags.find({"org_id": ctx_org, "deleted_at": None}, {"name": 1}):
-        tag_map[(t.get("name") or "").lower()] = t["_id"]
-
-    error_lines: list[list[str]] = [["row_idx", "field", "message", "raw_value"]]
-    inserted = updated = skipped = errors = processed = 0
-
-    async def _record_number(et_key: str) -> str:
-        # Grab a sequential record number — same approach as data.py
-        seq = await db.entity_types.find_one_and_update(
-            {"_id": et_id, "org_id": ctx_org},
-            {"$inc": {"record_seq": 1}},
-            projection={"key": 1, "record_seq": 1},
-        )
-        prefix = (seq.get("key") or "REC").upper()[:4]
-        n = int(seq.get("record_seq") or 1)
-        return f"{prefix}-{n:06d}"
-
-    batch: list[dict] = []
-    updates: list[tuple[str, dict]] = []
-    BATCH = 200
-
-    async def flush() -> None:
-        nonlocal inserted, updated
-        if batch:
-            try:
-                await db.records.insert_many(batch, ordered=False)
-                inserted += len(batch)
-            except Exception:
-                # Fallback: insert one-by-one, count only successful writes
-                for d in batch:
-                    try:
-                        await db.records.insert_one(d)
-                        inserted += 1
-                    except Exception:
-                        pass
-            batch.clear()
-        if updates:
-            for rid, upd in updates:
-                await db.records.update_one({"_id": rid, "org_id": ctx_org}, {"$set": upd})
-                updated += 1
-            updates.clear()
-
     try:
+        # Re-parse the input to avoid holding memory for hours
+        ext = meta["format"]
+        cached = _cache_path(plan["import_token"], f".{ext}")
+        if ext == "csv":
+            headers, rows, _ = _parse_csv_to_rows(cached)
+        else:
+            headers, rows, _, _ = _parse_xlsx_to_rows(cached, plan.get("sheet_name"))
+
+        field_defs = await _load_field_defs(db, ctx_org, et_id)
+        defs_by_key = {d["key"]: d for d in field_defs}
+        unsupported = {d["key"] for d in field_defs if d["type"] in ("image", "file", "relation")}
+
+        mapping = plan["mapping"]
+        match_by = plan.get("match_by")
+        conflict_policy = plan.get("conflict_policy", "error")
+        auto_create_tags = plan.get("auto_create_tags", True)
+        default_values = plan.get("default_values") or {}
+
+        # Preload existing records by match_by for updates
+        existing_by_key: dict[str, dict] = {}
+        if match_by:
+            proj = "record_number" if match_by == "record_number" else f"fields.{match_by}"
+            _projection = {proj: 1, "_id": 1, "record_number": 1}
+            if match_by == "record_number":
+                _projection["fields"] = 1  # not colliding
+            cursor = db.records.find(
+                tenant_filter(ctx_org, {"entity_type_id": et_id}),
+                _projection,
+            )
+            async for r in cursor:
+                kv = r.get("record_number") if match_by == "record_number" else (r.get("fields") or {}).get(match_by)
+                if kv:
+                    existing_by_key[str(kv)] = r
+
+        # Tag pre-cache
+        tag_map: dict[str, str] = {}  # lowercase name → id
+        async for t in db.tags.find({"org_id": ctx_org, "deleted_at": None}, {"name": 1}):
+            tag_map[(t.get("name") or "").lower()] = t["_id"]
+
+        error_lines: list[list[str]] = [["row_idx", "field", "message", "raw_value"]]
+        inserted = updated = skipped = errors = processed = 0
+
+        async def _record_number(et_key: str) -> str:
+            # Grab a sequential record number — same approach as data.py
+            seq = await db.entity_types.find_one_and_update(
+                {"_id": et_id, "org_id": ctx_org},
+                {"$inc": {"record_seq": 1}},
+                projection={"key": 1, "record_seq": 1},
+            )
+            prefix = (seq.get("key") or "REC").upper()[:4]
+            n = int(seq.get("record_seq") or 1)
+            return f"{prefix}-{n:06d}"
+
+        batch: list[dict] = []
+        updates: list[tuple[str, dict]] = []
+        BATCH = 200
+
+        async def flush() -> None:
+            nonlocal inserted, updated
+            if batch:
+                try:
+                    await db.records.insert_many(batch, ordered=False)
+                    inserted += len(batch)
+                except Exception:
+                    # Fallback: insert one-by-one, count only successful writes
+                    for d in batch:
+                        try:
+                            await db.records.insert_one(d)
+                            inserted += 1
+                        except Exception:
+                            pass
+                batch.clear()
+            if updates:
+                for rid, upd in updates:
+                    await db.records.update_one({"_id": rid, "org_id": ctx_org}, {"$set": upd})
+                    updated += 1
+                updates.clear()
+
         for row_idx, csv_row in enumerate(rows):
             processed += 1
             payload_fields: dict[str, Any] = {}
