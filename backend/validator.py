@@ -31,8 +31,28 @@ TEXTUAL_FOR_SEARCH = {
     "multi_select",
 }
 
-# Field types stubbed in Phase 0 — accepted as-is with no validation
-STUB_TYPES = {"image", "file", "relation"}
+# Field types stubbed in Phase 0 — accepted as-is with no validation.
+# Sub-pass B activates `image` and `file`; `relation` stays stubbed.
+STUB_TYPES = {"relation"}
+
+
+def _extract_media_ref(v: Any) -> dict | None:
+    """Coerce a media reference into a canonical {media_id, ...} dict.
+    Accepts: bare id string, {media_id, ...}, {id, ...}. Returns None if empty."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, str):
+        return {"media_id": v}
+    if isinstance(v, dict):
+        mid = v.get("media_id") or v.get("id")
+        if not isinstance(mid, str) or not mid:
+            return None
+        d = {"media_id": mid}
+        for extra in ("alt", "display_name"):
+            if v.get(extra) is not None:
+                d[extra] = v[extra]
+        return d
+    return None
 
 
 class ValidationErrors(Exception):
@@ -189,8 +209,36 @@ class FieldValidator:
                     raise ValueError(f"invalid options: {', '.join(map(str, bad))}")
             return raw
 
+        if ftype == "image":
+            multiple = bool((cfg or {}).get("multiple"))
+            if multiple:
+                if not isinstance(raw, list):
+                    raise ValueError("must be a list of images")
+                refs = [_extract_media_ref(v) for v in raw]
+                refs = [r for r in refs if r is not None]
+                max_count = cfg.get("max_count")
+                if max_count and len(refs) > int(max_count):
+                    raise ValueError(f"at most {max_count} image(s) allowed")
+                return refs
+            r = _extract_media_ref(raw if not isinstance(raw, list) else (raw[0] if raw else None))
+            return r  # may be None if empty
+
+        if ftype == "file":
+            multiple = bool((cfg or {}).get("multiple"))
+            if multiple:
+                if not isinstance(raw, list):
+                    raise ValueError("must be a list of files")
+                refs = [_extract_media_ref(v) for v in raw]
+                refs = [r for r in refs if r is not None]
+                max_count = cfg.get("max_count")
+                if max_count and len(refs) > int(max_count):
+                    raise ValueError(f"at most {max_count} file(s) allowed")
+                return refs
+            r = _extract_media_ref(raw if not isinstance(raw, list) else (raw[0] if raw else None))
+            return r
+
         if ftype in STUB_TYPES:
-            # accepted as-is in Phase 0
+            # accepted as-is (Phase 0 stubs still in force for `relation`)
             return raw
 
         raise ValueError(f"unsupported field type: {ftype}")
@@ -258,6 +306,47 @@ class FieldValidator:
             existing = await self.db.records.find_one(q, {"_id": 1})
             if existing:
                 errors[f"fields.{key}"] = "must be unique — value already exists"
+
+        # image/file: verify referenced media exists in this org + optional
+        # mime + max_size constraints. Batch one query per (org).
+        media_targets: dict[str, tuple[str, dict]] = {}  # media_id -> (field_key, fdef)
+        for fd in field_defs:
+            if fd["type"] not in ("image", "file"):
+                continue
+            key = fd["key"]
+            v = coerced.get(key)
+            if v is None:
+                continue
+            refs = v if isinstance(v, list) else [v]
+            for r in refs:
+                if isinstance(r, dict) and r.get("media_id"):
+                    media_targets[r["media_id"]] = (key, fd)
+        if media_targets:
+            docs = {
+                m["_id"]: m
+                async for m in self.db.media.find(
+                    {"_id": {"$in": list(media_targets.keys())},
+                     "org_id": self.org_id, "deleted_at": None},
+                    {"mime": 1, "size": 1, "filename": 1},
+                )
+            }
+            for mid, (fkey, fd) in media_targets.items():
+                m = docs.get(mid)
+                if not m:
+                    errors[f"fields.{fkey}"] = f"media '{mid}' does not exist in this workspace"
+                    continue
+                cfg = fd.get("config") or {}
+                if fd["type"] == "image" and not (m.get("mime") or "").startswith("image/"):
+                    errors[f"fields.{fkey}"] = f"'{m.get('filename')}' is not an image"
+                    continue
+                if fd["type"] == "file":
+                    allowed = cfg.get("allowed_mimes")
+                    if allowed and m.get("mime") not in allowed:
+                        errors[f"fields.{fkey}"] = f"'{m.get('mime')}' is not in this field's allowed mimes"
+                        continue
+                max_mb = cfg.get("max_size_mb")
+                if max_mb and int(m.get("size", 0)) > int(max_mb) * 1024 * 1024:
+                    errors[f"fields.{fkey}"] = f"'{m.get('filename')}' exceeds max size of {max_mb} MB"
 
         if errors:
             raise ValidationErrors(errors)

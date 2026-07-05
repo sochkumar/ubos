@@ -27,6 +27,7 @@ import CategoriesPage from "@/pages/CategoriesPage";
 import TagsPage from "@/pages/TagsPage";
 import RelationshipsPage from "@/pages/RelationshipsPage";
 import TemplatesPage from "@/pages/TemplatesPage";
+import MediaPage from "@/pages/MediaPage";
 
 function App() {
   return (
@@ -84,6 +85,7 @@ function App() {
               <Route path="/entity-types/:id/tags" element={<TagsPage />} />
               <Route path="/entity-types/:id/relationships" element={<RelationshipsPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
+              <Route path="/media" element={<MediaPage />} />
               <Route
                 path="/dashboard"
                 element={<ComingSoonPage title="Dashboard" phase="Phase 4" description="Charts, KPIs, and quick actions across your workspace." />}

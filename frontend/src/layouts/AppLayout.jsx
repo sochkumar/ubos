@@ -31,6 +31,7 @@ const NAV_GROUPS = [
     label: "Data",
     items: [
       { to: "/entity-types", label: "Entity Types", icon: Boxes },
+      { to: "/media", label: "Media", icon: FolderKanban },
     ],
   },
   {

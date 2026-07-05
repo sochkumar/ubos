@@ -327,6 +327,10 @@ class OrgUpdate(BaseModel):
     settings: dict[str, Any] | None = None
 
 
+class OrgQuotaUpdate(BaseModel):
+    storage_quota_bytes: int = Field(ge=100 * 1024 * 1024, le=100 * 1024 * 1024 * 1024)
+
+
 class MemberRoleUpdate(BaseModel):
     role_name: Literal["owner", "admin", "editor", "viewer"]
 

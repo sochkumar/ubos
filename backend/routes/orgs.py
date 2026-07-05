@@ -9,10 +9,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from audit import audit
 from auth_deps import AuthContext, get_current_context, get_current_user, require_permission
 from db import get_db
-from models import MemberRoleUpdate, OrgCreate, OrgUpdate, strip_id
+from models import MemberRoleUpdate, OrgCreate, OrgQuotaUpdate, OrgUpdate, strip_id
 from routes._org_helpers import create_organization, get_membership
 from routes.auth import _issue_tokens
 from security import ROLE_PERMISSIONS, permissions_for_role
+from services import quota as quota_svc
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
@@ -104,6 +105,24 @@ async def update_org(
     audit(bg, action="org.updated", actor_id=ctx.user["_id"], org_id=org_id,
           target_type="org", target_id=org_id, diff=updates, request=request)
     return strip_id(doc)
+
+
+@router.patch("/{org_id}/storage-quota")
+async def update_storage_quota(
+    org_id: str,
+    payload: OrgQuotaUpdate,
+    bg: BackgroundTasks,
+    request: Request,
+    ctx: AuthContext = Depends(require_permission("org.update")),
+):
+    if ctx.org_id != org_id:
+        raise HTTPException(status_code=403, detail="active org does not match")
+    db = get_db()
+    org = await quota_svc.set_quota(db, org_id, payload.storage_quota_bytes)
+    audit(bg, action="org.quota_updated", actor_id=ctx.user["_id"], org_id=org_id,
+          target_type="org", target_id=org_id,
+          diff={"storage_quota_bytes": payload.storage_quota_bytes}, request=request)
+    return strip_id(org)
 
 
 @router.post("/{org_id}/switch")

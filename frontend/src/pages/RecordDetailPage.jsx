@@ -21,6 +21,8 @@ import { DynamicField } from "@/components/DynamicField";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { TagCombobox } from "@/components/TagCombobox";
 import { formatCellValue } from "@/components/RecordLayouts";
+import { AttachmentsPanel } from "@/components/AttachmentsPanel";
+import { RelationshipsPanel } from "@/components/RelationshipsPanel";
 
 function initialValues(fields, existing) {
   const v = {};
@@ -422,19 +424,11 @@ export default function RecordDetailPage() {
               </TabsContent>
 
               <TabsContent value="attachments" className="mt-4">
-                <EmptyState
-                  icon={Paperclip}
-                  title="Media attachments coming in the next update"
-                  description="Sub-pass B will bring image/file uploads, thumbnails, and the media library."
-                />
+                <AttachmentsPanel record={rec} />
               </TabsContent>
 
               <TabsContent value="relationships" className="mt-4">
-                <EmptyState
-                  icon={GitBranch}
-                  title="Relationships coming in the next update"
-                  description="Sub-pass B will let you link this record to related records with definition-driven pickers."
-                />
+                <RelationshipsPanel record={rec} />
               </TabsContent>
             </Tabs>
           </div>

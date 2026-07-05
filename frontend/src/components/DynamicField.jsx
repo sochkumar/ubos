@@ -10,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ImageFieldRenderer } from "@/components/ImageFieldRenderer";
+import { FileFieldRenderer } from "@/components/FileFieldRenderer";
 
 /**
  * Renders a single input for a field_definition.
@@ -21,6 +23,14 @@ import { Checkbox } from "@/components/ui/checkbox";
  *  - error: string | null
  */
 export function DynamicField({ field, value, onChange, error }) {
+  // image/file get bespoke renderers (with upload/preview).
+  if (field.type === "image") {
+    return <ImageFieldRenderer field={field} value={value} onChange={onChange} error={error} />;
+  }
+  if (field.type === "file") {
+    return <FileFieldRenderer field={field} value={value} onChange={onChange} error={error} />;
+  }
+
   const id = `field-${field.key}`;
   const testId = `input-${field.key}`;
 
@@ -197,7 +207,7 @@ export function DynamicField({ field, value, onChange, error }) {
             data-testid={testId}
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={`(${field.type} — Phase 3, stub input)`}
+            placeholder={`(${field.type} — stub input; will render inline in Sub-pass B+)`}
           />
         );
       default:

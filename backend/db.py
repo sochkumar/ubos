@@ -149,3 +149,11 @@ async def ensure_indexes() -> None:
         [("org_id", 1), ("record_id", 1), ("version_number", 1)],
         unique=True, name="uniq_record_version",
     )
+
+    # Sub-pass B: Media collection
+    await db.media.create_index([("org_id", 1), ("deleted_at", 1)])
+    await db.media.create_index([("org_id", 1), ("checksum", 1)])
+    await db.media.create_index([("org_id", 1), ("attached_to.record_id", 1)])
+    await db.media.create_index([("org_id", 1), ("created_at", -1)])
+    # Records: index for relationship lookups
+    await db.records.create_index([("org_id", 1), ("relationships.target_record_id", 1)])

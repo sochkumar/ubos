@@ -27,6 +27,8 @@ from routes.audit import router as audit_router
 from routes.dev import router as dev_router
 from routes.views import router as views_router
 from routes.record_history import router as record_history_router
+from routes.media import router as media_router
+from routes.relationship_instances import router as rel_inst_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -76,6 +78,8 @@ api.include_router(audit_router)
 api.include_router(dev_router)
 api.include_router(views_router)
 api.include_router(record_history_router)
+api.include_router(media_router)
+api.include_router(rel_inst_router)
 
 app.include_router(api)
 
@@ -205,6 +209,15 @@ async def _dedupe_record_versions() -> None:
         log.info("phase-3-A patch: removed %d duplicate record_versions rows", dupes)
 
 
+async def _backfill_org_storage_fields() -> None:
+    """Sub-pass B migration: ensure every org has storage_used_bytes."""
+    db = get_db()
+    await db.organizations.update_many(
+        {"storage_used_bytes": {"$exists": False}},
+        {"$set": {"storage_used_bytes": 0}},
+    )
+
+
 @app.on_event("startup")
 async def _startup():
     await _dedupe_record_versions()  # BEFORE ensure_indexes so unique index can build
@@ -212,6 +225,7 @@ async def _startup():
     await _wipe_phase0_demo_org()
     await _seed_demo_users_and_org()
     await _backfill_qr_payload()
+    await _backfill_org_storage_fields()
     log.info("UBOS Phase 3-A backend ready — Google=%s",
              "enabled" if os.environ.get("GOOGLE_CLIENT_ID", "REPLACE_ME") not in ("", "REPLACE_ME") else "disabled")
 

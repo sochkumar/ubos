@@ -1,0 +1,39 @@
+{
+  "summary": "Phase 3 Sub-pass B verification. Wrote /app/backend/tests/test_ubos_phase3b.py (18 tests) — all PASSED: media upload/dedup/thumb+serve, PDF SVG icon, SVG rejection, quota_exceeded 413, file_too_large 413, RBAC (viewer 403 / editor 201-204), image-field lifecycle + non-existent media 422 + PDF-in-image 422, file-field allowed_mimes 422, delete cascade with quota refund, relationship instances (one_to_one/one_to_many/many_to_many + cascade + unlink idempotent + viewer 403), storage-quota admin RBAC. Frontend Playwright verified: /media page renders (grid, storage bar 120MB/5GB, mime chips, search, drop zone), sidebar Media link enabled (no chip), upload adds tile, tile drawer shows Type/Size/Dimensions/Uploaded/Download/Delete/Used-in-N-records, /settings/organization Storage panel shows quota bar + editable MB input + Update + Manage in Media Library link, record detail page has all 5 tabs (Overview/Activity/Versions/Attachments/Relationships), Attachments tab renders drop zone + 'No attachments yet.' empty state, Relationships tab renders empty state with 'Define relationships in Entity Types → Rels first.' hint. QR payload now uses public preview URL (Phase 3-A action item from iteration 6 was fixed).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/orgs/:id/storage-quota", "issue": "Response returns the full org doc with settings.storage_quota_bytes nested inside `settings`, not a flat storage_quota_bytes field at the top. Not a bug but worth aligning with the frontend expectation — the frontend does read settings.storage_quota_bytes, so this is only a doc-shape observation."},
+      {"endpoint": "DELETE /api/media/:id?cascade=true", "issue": "Thumb file is not removed from disk (comment in code acknowledges this as an orphan). Low priority."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Products record Overview", "issues": ["Duplicate 'COVER' and 'DOCS' fields appear because prior test runs (including ours) added image/file fields to the seed 'products' entity — consider a `_reset_acme` sweeper for image/file fields when running tests, or scope test fields to a fresh entity type. Not a functional bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase3b.py",
+    "/app/test_reports/pytest/phase3b.xml"
+  ],
+  "action_items": [
+    "None blocking. Optionally: (a) flatten the /orgs/:id/storage-quota response to include storage_quota_bytes at the top level for API consistency, (b) purge test-generated cover_* / docs_* fields from the seed Products entity to keep the UI Overview tidy, (c) sweep orphan .thumb.jpg files on cascade delete."
+  ],
+  "critical_code_review_comments": [
+    "routes/media.py upload_media: multipart uploads read the ENTIRE file body into memory (await up.read()) before the size check — a hostile client can OOM the worker with a huge multipart body before quota_svc rejects. Consider streaming to disk with a size guard.",
+    "routes/media.py delete_media: cascade path only compares `media_id == mid` or `id == mid` for dict values, but PATCH creates entries as {'media_id': ...}. It also strips single-value fields to `None` but list-value fields to `[]` — verify frontend renderers accept both.",
+    "services/relationships.py link_records: cardinality for one_to_many when src_dir=='to' calls _count_links(src, rel_def_id, 'to') which is semantically identical to the from-side branch but reads confusingly — inline comment or refactor would help.",
+    "services/quota.py set_quota: no re-read after $set — relies on `return_document=True` boolean which pymongo accepts, but the returned doc is the AFTER version only when ReturnDocument.AFTER is imported; passing `True` currently works but is fragile.",
+    "routes/media.py serve_media: no auth check on the token endpoint — HMAC + 1h TTL is fine, but tokens are logged in access logs / referrer headers. Consider adding X-Content-Type-Options: nosniff and Cross-Origin-Resource-Policy: same-origin headers."
+  ],
+  "updated_files": ["/app/backend/tests/test_ubos_phase3b.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of critical Phase-3-B flows"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (needs org switch to Acme Furniture; test fixture handles), editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123",
+  "seed_data_creation": "Used existing seed (POST /api/dev/seed-demo idempotent). Tests created ~20 media docs, several new entity_types (eta_/etb_/casa_/casb_/uxa_/uxb_/rba_/rbb_ prefixes) plus image/file fields on the products entity (cover_*, docs_*). Total storage after run ~120 MB used of 5 GB quota (fill-*.bin files from quota test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sub-pass B is verified end-to-end (18/18 backend, all critical UI flows). If Products Overview looks cluttered with dupe COVER/DOCS fields, that's leftover test-schema — safe to delete via DELETE /api/fields/{id}. The presigned /api/media/serve/{token} URLs come back as absolute in most paths but the /thumb endpoint returns a relative path — test suite prepends BASE. Frontend already handles both. Backend logs shows the audit action stream includes org.quota_updated, media.uploaded, media.attached, media.detached, media.deleted, record.linked, record.unlinked.",
+  "rca of the issue": "No production bugs found. All three test failures in the first run were test-code issues: (1) relative URL from /thumb needed BASE prepending, (2) quota test attempted a 100+MB upload which hit file_too_large before quota_exceeded — reworked to pre-fill quota then shrink to MIN, (3) storage-quota response uses nested settings.storage_quota_bytes rather than top-level. All three fixed in the test file, not in app code."
+}

@@ -24,10 +24,12 @@ from models import (
 )
 from services.categories import descendant_ids_including_self
 from services.history import emit_activity, snapshot_version
+from services.media import apply_media_diff, collect_media_ids_from_field
 from services.query_builder import build_filter_query, build_sort_spec
 from services.record_signals import (
     apply_record_diff, on_record_deleted, validate_ids_belong_to_org_and_et,
 )
+from services.relationships import cascade_on_delete
 from validator import FieldValidator, ValidationErrors
 
 router = APIRouter(tags=["data"])
@@ -417,6 +419,16 @@ async def create_record(
     doc["qr_payload"] = f"{base}/r/{doc['_id']}" if base else f"/r/{doc['_id']}"
     await db.records.insert_one(doc)
 
+    # Attach any media referenced by image/file fields on create
+    for fd in field_defs:
+        if fd["type"] in ("image", "file"):
+            new_ids = collect_media_ids_from_field(coerced.get(fd["key"]), fd["type"])
+            if new_ids:
+                await apply_media_diff(
+                    db, org_id=ctx.org_id, record_id=doc["_id"],
+                    field_key=fd["key"], old_ids=set(), new_ids=new_ids,
+                )
+
     await apply_record_diff(
         db, org_id=ctx.org_id,
         old_category_ids=[], new_category_ids=cats,
@@ -516,6 +528,24 @@ async def update_record(
             old_tag_ids=old_tags, new_tag_ids=new_tags,
         )
 
+    # Media attach/detach diff for image/file fields
+    if payload.fields is not None:
+        et_id = current["entity_type_id"]
+        field_defs = await _load_field_defs(db, ctx.org_id, et_id)
+        for fd in field_defs:
+            if fd["type"] not in ("image", "file"):
+                continue
+            key = fd["key"]
+            old_val = (current.get("fields") or {}).get(key)
+            new_val = (doc.get("fields") or {}).get(key)
+            old_ids = collect_media_ids_from_field(old_val, fd["type"])
+            new_ids = collect_media_ids_from_field(new_val, fd["type"])
+            if old_ids != new_ids:
+                await apply_media_diff(
+                    db, org_id=ctx.org_id, record_id=rec_id,
+                    field_key=key, old_ids=old_ids, new_ids=new_ids,
+                )
+
     field_diff = _compute_diff(current.get("fields", {}), doc.get("fields", {}))
     await emit_activity(
         db, record=doc, actor_id=ctx.user["_id"],
@@ -547,6 +577,26 @@ async def delete_record(
         category_ids=current.get("category_ids") or [],
         tag_ids=current.get("tag_ids") or [],
     )
+    # Detach media pointed at by this record's image/file fields
+    et_defs = await _load_field_defs(db, ctx.org_id, current["entity_type_id"])
+    for fd in et_defs:
+        if fd["type"] not in ("image", "file"):
+            continue
+        key = fd["key"]
+        old_ids = collect_media_ids_from_field((current.get("fields") or {}).get(key), fd["type"])
+        if old_ids:
+            await apply_media_diff(
+                db, org_id=ctx.org_id, record_id=rec_id,
+                field_key=key, old_ids=old_ids, new_ids=set(),
+            )
+
+    # Cascade relationship deletes + clean up reverse links
+    cascaded = await cascade_on_delete(db, org_id=ctx.org_id, record=current)
+    if cascaded:
+        audit(bg, action="record.cascade_deleted", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+              target_type="record", target_id=rec_id,
+              diff={"cascaded_ids": cascaded, "count": len(cascaded)}, request=request)
+
     await emit_activity(
         db, record=current, actor_id=ctx.user["_id"],
         actor_name=ctx.user.get("name") or ctx.user.get("email"),
