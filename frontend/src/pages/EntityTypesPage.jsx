@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Boxes, Plus, Trash2, Layers, ListChecks } from "lucide-react";
-import { api, extractErrorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { extractErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +31,7 @@ const slugify = (s) =>
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9_]+/g, "_")
-    .replace(/^_+|_+$/g, "")
+    .replace(/^[^a-z]+/, "")
     .slice(0, 64);
 
 export default function EntityTypesPage() {

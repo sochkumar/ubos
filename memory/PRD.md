@@ -116,16 +116,43 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - **Phase 4:** Dashboards, sharing, public views
 - **Phase 5:** Electron wrapper + Expo mirror
 
-## What's Implemented (Phase 0 — Feb 2026)
+## What's Implemented (Phase 0 — Feb 2026) ✅ COMPLETE
 - Metadata engine + generic records collection
 - Full CRUD for entity_types, field_definitions, records
 - FieldValidator across 13 types (image/file/relation stubbed)
 - Tenant scoping via `X-Org-Id` header + `tenant_filter()`
 - POC UI with sidebar, 3 routes, dynamic form/table, demo seed CTA
 
+## What's Implemented (Phase 1 — Feb 2026) ✅ COMPLETE
+**Backend (auth + orgs + RBAC):**
+- Email/password auth with bcrypt hashing + brute-force lockout (5 attempts / 15 min per ip+email)
+- JWT access (15 min, python-jose HS256) + refresh (30 days, hashed in `refresh_tokens`, ROTATED on every refresh)
+- Google OAuth via `authlib` — env-gated (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` = `REPLACE_ME` by default → `/auth/google/status` reports `{enabled:false}`)
+- Google flow uses one-time exchange code (60s TTL) to avoid leaking tokens in URLs
+- `/api/auth/*`: register, login, refresh, logout, me, forgot-password (dev logs reset URL), reset-password, change-password, google/status, google/login, google/exchange
+- Organizations + memberships + roles (owner/admin/editor/viewer, seeded per-org). Endpoints: `POST/GET/PATCH /orgs`, `POST /orgs/{id}/switch`, `GET/PATCH/DELETE /orgs/{id}/members(/{mid})`.
+- All Phase 0 endpoints migrated to `require_permission(...)` FastAPI dependency; JWT-derived `org_id` context (`X-Org-Id` still honored for API scripting when membership check passes)
+- Audit log (background-task, non-blocking) for user.*, org.*, member.*, entity_type.*, field.*, record.* events; `GET /api/audit-logs` (admin+ only)
+- **Test users auto-seeded** on empty DB: owner/editor/viewer @ubos.test + shared org "Acme Furniture"
+- **Phase 0 demo-org data wiped** on first Phase 1 boot (documented migration choice; users re-seed via `/api/dev/seed-demo`)
+
+**Frontend (AppShell + auth flows):**
+- Public routes: `/login`, `/register`, `/forgot-password`, `/reset-password` under a two-panel `AuthLayout`
+- `/auth/google/callback` handles OAuth exchange
+- `/onboarding` two-step wizard (Create org → Start blank OR Load demo). Starter templates chip shows "Coming soon".
+- Authed shell: sidebar with Overview/Data/Config/Settings groups (Config/Dashboard items show "Coming in Phase N" chips), plus topbar with org switcher dropdown (list + create), global search stub, notifications stub, user menu (Profile / Organization / Sign out)
+- Settings pages: `/settings/organization`, `/settings/members` (role dropdown + remove), `/settings/audit-log` (admin+ only), `/settings/profile` (change password)
+- `RequireAuth` guard + axios refresh interceptor (auto-refresh once on 401, redirect to `/login` on failure); tokens in localStorage (`ubos.access_token`, `ubos.refresh_token`)
+- Google button disabled with tooltip when `/auth/google/status` returns `{enabled:false}`
+
+**Bug fixes carried into Phase 1:**
+- Field-key slugifier no longer strips underscores — it only strips non-alpha prefixes (backend regex `^[a-z][a-z0-9_]*$`)
+
 ## Prioritized Backlog
-- P0: Auth (Phase 1)
-- P1: Search UI & saved views (Phase 2)
-- P1: Media + relations (Phase 3)
-- P2: Dashboards / sharing (Phase 4)
-- P2: Electron / Expo (Phase 5)
+- P0: Starter templates gallery (Phase 2 hook)
+- P1: Search UI, filters, sorts, saved views (text index already in place)
+- P1: Media fields (image/file) + relations (upload playbook via `integration_playbook_expert_v2`)
+- P1: Invitations flow (deferred from Phase 1)
+- P2: Categories/tags, dashboards, sharing / public views
+- P2: Electron wrapper + Expo mirror
+- P3: Migrate FastAPI on_event → lifespan

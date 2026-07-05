@@ -3,36 +3,86 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
 
-// Phase 0: no auth yet — but we still send X-Org-Id so the tenant plumbing
-// is exercised end-to-end from day one.
-const DEFAULT_ORG_ID = "demo-org";
+const ACCESS_KEY = "ubos.access_token";
+const REFRESH_KEY = "ubos.refresh_token";
+
+export const tokenStore = {
+  get access() {
+    return localStorage.getItem(ACCESS_KEY);
+  },
+  get refresh() {
+    return localStorage.getItem(REFRESH_KEY);
+  },
+  set({ access_token, refresh_token }) {
+    if (access_token) localStorage.setItem(ACCESS_KEY, access_token);
+    if (refresh_token) localStorage.setItem(REFRESH_KEY, refresh_token);
+  },
+  clear() {
+    localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+  },
+};
 
 export const api = axios.create({
   baseURL: API_BASE,
-  headers: {
-    "Content-Type": "application/json",
-    "X-Org-Id": DEFAULT_ORG_ID,
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// Convenience: pull server-side validation error map ({fields.<key>: msg})
-export function extractFieldErrors(err) {
-  const data = err?.response?.data;
-  if (data?.detail?.errors && typeof data.detail.errors === "object") {
-    return data.detail.errors;
-  }
-  return null;
+// Attach bearer on every request
+api.interceptors.request.use((config) => {
+  const t = tokenStore.access;
+  if (t) config.headers.Authorization = `Bearer ${t}`;
+  return config;
+});
+
+// Refresh-on-401 with a single in-flight refresh + queue
+let refreshInFlight = null;
+let onAuthLostCallback = null;
+
+export function setOnAuthLost(cb) {
+  onAuthLostCallback = cb;
 }
 
-export function extractErrorMessage(err) {
-  const data = err?.response?.data;
-  if (typeof data?.detail === "string") return data.detail;
-  if (data?.detail?.errors) {
-    const first = Object.values(data.detail.errors)[0];
-    if (first) return first;
-  }
-  if (Array.isArray(data?.detail)) {
-    return data.detail.map((d) => d.msg).join(", ");
-  }
-  return err?.message || "Something went wrong";
+async function performRefresh() {
+  const refresh_token = tokenStore.refresh;
+  if (!refresh_token) throw new Error("no refresh token");
+  const res = await axios.post(
+    `${API_BASE}/auth/refresh`,
+    { refresh_token },
+    { headers: { "Content-Type": "application/json" } },
+  );
+  tokenStore.set(res.data);
+  return res.data;
 }
+
+api.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const { config, response } = error;
+    if (
+      !response ||
+      response.status !== 401 ||
+      config?._retried ||
+      (config?.url || "").includes("/auth/refresh") ||
+      (config?.url || "").includes("/auth/login")
+    ) {
+      throw error;
+    }
+    try {
+      if (!refreshInFlight) {
+        refreshInFlight = performRefresh().finally(() => {
+          refreshInFlight = null;
+        });
+      }
+      await refreshInFlight;
+      config._retried = true;
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${tokenStore.access}`;
+      return api.request(config);
+    } catch (e) {
+      tokenStore.clear();
+      if (onAuthLostCallback) onAuthLostCallback();
+      throw error;
+    }
+  },
+);

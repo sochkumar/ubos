@@ -8,7 +8,8 @@ import {
   Trash2,
   ListChecks,
 } from "lucide-react";
-import { api, extractErrorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { extractErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,7 +62,12 @@ const FIELD_TYPES = [
 ];
 
 const slugify = (s) =>
-  s.toLowerCase().trim().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64);
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^[^a-z]+/, "")
+    .slice(0, 64);
 
 const emptyForm = () => ({
   label: "",

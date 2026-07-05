@@ -31,11 +31,7 @@ def get_db() -> AsyncIOMotorDatabase:
 
 
 def tenant_filter(org_id: str, extra: dict | None = None) -> dict:
-    """Build a query filter scoped to an org and excluding soft-deleted docs.
-
-    Every read/update/delete in the app MUST route through this helper so we
-    never accidentally cross tenant boundaries.
-    """
+    """Build a query filter scoped to an org and excluding soft-deleted docs."""
     q: dict = {"org_id": org_id, "deleted_at": None}
     if extra:
         q.update(extra)
@@ -45,6 +41,7 @@ def tenant_filter(org_id: str, extra: dict | None = None) -> dict:
 async def ensure_indexes() -> None:
     db = get_db()
 
+    # ── Phase 0 collections ──
     await db.entity_types.create_index(
         [("org_id", 1), ("key", 1)],
         unique=True,
@@ -52,7 +49,6 @@ async def ensure_indexes() -> None:
         name="uniq_org_key_active",
     )
     await db.entity_types.create_index([("org_id", 1), ("deleted_at", 1)])
-
     await db.field_definitions.create_index(
         [("org_id", 1), ("entity_type_id", 1), ("key", 1)],
         unique=True,
@@ -62,14 +58,42 @@ async def ensure_indexes() -> None:
     await db.field_definitions.create_index(
         [("org_id", 1), ("entity_type_id", 1), ("order", 1)]
     )
-
     await db.records.create_index(
         [("org_id", 1), ("entity_type_id", 1), ("deleted_at", 1)]
     )
     await db.records.create_index([("org_id", 1), ("record_number", 1)])
-    # text index for future search UI (Phase 2)
     try:
         await db.records.create_index([("search_text", "text")])
     except Exception:
-        # index may already exist with different definition — ignore
         pass
+
+    # ── Phase 1 collections ──
+    await db.users.create_index("email", unique=True)
+    await db.users.create_index("google_sub", sparse=True)
+    await db.organizations.create_index("slug", unique=True)
+    await db.memberships.create_index(
+        [("user_id", 1), ("org_id", 1)], unique=True, name="uniq_user_org"
+    )
+    await db.memberships.create_index([("org_id", 1)])
+    await db.roles.create_index([("org_id", 1), ("name", 1)], unique=True)
+
+    # Refresh tokens: index by hash + TTL cleanup via expires_at
+    await db.refresh_tokens.create_index("token_hash", unique=True)
+    await db.refresh_tokens.create_index("user_id")
+    await db.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+
+    # Password reset tokens: TTL
+    await db.password_reset_tokens.create_index("token_hash", unique=True)
+    await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=0)
+
+    # OAuth state + one-time exchange codes: TTL
+    await db.oauth_states.create_index("expires_at", expireAfterSeconds=0)
+    await db.oauth_exchange.create_index("expires_at", expireAfterSeconds=0)
+
+    # Login attempts (brute force)
+    await db.login_attempts.create_index("identifier")
+    await db.login_attempts.create_index("expires_at", expireAfterSeconds=0)
+
+    # Audit logs — indexed by org + ts descending, keep forever
+    await db.audit_logs.create_index([("org_id", 1), ("ts", -1)])
+    await db.audit_logs.create_index([("actor_id", 1), ("ts", -1)])

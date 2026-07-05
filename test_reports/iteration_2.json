@@ -1,0 +1,42 @@
+{
+  "summary": "Phase 1 end-to-end verification. 29/32 pytest passes plus complete frontend flow verification (login/logout, register→onboarding→org creation, RequireAuth redirect w/ next param, tokens in localStorage, refresh-persistence, forgot-password shows dev-reset-url, settings pages (Organization/Members/Audit/Profile) render per-role correctly, viewer sees disabled org inputs + 'Restricted' audit page + disabled invite-users-btn, topbar org-switcher + user-menu with Profile/Organization/Sign out, SLUGIFY UI FIX CONFIRMED both in table (In stock→in_stock displayed) and in Add-field dialog (label 'In stock'→key 'in_stock', 'Serial No.'→'serial_no_' — underscore preserved). Three real backend bugs found, ALL rooted in the same naive-vs-aware datetime comparison in /app/backend/routes/auth.py.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/auth/refresh", "issue": "Returns 500 TypeError: can't compare offset-naive and offset-aware datetimes at auth.py:185. `expires_at` stored via Motor comes back naive but is compared to _now_dt() which is tz-aware. Refresh-token rotation is completely broken.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/auth/reset-password", "issue": "Same TypeError at auth.py:283 (`exp < _now_dt()`). Password reset flow returns 500 so no user can complete a forgot-password reset (frontend UI shows dev_reset_url correctly, but hitting the reset endpoint fails).", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/auth/login (brute-force lockout)", "issue": "After 5 failed attempts (count>=5), _check_lockout at auth.py:130 hits the same naive-vs-aware datetime compare → 500 (verified: 6 curls returned 401,401,401,401,401,401,500,500). Instead of returning 429, endpoint 500s. Brute-force protection is functionally broken — attackers see 500s but can keep trying (no proper block returned to client, and the lockout check itself errors out before either 429 or normal 401 is emitted).", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Forgot / reset password (UI end-to-end)", "issue": "UI submits forgot-password fine and dev-reset-url is shown, but the reset step will always fail because POST /api/auth/reset-password 500s (see backend bug). Blocked by backend, not the UI.", "affected_selectors": ["[data-testid=\"dev-reset-url\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase1.py",
+    "/app/test_reports/pytest/pytest_phase1.xml"
+  ],
+  "action_items": [
+    "Fix naive-vs-aware datetime comparisons in /app/backend/routes/auth.py at lines 130 (_check_lockout), 185 (refresh), 283 (reset_password). Options: (a) store `expires_at` as ISO string like the other timestamps and parse with datetime.fromisoformat before compare; (b) when reading `exp` from Mongo, if `exp.tzinfo is None: exp = exp.replace(tzinfo=timezone.utc)`; (c) initialize Motor client with tz_aware=True. Option (b) is smallest patch and directly matches the existing style — apply consistently to all three sites.",
+    "After the fix, re-verify: refresh rotation returns 200 on first use and 401 on reuse; reset-password with a fresh forgot-password token returns 200 and login with the new password works; brute-force lockout returns 429 on the 6th consecutive wrong attempt for the same email+IP.",
+    "Optional cleanup: /app/backend/tests/test_ubos_phase1.py leaves a leftover 'in_stock_test_*' field on the Products entity type in Acme org (from the slugify API assertion). Field-delete API returned 404 in my probe — main agent may want to expose DELETE /api/entity-types/{id}/fields/{fid} or use existing route, and add teardown to the test fixture."
+  ],
+  "critical_code_review_comments": [
+    "auth.py stores `expires_at` as raw Python datetime for refresh_tokens + password_reset_tokens + login_attempts, but stores `created_at`/`updated_at`/`revoked_at`/`used_at` as isoformat strings. This inconsistency is what causes the naive/aware TypeError once Motor round-trips the datetime. Standardize to one representation.",
+    "Onboarding wizard's Step 2 (start-blank / load-demo) may auto-transition too quickly after org creation — Playwright saw start-blank-btn count=0 after 2.5s wait and landed on /entity-types directly. Not a blocker but worth verifying start-blank-btn and load-demo-btn are actually shown for a human user for enough time to pick one.",
+    "Motor is used without `tz_aware=True`, which is the root cause of the datetime round-trip issue. Consider setting AsyncIOMotorClient(..., tz_aware=True) in db.py to normalize."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubos_phase1.py"
+  ],
+  "success_rate": {"backend": "91% (29/32 pytest; 3 failures are the 3 real bugs above)", "frontend": "100% of tested flows pass"},
+  "test_credentials": "owner@ubos.test/OwnerPass!123, editor@ubos.test/EditorPass!123, viewer@ubos.test/ViewerPass!123 (all auto-seeded, all working).",
+  "seed_data_creation": "Registered several throwaway users (tester+*, pwreset+*, chpw+*, orgu+*, tenantA+*, tenantB+*, lockme+*) and created TEST orgs during tests. Also created and (attempted to delete) 1-2 boolean fields on Acme Products entity. See action_items for cleanup note.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview backend is behind kubernetes ingress — client IP as seen by backend is stable, so brute-force lockout key `ip:email` accumulates as expected. The 3 backend failures share a single root cause (naive/aware datetime), so a one-shot fix in auth.py should flip all 3 tests green. After main agent fix, run: `pytest /app/backend/tests/test_ubos_phase1.py -n 0 -v` — expect 32/32 pass. If test_login_rate_limit_429 stays flaky, other tests in the run also record wrong-password attempts on demo users so subsequent runs may hit the lockout differently — use a UUID-suffixed email for lockout tests (already done).",
+  "rca of the issue": "ROOT CAUSE: db.py creates AsyncIOMotorClient without tz_aware=True. Code in /app/backend/routes/auth.py writes `expires_at` as a Python `datetime.now(timezone.utc)+timedelta(...)` object (tz-aware) into three collections (refresh_tokens, password_reset_tokens, login_attempts). MongoDB stores this as UTC BSON Date. Motor's default codec returns those Dates as *naive* Python datetimes on read. Then the code does `exp < _now_dt()` / `exp > _now_dt()` where `_now_dt()` is tz-aware → Python 3 raises TypeError('can\\'t compare offset-naive and offset-aware datetimes') → 500. REPRODUCTION: (a) login owner, take refresh_token, POST /api/auth/refresh → 500; (b) POST /api/auth/forgot-password for a real user, take the token, POST /api/auth/reset-password → 500; (c) 6× POST /api/auth/login with wrong password for the same email → 6th (and later) request returns 500 instead of 429. MITIGATION: In db.py switch to `AsyncIOMotorClient(MONGO_URL, tz_aware=True, tzinfo=timezone.utc)`. Alternative: in auth.py, before every `exp < _now_dt()` compare, do `if exp.tzinfo is None: exp = exp.replace(tzinfo=timezone.utc)`. Long-term: store all timestamps as isoformat strings for consistency with the other fields."
+}
