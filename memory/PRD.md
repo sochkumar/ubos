@@ -408,7 +408,7 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 
 ## Backlog — Deferred / Post-MVP
 
-**Phase 6 Sub-pass A — Frontend Polish + PWA (SHIPPED Feb 2026)**
+**Phase 6 Sub-pass A — Frontend Polish + PWA (SHIPPED Feb 2026) — LOCKED ✅**
 - **PWA**: `manifest.webmanifest` + `sw.js` (network-first shell, cache-first assets, `/api/*` bypass, versioned caches, `postMessage` update-toast). Icons 192/256/384/512 + maskable 512. Install prompt via `beforeinstallprompt` in topbar user menu (fallback for Firefox/Safari).
 - **Error boundaries**: `ErrorBoundary` component with three variants (`fullscreen`, `page`, `widget`). Root wraps whole app; every authed route wrapped in `Page name="..."` boundary; DashboardWidget-level boundaries planned per-widget.
 - **Axios error normalization**: `handleApiError(err, {silent, formCtx, context})` in `lib/errors.js` maps network / 401 / 403 / 404 / 409 / 410 / 413 / 422 / 429 / 5xx to appropriate toasts, redirects on session expiry, surfaces field errors under form inputs, deduplicates rapid identical toasts.
@@ -421,6 +421,22 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 - **Sidebar**: new "Label Presets" nav item (`Printer` icon).
 
 **Env deps added**: `pdf2image` (Python), `poppler-utils` (system).
+
+### Sub-pass A verification (Feb 2026)
+
+Two verification passes were run:
+1. **Round 1** (`e1_tester`): 15 auto-PASS + 2 real FAILs (date picker not wired, PDF thumbnails not rendering) + 2 WARNs (Retry-After header, session-expired toast).
+2. **Round 2** post-fix: **11/11 PASS**, both FAILs resolved (DynamicField now uses DatePicker/DateTimePicker end-to-end; PDF thumbs generated on upload + backfill endpoint + served as `image/jpeg` with JPEG magic bytes verified). Both WARNs landed:
+   - **Retry-After header** on all 429 endpoints (public read rate limit, unlock brute-force gate, invite hourly limit, login lockout) with body carrying `retry_after` + frontend `handleApiError` formatting countdown ("Too many requests — try again in Xs.").
+   - **Session-expired toast** fires before /login redirect via a module-level `_sessionExpiredNotified` guard in `lib/api.js` that dedupes to exactly one toast + one redirect per expiry event regardless of how many parallel requests 401 simultaneously. Guard resets on `applyTokens()` (fresh login).
+
+Additional housekeeping in the same patch:
+- `<input type="date">` / `type="datetime-local"` swapped to `DatePicker`/`DateTimePicker` in every remaining spot (Share dialog expiry, ViewShare dialog expiry). Zero native date/datetime inputs remain anywhere under `/app/frontend/src`.
+- `DynamicField` default case logs `console.warn` if a `date`/`datetime` field ever falls through to a native `<Input>` (regression guard).
+- One false-alarm confirmed: "field-delete 404" during tester run was due to using the wrong URL (`DELETE /api/entity-types/:et_id/fields/:fid` — nested route doesn't exist). The correct route `DELETE /api/fields/:fid` works and is documented in OpenAPI. No fix required.
+
+**Sub-pass A code is LOCKED.** Do not touch except at explicit wire-up points from Sub-pass B.
+
 
 
 **Phase 6 (P2, upcoming — polish + PWA + hardening, MVP declaration):**

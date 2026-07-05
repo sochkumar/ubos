@@ -39,9 +39,18 @@ api.interceptors.request.use((config) => {
 // Refresh-on-401 with a single in-flight refresh + queue
 let refreshInFlight = null;
 let onAuthLostCallback = null;
+// Session-expiry guard: exactly one toast + one redirect per expiry event,
+// even when many in-flight requests all 401 simultaneously. Reset on any
+// successful token attach (i.e. after a fresh login).
+let _sessionExpiredNotified = false;
 
 export function setOnAuthLost(cb) {
   onAuthLostCallback = cb;
+}
+
+/** Called by the login flow after `tokenStore.set(...)` so the guard resets. */
+export function resetSessionExpiryGuard() {
+  _sessionExpiredNotified = false;
 }
 
 async function performRefresh() {
@@ -82,15 +91,18 @@ api.interceptors.response.use(
       return api.request(config);
     } catch (e) {
       tokenStore.clear();
-      // Mark for handleApiError so it doesn't re-toast, and surface a session-
-      // expired toast BEFORE navigation so the user has context on the login
-      // page.
+      // Mark on the error so handleApiError doesn't re-toast.
       error._retriedRefresh = true;
       if (config) config._retriedRefresh = true;
-      try {
-        toast.error("Session expired — please sign in again.", { duration: 6000 });
-      } catch { /* toaster might not be mounted yet */ }
-      if (onAuthLostCallback) onAuthLostCallback();
+      // Fire exactly one toast + one redirect per expiry event, regardless of
+      // how many parallel requests all 401 at the same time.
+      if (!_sessionExpiredNotified) {
+        _sessionExpiredNotified = true;
+        try {
+          toast.error("Session expired — please sign in again.", { duration: 6000 });
+        } catch { /* toaster might not be mounted yet */ }
+        if (onAuthLostCallback) onAuthLostCallback();
+      }
       throw error;
     }
   },

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, tokenStore, setOnAuthLost } from "@/lib/api";
+import { api, tokenStore, setOnAuthLost, resetSessionExpiryGuard } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 
 const AuthContext = createContext(null);
@@ -50,6 +50,9 @@ export function AuthProvider({ children }) {
 
   const applyTokens = useCallback(async (data) => {
     tokenStore.set(data);
+    // Fresh valid tokens attached — arm the session-expiry guard again so a
+    // future 401-then-refresh-fail can fire exactly one toast.
+    resetSessionExpiryGuard();
     setActiveOrgId(data.org_id || null);
     setActiveRole(data.role || null);
     setPermissions(data.permissions || []);
