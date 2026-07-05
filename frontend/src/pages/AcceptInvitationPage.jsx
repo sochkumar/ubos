@@ -128,12 +128,12 @@ export default function AcceptInvitationPage() {
         <h1 className="text-xl font-semibold" data-testid="invite-org-name">
           You&apos;ve been invited to <span className="text-primary">{inv.org_name || "an organization"}</span>
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <div className="mt-1 text-sm text-muted-foreground">
           {inv.inviter?.name || inv.inviter?.email || "A teammate"} invited{" "}
           <span className="font-mono text-foreground" data-testid="invite-invitee-email">{inv.email}</span>
           {" "}as <Badge variant="secondary" className="ml-1 mr-1" data-testid="invite-role">{inv.role_name}</Badge>
           on UBOS.
-        </p>
+        </div>
         {inv.expires_at && (
           <p className="mt-1 text-xs text-muted-foreground/80">
             Expires {fmtDate(inv.expires_at)}
@@ -158,7 +158,10 @@ export default function AcceptInvitationPage() {
               {accepting ? "Joining…" : (<><Check className="w-4 h-4 mr-2" /> Accept & join {inv.org_name}</>)}
             </Button>
           ) : authStatus === "authed" && isMismatch ? (
-            <div className="text-center rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div
+              className="text-center rounded-lg border border-amber-300 bg-amber-50 p-4"
+              data-testid="invite-mismatch-banner"
+            >
               <div className="text-sm text-amber-900">
                 This invitation was sent to <b className="font-mono">{inv.email}</b>,{" "}
                 but you&apos;re signed in as <b className="font-mono">{user.email}</b>.
