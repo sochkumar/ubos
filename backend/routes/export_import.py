@@ -659,6 +659,13 @@ async def import_plan(et_id: str, body: ImportPlanBody,
     per_row_out: list[dict] = []
     first_errors: list[dict] = []
 
+    # In-batch uniqueness tracking for `unique: true` fields (and match_by
+    # if it's a proper unique field). Maps field_key → {value → first_row_idx}.
+    unique_field_keys = {d["key"] for d in field_defs if d.get("unique") and d["key"] not in unsupported}
+    # If match_by is unique and conflict_policy=update, we treat later
+    # duplicates as pointing at the same DB row (all collapse into one update).
+    seen_in_batch: dict[str, dict[str, int]] = {k: {} for k in unique_field_keys}
+
     # Simulate validation for each row
     for idx, csv_row in enumerate(rows):
         payload_fields: dict[str, Any] = {}
@@ -693,6 +700,22 @@ async def import_plan(et_id: str, body: ImportPlanBody,
             else:
                 payload_fields[fd["key"]] = coerced
 
+        # In-batch unique-value detection.  For each `unique:true` field
+        # the first row's value is recorded; later rows with the same
+        # value get an action based on conflict_policy.
+        dup_key: str | None = None
+        dup_first_row: int | None = None
+        for uk in unique_field_keys:
+            v = payload_fields.get(uk)
+            if v is None or v == "":
+                continue
+            first = seen_in_batch[uk].get(str(v))
+            if first is not None:
+                dup_key = uk
+                dup_first_row = first
+                break
+            seen_in_batch[uk][str(v)] = idx
+
         # Match / conflict simulation
         action = "insert"
         record_id = None
@@ -709,6 +732,26 @@ async def import_plan(et_id: str, body: ImportPlanBody,
                 else:
                     action = "error"
                     errors.append({"field": match_by, "msg": f"duplicate {match_by}: {key_val}"})
+
+        # Apply in-batch duplicate policy AFTER DB match decision
+        if dup_key and not errors:
+            if conflict_policy == "skip":
+                action = "skip"
+            elif conflict_policy == "update" and match_by == dup_key:
+                # Later duplicates collapse into the same underlying update.
+                # If the first row will be an insert (not matched vs DB),
+                # this row is redundant → skip; else this row's update just
+                # overwrites the same DB row so we treat it as skip.
+                action = "skip"
+            else:
+                # error, or update-with-different-match-by, or insert path:
+                # collide → error out.
+                errors.append({
+                    "field": dup_key,
+                    "msg": f"duplicate unique value '{payload_fields.get(dup_key)}' at row {idx + 1} "
+                           f"(already at row {(dup_first_row or 0) + 1} in this file)",
+                })
+                action = "error"
 
         if errors:
             action = "error"
@@ -889,6 +932,12 @@ def _validate_field_value(fd: dict, v: Any) -> tuple[bool, Any, str | None]:
     """Lightweight per-field validation for the import plan/execute pass.
     Uses `validator.FieldValidator._validate_value` (private but stable enough)
     for type coercion, then falls back on a basic per-type check."""
+    ftype = fd.get("type")
+    # Dropdowns: always give a friendly, deterministic error.
+    if ftype == "dropdown":
+        opts = (fd.get("config") or {}).get("options") or []
+        if opts and str(v) not in [str(o) for o in opts]:
+            return False, None, f"value '{v}' not in dropdown options for field '{fd.get('key')}'"
     try:
         from validator import FieldValidator  # type: ignore
         fv = FieldValidator.__new__(FieldValidator)
@@ -897,7 +946,6 @@ def _validate_field_value(fd: dict, v: Any) -> tuple[bool, Any, str | None]:
         return False, None, str(e)
     except Exception:
         # Basic fallback
-        ftype = fd.get("type")
         if ftype == "number" and not isinstance(v, (int, float)):
             try:
                 return True, float(v), None
@@ -905,10 +953,6 @@ def _validate_field_value(fd: dict, v: Any) -> tuple[bool, Any, str | None]:
                 return False, None, "not a number"
         if ftype == "email" and isinstance(v, str) and "@" not in v:
             return False, None, "invalid email"
-        if ftype == "dropdown":
-            opts = (fd.get("config") or {}).get("options") or []
-            if opts and str(v) not in [str(o) for o in opts]:
-                return False, None, f"not one of {opts}"
         return True, v, None
 
 
@@ -967,6 +1011,16 @@ async def _run_import_job(job_id: str, plan: dict, meta: dict) -> None:
         error_lines: list[list[str]] = [["row_idx", "field", "message", "raw_value"]]
         inserted = updated = skipped = errors = processed = 0
 
+        # In-batch uniqueness tracking (mirrors the plan phase). Bugfix:
+        # without this, two rows with the same value on a `unique:true`
+        # field could BOTH end up as inserts.
+        unique_field_keys = {d["key"] for d in field_defs
+                              if d.get("unique") and d["key"] not in unsupported}
+        seen_in_batch: dict[str, dict[str, int]] = {k: {} for k in unique_field_keys}
+        # Track record-numbers of updates already scheduled so subsequent
+        # collapsing duplicates don't re-schedule the same update.
+        collapsed_update_targets: set[str] = set()
+
         async def _record_number(et_key: str) -> str:
             # Grab a sequential record number — same approach as data.py
             seq = await db.entity_types.find_one_and_update(
@@ -983,24 +1037,35 @@ async def _run_import_job(job_id: str, plan: dict, meta: dict) -> None:
         BATCH = 200
 
         async def flush() -> None:
-            nonlocal inserted, updated
+            nonlocal inserted, updated, errors
             if batch:
                 try:
                     await db.records.insert_many(batch, ordered=False)
                     inserted += len(batch)
                 except Exception:
-                    # Fallback: insert one-by-one, count only successful writes
+                    # BulkWriteError or DuplicateKeyError — retry per-doc so
+                    # we can count survivors and mark failures.
                     for d in batch:
                         try:
                             await db.records.insert_one(d)
                             inserted += 1
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            errors += 1
+                            error_lines.append([
+                                "?", "_insert",
+                                f"insert failed: {type(exc).__name__}",
+                                d.get("record_number", "")[:32],
+                            ])
                 batch.clear()
             if updates:
                 for rid, upd in updates:
-                    await db.records.update_one({"_id": rid, "org_id": ctx_org}, {"$set": upd})
-                    updated += 1
+                    try:
+                        await db.records.update_one({"_id": rid, "org_id": ctx_org}, {"$set": upd})
+                        updated += 1
+                    except Exception as exc:
+                        errors += 1
+                        error_lines.append(["?", "_update",
+                                            f"update failed: {type(exc).__name__}", rid])
                 updates.clear()
 
         for row_idx, csv_row in enumerate(rows):
@@ -1047,14 +1112,54 @@ async def _run_import_job(job_id: str, plan: dict, meta: dict) -> None:
                     error_lines.append([str(row_idx), e["field"], e["msg"], str(csv_row.get(e["field"], ""))])
                 continue
 
+            # In-batch duplicate detection on `unique:true` fields.
+            dup_key: str | None = None
+            dup_first_row: int | None = None
+            for uk in unique_field_keys:
+                v = payload_fields.get(uk)
+                if v is None or v == "":
+                    continue
+                first = seen_in_batch[uk].get(str(v))
+                if first is not None:
+                    dup_key = uk
+                    dup_first_row = first
+                    break
+                seen_in_batch[uk][str(v)] = row_idx
+
             # Handle match / conflict
             existing_rid = None
+            key_val = None
             if match_by:
                 key_val = payload_fields.get(match_by) if match_by != "record_number" else csv_row.get(
                     next((h for h, k in mapping.items() if k == "record_number"), "")
                 )
                 if key_val and str(key_val) in existing_by_key:
                     existing_rid = existing_by_key[str(key_val)]["_id"]
+
+            # In-batch duplicate resolution (mirrors plan-phase logic).
+            if dup_key and not row_errors:
+                if conflict_policy == "skip":
+                    skipped += 1
+                    continue
+                if conflict_policy == "update" and match_by == dup_key:
+                    # Collapse — target the DB row already scheduled or (if it
+                    # was an insert) drop this duplicate.
+                    tgt = existing_by_key.get(str(payload_fields.get(dup_key)), {}).get("_id")
+                    if tgt and tgt not in collapsed_update_targets:
+                        collapsed_update_targets.add(tgt)
+                        # let the update path below run
+                    else:
+                        skipped += 1
+                        continue
+                else:
+                    errors += 1
+                    error_lines.append([
+                        str(row_idx), dup_key,
+                        f"duplicate unique value at row {row_idx + 1} "
+                        f"(already at row {(dup_first_row or 0) + 1})",
+                        str(payload_fields.get(dup_key, "")),
+                    ])
+                    continue
 
             # Tag lookup / auto-create
             tag_ids: list[str] = []

@@ -1,0 +1,49 @@
+{
+  "summary": "Phase 5 Sub-pass A hotfix: 14/16 new hotfix tests pass, 20/20 Phase 5A regression tests still green. Two failures identified in BUG 2 spec compliance — QR and Barcode public share endpoints do NOT implement org-member bearer bypass (missing try_auth dependency).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/public/records/{token}/qr.png",
+        "issue": "BUG 2 spec violation: org-member bearer bypass NOT implemented. Endpoint has no `ctx: AuthContext | None = Depends(try_auth)` param, so signed-in owner presenting Bearer token still gets 401 password_required on a password-protected share. Owner test returned 401 instead of expected 200.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "GET /api/public/records/{token}/barcode.png",
+        "issue": "BUG 2 spec violation: same as qr.png — no try_auth dependency, no `if not (ctx and ctx.org_id == share['org_id']): _check_password_gate(...)` branch. Owner bearer gets 401 instead of 200.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "test_credentials.md accuracy",
+        "issue": "/app/memory/test_credentials.md claims editor@ubos.test is in same org 'Acme Furniture' as owner, but at runtime editor is in a DIFFERENT org (org_id 9920200c... vs owner's cf2aa27e...). Editor seeding appears to spawn a separate org."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase5a_hotfix.py",
+    "/app/backend/tests/test_ubos_phase5a.py",
+    "/app/test_reports/pytest/phase5a_hotfix.xml",
+    "/app/test_reports/pytest/phase5a_regression.xml"
+  ],
+  "action_items": [
+    "Add `ctx: AuthContext | None = Depends(try_auth)` parameter to `qr_for_shared_record` and `barcode_for_shared_record` in /app/backend/routes/shares.py.",
+    "Add the org-member bypass branch BEFORE `_check_password_gate`, mirroring `public_get_record` and `public_serve_shared_media`:\n    ```python\n    if v == 'password':\n        if not (ctx and ctx.org_id == share['org_id']):\n            _check_password_gate(share, request)\n    elif v != 'public':\n        raise HTTPException(401, 'public QR only available for public shares')\n    ```\n  Also: for password-shares, if the QR/barcode is generated it currently uses the share token as the URL — leave as-is.",
+    "(Optional) Update /app/memory/test_credentials.md to reflect actual editor/viewer org membership OR fix seed_users to place all 3 test users in the same org."
+  ],
+  "critical_code_review_comments": [
+    "shares.py qr_for_shared_record + barcode_for_shared_record are the two remaining endpoints in the 'public share family' that still don't implement the org-member bypass promised by the fix. They also lack the `try_auth` dep entirely. Simple 3-line fix each.",
+    "flush() fallback in export_import.py correctly increments `errors += 1` on both insert and update exceptions (verified by static-analysis test).",
+    "In-batch unique detection works correctly for plan + execute + cross-batch (>200 rows). Confirmed via GET /records?q=<sku> — exactly 1 record per duplicate SKU regardless of policy.",
+    "Dropdown friendly error returns the exact spec-required format: `value '<x>' not in dropdown options for field '<field_key>'`. Not silently accepted even with auto_create_categories=true."
+  ],
+  "updated_files": ["/app/backend/tests/test_ubos_phase5a_hotfix.py"],
+  "success_rate": {"backend": "14/16 hotfix (87.5%), 20/20 regression (100%)"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (org cf2aa27e-...), editor@ubos.test / EditorPass!123 (org 9920200c-... — DIFFERENT org, useful as a 'foreigner' test case)",
+  "seed_data_creation": "Tests create Products records with TEST_/DUP/EXEC/XBATCH SKU prefixes for cleanup identification. Fresh password shares are created per-test-module.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes qr.png + barcode.png org-member bypass, re-run pytest backend/tests/test_ubos_phase5a_hotfix.py::TestOrgMemberBypass. All 6 tests should pass. Editor is in a DIFFERENT org from owner — the test uses that fact for the 'foreigner should get 401' assertion.",
+  "rca of the issue": "BUG 2 (qr + barcode): While the fix ADDED the org-member bypass to `public_get_record` and `public_serve_shared_media` (both accept `ctx: AuthContext | None = Depends(try_auth)`), the same treatment was NOT applied to `qr_for_shared_record` and `barcode_for_shared_record`. Both still have signatures without `ctx`, so they call `_check_password_gate(share, request)` unconditionally, which requires a valid unlock cookie — even for the owning org's users. Reproduction: 1) create password share as owner; 2) GET /api/public/records/{token}/qr.png with Authorization: Bearer <owner_jwt>; expected 200, actual 401 password_required. Fix: add `ctx: AuthContext | None = Depends(try_auth)` to both function signatures and wrap the `_check_password_gate` call with `if not (ctx and ctx.org_id == share['org_id']):`."
+}
