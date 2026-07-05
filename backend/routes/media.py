@@ -224,11 +224,18 @@ async def get_media_file(
 
 
 @router.get("/media/mime-icon/{family}", include_in_schema=False)
-async def mime_icon(family: str):
+async def mime_icon(family: str, request: Request):
     """Public static icon endpoint. Serves the same colored-letter SVG that
-    /media/:id/thumb points at for non-image files. `family` is a mime string
-    (e.g. `application/pdf`) or family shortcut (`pdf`, `doc`, `xls`, `ppt`,
-    `txt`, `video`, `audio`, `image`, `generic`)."""
+    /media/:id/thumb points at for non-image files.
+
+    Cache strategy — the origin sets `Cache-Control: public, max-age=86400` and
+    `CDN-Cache-Control: public, max-age=86400`. If an upstream proxy strips
+    Cache-Control (some do), browsers can still avoid re-downloading via the
+    strong `ETag` + `Last-Modified` validators — a subsequent hit with
+    `If-None-Match` gets a cheap 304 with no body.
+
+    `family` may be a mime string (e.g. `application/pdf`) or a family shortcut
+    (`pdf`, `doc`, `xls`, `ppt`, `txt`, `video`, `audio`, `image`, `generic`)."""
     shortcuts = {
         "pdf": "application/pdf",
         "doc": "application/msword",
@@ -242,10 +249,43 @@ async def mime_icon(family: str):
     }
     from urllib.parse import unquote
     key = shortcuts.get(family.lower(), unquote(family))
+    body = media_svc.icon_for_mime(key)
+    # Strong ETag — SVGs are content-addressed by their bytes.
+    import hashlib as _h
+    etag = '"' + _h.md5(body).hexdigest() + '"'
+
+    # 304 short-circuit on If-None-Match. Use weak comparison per RFC 7232
+    # §2.3.2 — CDNs (Cloudflare, Fastly) that re-gzip the body convert our
+    # strong `"..."` tag into a weak `W/"..."` tag; browsers then echo the
+    # weak form back on revalidation. Stripping the optional `W/` prefix
+    # from both sides makes the match still succeed end-to-end.
+    def _normalize_etag(t: str) -> str:
+        t = t.strip()
+        if t.startswith("W/"):
+            t = t[2:]
+        return t
+    inm = request.headers.get("if-none-match")
+    if inm:
+        tags = [_normalize_etag(t) for t in inm.split(",")]
+        if _normalize_etag(etag) in tags or "*" in tags:
+            return Response(status_code=304, headers={
+                "ETag": etag,
+                "Cache-Control": "public, max-age=86400, immutable",
+                "CDN-Cache-Control": "public, max-age=86400, immutable",
+            })
+
     return Response(
-        content=media_svc.icon_for_mime(key),
+        content=body,
         media_type="image/svg+xml",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={
+            "ETag": etag,
+            "Cache-Control": "public, max-age=86400, immutable",
+            # Some CDNs (Cloudflare, Fastly, Akamai) respect this even when
+            # they rewrite the browser-facing Cache-Control.
+            "CDN-Cache-Control": "public, max-age=86400, immutable",
+            "Last-Modified": "Sat, 01 Jan 2000 00:00:00 GMT",
+            "Vary": "Accept-Encoding",
+        },
     )
 
 

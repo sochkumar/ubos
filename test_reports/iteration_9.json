@@ -1,0 +1,32 @@
+{
+  "summary": "Verified UBOS Sub-pass B micro-patch: mime-icon endpoint Cache-Control/ETag/304 revalidation at both origin (localhost:8001) and through public ingress (Cloudflare). All 7 new tests + 23 regression tests pass (30/30). Discovered and fixed one critical bug: Cloudflare re-gzips the SVG and downgrades the strong ETag `\"...\"` to a weak `W/\"...\"` tag; browsers echo the weak form back on revalidation but the origin's exact-string If-None-Match match failed → returned 200 instead of 304 through the ingress. Applied RFC 7232 §2.3.2 weak comparison in /app/backend/routes/media.py. Now 304 works end-to-end through Cloudflare.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase3b_mime_icon_cache.py",
+    "/app/backend/tests/test_ubos_phase3b_patch.py",
+    "/app/test_reports/pytest/mime_icon_cache.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "media.py mime_icon initially used exact-string If-None-Match matching (`etag in [t.strip() for t in inm.split(',')]`). This is not RFC 7232 compliant — the RFC mandates weak comparison for If-None-Match. Because Cloudflare (and Fastly/Akamai) re-encode payloads and downgrade strong ETags to weak, exact-string matching silently breaks 304 revalidation through any real CDN. Fixed with a `_normalize_etag` helper that strips optional `W/` prefix from both sides before comparing, and also handles the `*` wildcard case."
+  ],
+  "updated_files": [
+    "/app/backend/routes/media.py — added RFC 7232 §2.3.2 weak-ETag comparison in mime_icon endpoint (lines 257-275)",
+    "/app/backend/tests/test_ubos_phase3b_mime_icon_cache.py — new (7 tests covering origin headers/304/ETag distinctness/unknown family + ingress ETag pass-through + ingress 304)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "N/A"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (from /app/memory/test_credentials.md, used for regression tests only; mime-icon endpoint is unauthenticated)",
+  "seed_data_creation": "None — regression tests create their own TEST_* prefixed orgs/entity-types/records",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The mime-icon endpoint is fully verified at both origin and ingress. Origin: Cache-Control public/max-age=86400/immutable + CDN-Cache-Control (mirrored) + strong md5 ETag + Last-Modified + Vary: Accept-Encoding. Ingress (Cloudflare): Cache-Control gets rewritten to no-store/no-cache/must-revalidate (env-level, unavoidable), strong ETag gets downgraded to W/\"...\" (Cloudflare re-gzips), but ETag+Last-Modified pass through and 304 revalidation works. All 9 family shortcuts produce distinct ETags. Unknown family (e.g. 'wibble') falls back to generic icon with 200 + valid SVG.",
+  "rca of the issue": "Bug: Through Cloudflare ingress, If-None-Match: W/\"<hash>\" returned 200 instead of 304, breaking browser cache revalidation.\nRoot cause: Cloudflare re-gzips response bodies (Content-Encoding: gzip → applied by Cloudflare), which transforms the origin's strong ETag `\"<hash>\"` into a weak ETag `W/\"<hash>\"` (per RFC 7232, any content-coding transformation invalidates strong validators). Browsers on subsequent visits echo the weak form back in If-None-Match. The origin's original check did `etag in [t.strip() for t in inm.split(',')]` — an exact string match — so `\"<hash>\"` was not found in `[W/\"<hash>\"]`, and the endpoint fell through to returning a full 200.\nReproduction: curl -sD- -H 'If-None-Match: W/\"<md5>\"' https://<ingress>/api/media/mime-icon/pdf → HTTP/2 200 (before fix); HTTP/2 304 (after fix).\nFix: Added `_normalize_etag` that strips optional `W/` prefix from both the request's If-None-Match tags and the response ETag before comparing (RFC 7232 §2.3.2 weak comparison). Also accept `*` wildcard. File: /app/backend/routes/media.py, lines 257-275."
+}
