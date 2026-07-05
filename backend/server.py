@@ -36,6 +36,7 @@ from routes.dashboard import router as dashboard_router
 from routes.export_import import router as export_import_router
 from routes.invitations import router as invitations_router
 from routes.view_shares import router as view_shares_router
+from routes.label_presets import router as label_presets_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -94,6 +95,7 @@ api.include_router(dashboard_router)
 api.include_router(export_import_router)
 api.include_router(invitations_router)
 api.include_router(view_shares_router)
+api.include_router(label_presets_router)
 
 app.include_router(api)
 

@@ -12,9 +12,34 @@ from typing import Literal
 from audit import audit
 from auth_deps import AuthContext, require_permission
 from db import get_db, tenant_filter
-from services.labels import PRESETS, preset_summary, render_labels_pdf
+from services.labels import PRESETS, preset_from_custom_doc, preset_summary, render_labels_pdf
 
 router = APIRouter(tags=["labels"])
+
+
+async def _resolve_preset_for_config(db, org_id: str, config_data: dict) -> dict:
+    """Resolve `preset_id` → custom preset dict OR validate built-in `preset`.
+    Mutates `config_data` in-place: injects `_custom_preset` if custom."""
+    pid = config_data.get("preset_id")
+    if pid:
+        doc = await db.label_presets.find_one({
+            "_id": pid, "org_id": org_id, "deleted_at": None,
+        })
+        if not doc:
+            raise HTTPException(404, {
+                "code": "preset_not_found",
+                "detail": "Custom label preset was not found or has been deleted.",
+            })
+        config_data["_custom_preset"] = preset_from_custom_doc(doc)
+        config_data["preset"] = doc.get("key", "custom")
+        return config_data
+    key = config_data.get("preset", "avery_5160")
+    if key not in PRESETS:
+        raise HTTPException(422, {
+            "code": "unknown_preset",
+            "detail": f"Preset '{key}' is not a built-in preset. Pass preset_id for custom.",
+        })
+    return config_data
 
 
 def _public_base() -> str:
@@ -23,7 +48,8 @@ def _public_base() -> str:
 
 class LabelConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    preset: Literal["avery_5160", "avery_5163", "avery_l7160", "avery_l7163"] = "avery_5160"
+    preset: str = "avery_5160"
+    preset_id: str | None = None   # references a `label_presets` doc (Phase 6-A)
     code_mode: Literal["qr_and_barcode", "qr_only", "barcode_only"] = "qr_and_barcode"
     show_title: bool = True
     show_record_number: bool = True
@@ -98,9 +124,11 @@ async def make_labels_for_records(
     records = await _hydrate_records_with_qr(db, ctx.org_id, body.record_ids)
     if not records:
         raise HTTPException(404, "no records match")
-    pdf = render_labels_pdf(records, body.config.model_dump())
+    cfg = body.config.model_dump()
+    await _resolve_preset_for_config(db, ctx.org_id, cfg)
+    pdf = render_labels_pdf(records, cfg)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
-    fn = f"labels-{body.config.preset}-{ts}.pdf"
+    fn = f"labels-{cfg.get('preset','custom')}-{ts}.pdf"
     audit(bg, action="labels.printed", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="records", target_id=body.record_ids[0],
           diff={"count": len(records), "preset": body.config.preset,
@@ -129,9 +157,11 @@ async def make_labels_for_view(
     truncated = len(ids) >= body.limit
     db = get_db()
     records = await _hydrate_records_with_qr(db, ctx.org_id, ids)
-    pdf = render_labels_pdf(records, body.config.model_dump())
+    cfg = body.config.model_dump()
+    await _resolve_preset_for_config(db, ctx.org_id, cfg)
+    pdf = render_labels_pdf(records, cfg)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
-    fn = f"labels-{body.config.preset}-{ts}.pdf"
+    fn = f"labels-{cfg.get('preset','custom')}-{ts}.pdf"
     audit(bg, action="labels.printed_view", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="entity_type", target_id=et_id,
           diff={"count": len(records), "preset": body.config.preset,

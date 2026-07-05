@@ -408,6 +408,21 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 
 ## Backlog — Deferred / Post-MVP
 
+**Phase 6 Sub-pass A — Frontend Polish + PWA (SHIPPED Feb 2026)**
+- **PWA**: `manifest.webmanifest` + `sw.js` (network-first shell, cache-first assets, `/api/*` bypass, versioned caches, `postMessage` update-toast). Icons 192/256/384/512 + maskable 512. Install prompt via `beforeinstallprompt` in topbar user menu (fallback for Firefox/Safari).
+- **Error boundaries**: `ErrorBoundary` component with three variants (`fullscreen`, `page`, `widget`). Root wraps whole app; every authed route wrapped in `Page name="..."` boundary; DashboardWidget-level boundaries planned per-widget.
+- **Axios error normalization**: `handleApiError(err, {silent, formCtx, context})` in `lib/errors.js` maps network / 401 / 403 / 404 / 409 / 410 / 413 / 422 / 429 / 5xx to appropriate toasts, redirects on session expiry, surfaces field errors under form inputs, deduplicates rapid identical toasts.
+- **Cross-browser DatePicker/DateTimePicker**: shadcn Calendar + Popover with keyboard nav, Today/Now/Clear quick actions, locale-aware display, 24h/12h time input. Replaces native `<input type="date/datetime-local">` inside `DynamicField`.
+- **Custom label presets**: new `label_presets` collection + `GET/POST /orgs/:id/label-presets`, `PATCH/DELETE /label-presets/:id`. `LabelConfig.preset_id` in existing `/records/labels` + `/entity-types/:id/records/labels` endpoints. Frontend `/settings/label-presets` page with live SVG layout preview.
+- **PDF page-1 thumbnails**: `services/media.make_pdf_thumb` via `pdf2image` + poppler-utils; wired into `GET /media/:id/thumb` with graceful fallback to the existing PDF icon when poppler is missing or the file is corrupt.
+- **Owner-as-self-collaborator guard**: `POST /views/:vid/collaborators {user_id == view.user_id}` now returns 409 `already_owner`.
+- **Keyboard shortcuts**: `useHotkeys` hook + `GlobalHotkeys` component. `⌘K` command palette (existing), `⌘/` or `?` opens the shortcuts help dialog (`Keyboard shortcuts` grouped list). Navigation sequences `g d/r/s/m`, action keys `n`/`e`, `Esc` closes overlays.
+- **Toast standardization**: single sonner `<Toaster>` in `App.js` (top-right, richColors, expand). All error paths funnel through `handleApiError`.
+- **Sidebar**: new "Label Presets" nav item (`Printer` icon).
+
+**Env deps added**: `pdf2image` (Python), `poppler-utils` (system).
+
+
 **Phase 6 (P2, upcoming — polish + PWA + hardening, MVP declaration):**
 - PWA manifest + service worker + offline shell + install prompt.
 - Custom label sizes (per-org overrides for `label_size` enum + `POST /api/labels/render` custom W×H).

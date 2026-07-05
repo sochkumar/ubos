@@ -46,6 +46,46 @@ async def make_image_thumb(data: bytes, size: int = 256) -> bytes | None:
         return None
 
 
+# ---------- PDF page-1 thumbnails (Phase 6-A) ----------
+# Uses pdf2image + poppler-utils. Fails safe: returns None if the toolchain
+# isn't available or the PDF is corrupt — callers fall back to a static icon.
+try:
+    from pdf2image import convert_from_bytes  # type: ignore
+    _HAS_PDF2IMAGE = True
+except Exception:  # pragma: no cover
+    convert_from_bytes = None  # type: ignore
+    _HAS_PDF2IMAGE = False
+
+
+def _pdf_thumb_sync(data: bytes, size: int) -> bytes | None:
+    if not _HAS_PDF2IMAGE or not _HAS_PILLOW:
+        return None
+    try:
+        pages = convert_from_bytes(data, first_page=1, last_page=1, dpi=110)
+        if not pages:
+            return None
+        im = pages[0].convert("RGB")
+        im.thumbnail((size, size))
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=82, optimize=True)
+        return out.getvalue()
+    except Exception:
+        return None
+
+
+async def make_pdf_thumb(data: bytes, size: int = 256) -> bytes | None:
+    """Render page 1 of a PDF to a JPEG thumbnail. Returns None on failure
+    (missing poppler / corrupt PDF / password-protected file)."""
+    if not _HAS_PDF2IMAGE or not _HAS_PILLOW:
+        return None
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            None, _pdf_thumb_sync, data, size,
+        )
+    except Exception:
+        return None
+
+
 def _dimensions_sync(data: bytes) -> tuple[int, int] | None:
     if not _HAS_PILLOW:
         return None

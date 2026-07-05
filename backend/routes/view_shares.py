@@ -585,6 +585,14 @@ async def add_collaborator(
     if not await _can_manage_view(db, ctx, v):
         raise HTTPException(403, "you do not have permission to modify collaborators")
 
+    # Owner-as-self-collaborator guard (Phase 6-A): owner already has full access;
+    # inserting them into shared_with[] is redundant and can produce confusing UIs.
+    if body.user_id == v.get("user_id"):
+        raise HTTPException(409, {
+            "code": "already_owner",
+            "detail": "User already owns this view",
+        })
+
     # target must be a member of the same org
     m = await db.memberships.find_one({
         "user_id": body.user_id, "org_id": ctx.org_id, "status": "active",

@@ -19,6 +19,8 @@ import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 import { CommandPalette, useCommandPalette } from "@/components/CommandPalette";
+import { InstallAppMenuItem } from "@/components/InstallAppMenuItem";
+import { Keyboard, Printer } from "lucide-react";
 
 // Sidebar nav groups
 const NAV_GROUPS = [
@@ -47,6 +49,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/settings/organization", label: "Organization", icon: Building2 },
       { to: "/settings/members", label: "Users & Roles", icon: Users },
+      { to: "/settings/label-presets", label: "Label Presets", icon: Printer },
       { to: "/settings/audit-log", label: "Audit Log", icon: Shield },
       { to: "/settings/profile", label: "Profile", icon: UserIcon },
     ],
@@ -347,6 +350,16 @@ export default function AppLayout() {
                 <DropdownMenuItem onSelect={() => nav("/settings/organization")} data-testid="menu-org">
                   <Settings className="w-4 h-4 mr-2" /> Organization
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    // Dispatch a keydown "?" so GlobalHotkeys opens the dialog.
+                    window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
+                  }}
+                  data-testid="menu-shortcuts"
+                >
+                  <Keyboard className="w-4 h-4 mr-2" /> Keyboard shortcuts
+                </DropdownMenuItem>
+                <InstallAppMenuItem />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={logout}

@@ -6,12 +6,39 @@ from __future__ import annotations
 import io
 from typing import Literal
 
-from reportlab.lib.pagesizes import LETTER, A4
+from reportlab.lib.pagesizes import LETTER, A4, A3
 from reportlab.lib.units import inch, mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 from services.qr_barcode import make_qr_png, make_barcode_png
+
+_PAGE_SIZES = {
+    "Letter": LETTER,
+    "A4": A4,
+    "A3": A3,
+}
+
+
+def preset_from_custom_doc(doc: dict) -> dict:
+    """Convert a `label_presets` DB doc (mm) to the internal preset dict (points)."""
+    page_size_key = doc.get("page_size", "A4")
+    if page_size_key == "custom":
+        page_size = (float(doc["page_width_mm"]) * mm, float(doc["page_height_mm"]) * mm)
+    else:
+        page_size = _PAGE_SIZES.get(page_size_key, A4)
+    return {
+        "page_size": page_size,
+        "top": float(doc.get("margin_top_mm", 10.0)) * mm,
+        "left": float(doc.get("margin_left_mm", 10.0)) * mm,
+        "label_w": float(doc["label_w_mm"]) * mm,
+        "label_h": float(doc["label_h_mm"]) * mm,
+        "gx": float(doc.get("gutter_h_mm", 0.0)) * mm,
+        "gy": float(doc.get("gutter_v_mm", 0.0)) * mm,
+        "cols": int(doc["cols"]),
+        "rows": int(doc["rows"]),
+        "label_of": doc.get("name", "Custom"),
+    }
 
 # ─────────────────────── presets ───────────────────────
 # Each preset: page_size, margins (top,left), label_size, gutter, cols, rows.
@@ -119,9 +146,13 @@ def _draw_label(c, x, y, w, h, *, record, config):
 
 def render_labels_pdf(records: list[dict], config: dict) -> bytes:
     preset_key = config.get("preset", "avery_5160")
-    if preset_key not in PRESETS:
+    custom_preset = config.get("_custom_preset")
+    if custom_preset:
+        p = custom_preset
+    elif preset_key in PRESETS:
+        p = PRESETS[preset_key]
+    else:
         raise ValueError(f"unknown preset '{preset_key}'")
-    p = PRESETS[preset_key]
     page_w, page_h = p["page_size"]
     label_w, label_h = p["label_w"], p["label_h"]
     top, left = p["top"], p["left"]

@@ -32,8 +32,9 @@ const CODE_MODES = [
  * Downloads the generated PDF as an attachment.
  */
 export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }) {
-  const [presets, setPresets] = useState([]);
+  const [presets, setPresets] = useState({ system: [], custom: [] });
   const [preset, setPreset] = useState("avery_5160");
+  const [presetId, setPresetId] = useState(null);
   const [codeMode, setCodeMode] = useState("qr_and_barcode");
   const [showTitle, setShowTitle] = useState(true);
   const [showRecNum, setShowRecNum] = useState(true);
@@ -41,16 +42,41 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
   const [copies, setCopies] = useState(1);
   const [startPos, setStartPos] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [orgId, setOrgId] = useState(null);
 
   useEffect(() => {
     if (!open) return;
-    api.get("/labels/presets")
-      .then((r) => setPresets(r.data || []))
-      .catch(() => { /* ignore */ });
+    (async () => {
+      try {
+        // fetch active org id via /auth/me (already cached) – simpler is to
+        // fetch orgs and pick the first membership
+        const me = await api.get("/auth/me");
+        const oid = me?.data?.org_id || me?.data?.default_org_id;
+        setOrgId(oid || null);
+        const [sys, cust] = await Promise.all([
+          api.get("/labels/presets"),
+          oid ? api.get(`/orgs/${oid}/label-presets`) : Promise.resolve({ data: { custom: [] } }),
+        ]);
+        // Note: our GET /orgs/:id/label-presets already returns both system+custom.
+        const combined = cust?.data || { system: [], custom: [] };
+        // Prefer the org endpoint since it merges labels; fall back to /labels/presets
+        setPresets({
+          system: combined.system?.length ? combined.system : (sys.data || []).map((p) => ({
+            id: null, key: p.key, name: p.label, page_size: p.page,
+            cols: p.cols, rows: p.rows, per_page: p.per_page, is_system: true,
+          })),
+          custom: combined.custom || [],
+        });
+      } catch { /* ignore */ }
+    })();
   }, [open]);
 
-  const currentPreset = presets.find((p) => p.key === preset);
-  const perPage = currentPreset?.per_page || 30;
+  const allPresets = [...(presets.system || []), ...(presets.custom || [])];
+  const currentPreset = presetId
+    ? presets.custom.find((p) => p.id === presetId)
+    : allPresets.find((p) => p.key === preset && !p.id);
+  const perPage = currentPreset?.per_page ||
+    (currentPreset ? currentPreset.cols * currentPreset.rows : 30);
   const totalLabels = (recordIds?.length || 0) * copies;
   const pageCount = Math.max(1, Math.ceil((totalLabels + startPos) / perPage));
 
@@ -63,24 +89,23 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
   const submit = async () => {
     setBusy(true);
     try {
-      const body = {
-        record_ids: recordIds,
-        config: {
-          preset,
-          code_mode: codeMode,
-          show_title: showTitle,
-          show_record_number: showRecNum,
-          show_fields: showFields,
-          copies_per_record: Math.max(1, Number(copies) || 1),
-          start_position: Math.max(0, Number(startPos) || 0),
-        },
+      const config = {
+        code_mode: codeMode,
+        show_title: showTitle,
+        show_record_number: showRecNum,
+        show_fields: showFields,
+        copies_per_record: Math.max(1, Number(copies) || 1),
+        start_position: Math.max(0, Number(startPos) || 0),
       };
+      if (presetId) config.preset_id = presetId;
+      else config.preset = preset;
+      const body = { record_ids: recordIds, config };
       const r = await api.post("/records/labels", body, { responseType: "blob" });
       const blob = new Blob([r.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `labels-${preset}-${Date.now()}.pdf`;
+      a.download = `labels-${presetId ? "custom" : preset}-${Date.now()}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`Downloaded ${totalLabels} label${totalLabels === 1 ? "" : "s"}`);
@@ -113,12 +138,32 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
           {/* Preset */}
           <div className="col-span-2">
             <Label className="text-sm">Label sheet</Label>
-            <Select value={preset} onValueChange={setPreset}>
+            <Select
+              value={presetId ? `custom:${presetId}` : `system:${preset}`}
+              onValueChange={(v) => {
+                if (v.startsWith("custom:")) {
+                  setPresetId(v.slice(7));
+                } else {
+                  setPresetId(null);
+                  setPreset(v.slice(7));
+                }
+              }}
+            >
               <SelectTrigger data-testid="labels-preset"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {presets.map((p) => (
-                  <SelectItem key={p.key} value={p.key}>
-                    {p.label} · {p.cols}×{p.rows} · {p.page}
+                {(presets.system || []).map((p) => (
+                  <SelectItem key={p.key} value={`system:${p.key}`} data-testid={`labels-preset-${p.key}`}>
+                    {p.name || p.label} · {p.cols}×{p.rows} · {p.page_size || p.page}
+                  </SelectItem>
+                ))}
+                {(presets.custom || []).length > 0 && (
+                  <div className="px-2 py-1 text-[10px] font-mono uppercase text-muted-foreground border-t border-border mt-1">
+                    Custom presets
+                  </div>
+                )}
+                {(presets.custom || []).map((p) => (
+                  <SelectItem key={p.id} value={`custom:${p.id}`} data-testid={`labels-preset-custom-${p.key}`}>
+                    {p.name} · {p.cols}×{p.rows} · {p.page_size}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -188,3 +188,12 @@ async def ensure_indexes() -> None:
 
     # ── Phase 5-B: views collaborator index ──
     await db.views.create_index([("org_id", 1), ("shared_with.user_id", 1)])
+
+    # ── Phase 6-A: custom label presets ──
+    await db.label_presets.create_index(
+        [("org_id", 1), ("key", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_label_preset_key_per_org",
+    )
+    await db.label_presets.create_index([("org_id", 1), ("deleted_at", 1)])

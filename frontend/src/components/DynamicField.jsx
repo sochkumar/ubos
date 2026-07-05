@@ -12,6 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImageFieldRenderer } from "@/components/ImageFieldRenderer";
 import { FileFieldRenderer } from "@/components/FileFieldRenderer";
+import { DatePicker, DateTimePicker } from "@/components/DatePicker";
 
 /**
  * Renders a single input for a field_definition.

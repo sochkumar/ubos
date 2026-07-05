@@ -331,6 +331,32 @@ async def get_media_thumb(
     adapter = get_storage_adapter()
     mime = doc.get("mime") or ""
 
+    # PDF path: render first page via pdf2image → JPEG (Phase 6-A)
+    if mime == "application/pdf":
+        if doc.get("thumb_key") and await adapter.exists(doc["thumb_key"]):
+            url = await adapter.presigned_get(doc["thumb_key"])
+            return {"url": url, "mime": "image/jpeg"}
+        if not isinstance(adapter, LocalDiskAdapter):
+            return {
+                "url": f"/api/media/mime-icon/{_icon_family_for(mime)}",
+                "mime": "image/svg+xml",
+            }
+        try:
+            data = await adapter.read_all(doc["storage_key"])
+            thumb = await media_svc.make_pdf_thumb(data, size=256)
+        except Exception:
+            thumb = None
+        if not thumb:
+            return {
+                "url": f"/api/media/mime-icon/{_icon_family_for(mime)}",
+                "mime": "image/svg+xml",
+            }
+        thumb_key = doc["storage_key"] + ".thumb.jpg"
+        await adapter.put_bytes_at_key(thumb_key, thumb)
+        await db.media.update_one({"_id": mid}, {"$set": {"thumb_key": thumb_key}})
+        url = await adapter.presigned_get(thumb_key)
+        return {"url": url, "mime": "image/jpeg"}
+
     # Non-image (including image/svg+xml which we don't render) → static icon URL
     if not mime.startswith("image/") or mime == "image/svg+xml":
         return {

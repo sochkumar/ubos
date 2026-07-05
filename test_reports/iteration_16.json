@@ -1,0 +1,29 @@
+{
+  "summary": "Phase 6-A Sub-pass A (label presets CRUD + custom PDF render, owner-self-collab guard, PDF thumbnails, PWA + hotkeys + toast + RBAC UI) tested end-to-end. Backend pytest: 18/18 pass. Frontend: label presets create/edit/delete flow, keyboard shortcuts (?, g d, g s, g m), toast (success + error), viewer RBAC UI gating, PWA manifest/sw.js reachability, backend 403 surfaced through frontend — all verified. No critical issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase6a.py",
+    "/app/test_reports/pytest/phase6a.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/label_presets.py::update_label_preset ignores unknown fields (extra='ignore' in schema) but silently accepts `key` in the body and drops it — good behaviour but could confuse frontend devs. Optional: raise 422 with code:'key_immutable' for clearer contract.",
+    "routes/label_presets.py::delete_label_preset does NOT check if any existing config elsewhere still references the preset (e.g. views/records with saved print configs pointing at preset_id). Acceptable — the preset is soft-deleted and future renders will 404 via _resolve_preset_for_config's `preset_not_found`. Just make sure the frontend surfaces that error nicely; currently handleApiError should show the detail.detail string.",
+    "hooks/useHotkeys.js: sequence hotkeys are cancelled when any modifier is pressed mid-sequence (line 61) — this is correct but means Shift-typed letters break the flow. Since sequences use only lowercase letters this is fine, but worth documenting.",
+    "services/labels.py: preset_summary() returns only 4 built-in fields — dimensions (label_w_mm/label_h_mm/margins) are NOT included for system presets, so a frontend edit/duplicate of a built-in preset can't pre-fill correctly. The test spec in the request explicitly says system presets should also include dimensions — currently they don't in the shape returned by GET /orgs/:id/label-presets. Consider extending _normalize step to expose page_w_mm/page_h_mm/label_w_mm/label_h_mm/etc. from PRESETS. Not blocking (frontend doesn't currently offer duplicate-of-system UI) but should be tracked.",
+    "routes/media.py::get_media_thumb PDF fallback: when pdf2image/poppler is missing the endpoint silently falls back to the SVG family icon — good for resilience but means server admins have no telemetry that thumbs are degraded. Consider emitting a warning log the first time make_pdf_thumb returns None."
+  ],
+  "updated_files": ["/app/backend/tests/test_ubos_phase6a.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of critical flows"},
+  "test_credentials": "owner@ubos.test/OwnerPass!123, editor@ubos.test/EditorPass!123, viewer@ubos.test/ViewerPass!123 — all in Acme Furniture",
+  "seed_data_creation": "Backend tests create + delete a `qa-preset-<random>` custom preset and a `TEST_view_<random>` view (cleaned in fixture). UI test created 'QA UI Preset' + deleted it. A leftover 'QA Preset X' + 'Big Boxes' custom presets from earlier manual runs remain in Acme's label_presets — cosmetic only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 6-A Sub-pass A green. Backend regression: `pytest backend/tests/test_ubos_phase6a.py -o addopts=''` = 18/18 in ~4s. Key coverage: GET/POST/PATCH/DELETE label-presets with is_system/dimensions in shape, duplicate_key 409, custom_page_missing_dimensions 422, viewer+editor 403 on create, key-immutable-on-patch, PDF render via preset_id path (%PDF header + application/pdf mime), builtin preset render still works, owner-self-collab returns 409 code:already_owner (adding a different member 201), PDF upload → /thumb returns image/jpeg (when poppler+pdf2image available) or SVG fallback, corrupt PDF returns SVG fallback 200, OpenAPI has both label-preset paths, manifest.webmanifest + sw.js reachable. Frontend: /settings/label-presets full flow (create with 3x3 60x40mm live-preview grid → save → row shows in Custom Presets table → edit with key disabled → save shows 'Edited' → delete via confirm → row gone; toasts 'Preset saved' + 'Preset deleted' visible top-right). Hotkeys: '?' (Shift+Slash) opens data-testid='shortcuts-dialog' (5 groups incl. Navigation/Actions/Search/Palette/Misc), Escape closes; g→d /dashboard; g→s /search; g→m /media. RBAC UI: viewer sees no [data-testid='new-preset-btn']; viewer POST /orgs/:id/label-presets returns 403 as expected. NOT tested (out of scope per spec): actual Chromium install prompt (headless can't), DatePicker interaction (backend renders shadcn DatePicker per code inspection), ErrorBoundary invasive throw. Everything the spec asked to be verified is verified.",
+  "rca of the issue": "N/A — no bugs identified in Sub-pass A scope."
+}
