@@ -28,13 +28,39 @@ const KIND_LABELS = {
 
 const ALL_KINDS = ["record", "entity_type", "category", "tag", "media"];
 
+// URL-facing plural form ↔ internal singular Kind.  Spec uses plural in the
+// `types=` query string, so we normalize on read/write.
+const URL_TO_KIND = {
+  records: "record",
+  entity_types: "entity_type",
+  categories: "category",
+  tags: "tag",
+  media: "media",
+  // Also accept singular for backwards-compat with older links
+  record: "record",
+  entity_type: "entity_type",
+  category: "category",
+  tag: "tag",
+};
+const KIND_TO_URL = {
+  record: "records",
+  entity_type: "entity_types",
+  category: "categories",
+  tag: "tags",
+  media: "media",
+};
+
 export default function SearchPage() {
   const [sp, setSp] = useSearchParams();
   const navigate = useNavigate();
 
   const q = sp.get("q") || "";
-  const kindsParam = (sp.get("types") || "").split(",").filter(Boolean);
-  const kinds = kindsParam.length ? kindsParam : ALL_KINDS;
+  // Parse `types=` from URL — supports both singular + plural tokens, dedupes
+  const kindsParam = (sp.get("types") || "")
+    .split(",")
+    .map((t) => URL_TO_KIND[t.trim().toLowerCase()])
+    .filter(Boolean);
+  const kinds = kindsParam.length ? Array.from(new Set(kindsParam)) : ALL_KINDS;
   const etIds = (sp.get("entity_type") || "").split(",").filter(Boolean);
 
   const [inputVal, setInputVal] = useState(q);
@@ -49,7 +75,10 @@ export default function SearchPage() {
     if (!q.trim()) { setData(null); return; }
     setLoading(true);
     const params = { q, limit: 20 };
-    if (kindsParam.length && kindsParam.length < ALL_KINDS.length) params.types = kindsParam.join(",");
+    if (kinds.length && kinds.length < ALL_KINDS.length) {
+      // Send plural forms — backend accepts both, spec says plural
+      params.types = kinds.map((k) => KIND_TO_URL[k]).join(",");
+    }
     if (etIds.length) params.entity_type_ids = etIds.join(",");
     api.get("/search", { params })
       .then((r) => { if (!cancelled) setData(r.data); })
@@ -69,7 +98,7 @@ export default function SearchPage() {
     if (next.length === 0) next = ALL_KINDS;
     const np = new URLSearchParams(sp);
     if (next.length === ALL_KINDS.length) np.delete("types");
-    else np.set("types", next.join(","));
+    else np.set("types", next.map((k2) => KIND_TO_URL[k2]).join(","));
     setSp(np);
   };
 

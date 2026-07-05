@@ -28,6 +28,39 @@ router = APIRouter(prefix="/search", tags=["search"])
 Kind = Literal["record", "entity_type", "category", "tag", "media"]
 ALL_KINDS: list[Kind] = ["record", "entity_type", "category", "tag", "media"]
 
+# The public spec uses plural type names (records, entity_types, …) — accept
+# both forms and normalize internally to the singular Kind literal.
+_KIND_ALIASES = {
+    "records": "record",
+    "entity_types": "entity_type",
+    "entitytypes": "entity_type",
+    "categories": "category",
+    "tags": "tag",
+    "media": "media",
+    # Also allow the singular forms
+    "record": "record",
+    "entity_type": "entity_type",
+    "category": "category",
+    "tag": "tag",
+}
+
+
+def _normalize_kinds(raw: str) -> list[Kind]:
+    """Parse the `types` query param into internal Kind list."""
+    if not raw:
+        return list(ALL_KINDS)
+    out: list[Kind] = []
+    seen: set[str] = set()
+    for token in raw.split(","):
+        t = token.strip().lower()
+        if not t:
+            continue
+        k = _KIND_ALIASES.get(t)
+        if k and k not in seen:
+            out.append(k)
+            seen.add(k)
+    return out or list(ALL_KINDS)
+
 
 def _snippet(text: str, q: str, radius: int = 80) -> str | None:
     if not text or not q:
@@ -300,8 +333,7 @@ async def global_search(
 ) -> dict[str, Any]:
     t0 = time.perf_counter()
     q = (q or "").strip()
-    kinds = [k.strip() for k in types.split(",") if k.strip()] or ALL_KINDS
-    kinds = [k for k in kinds if k in ALL_KINDS] or ALL_KINDS
+    kinds = _normalize_kinds(types)
     et_ids = [x.strip() for x in entity_type_ids.split(",") if x.strip()] or None
     skip = _decode_cursor(cursor)
 

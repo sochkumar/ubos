@@ -297,7 +297,7 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 ## Phase 4 Sub-pass A — LOCKED (verified 12/13, 3/3 bugs fixed Feb 2026)
 Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch at explicit wire-up points.
 
-## Phase 4 Sub-pass B — Global Search + Dashboard (SHIPPED Feb 2026)
+## Phase 4 Sub-pass B — Global Search + Dashboard (SHIPPED Feb 2026, LOCKED after follow-up)
 
 **Backend**
 - `GET /api/search?q=&types=&entity_type_ids=&limit=&cursor=` — org-scoped fan-out over records, entity_types, categories, tags, media. Records ranked by `$text` on `search_text` (Phase 0 index), with title-exact / title-contains / record-number boosts. Other kinds use case-insensitive regex on `name`/`filename`/etc. Response: `{results, next_cursor, facets:{kinds, entity_types}, totals, took_ms}`. Cursor is opaque base64 skip.
@@ -314,4 +314,11 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 - **Post-login route** — changed default from `/entity-types` to `/dashboard` (LoginPage, GoogleCallback, `RequireGuest`).
 
 **Non-goals still deferred**: AI/semantic search (later phase), custom dashboard/widget arrangement (P6+), multi-org search (P5+), widget-level filters (P6+).
+
+
+### Sub-pass B — follow-up polish (Feb 2026)
+- `/api/search` accepts BOTH plural (`records`, `entity_types`, `categories`, `tags`, `media`) and singular (`record`, …) type tokens; the frontend URL uses plural.
+- SearchPage facets now round-trip through `useSearchParams` — toggling a checkbox updates `?types=` immediately, refresh restores state exactly, deep-link URLs are shareable.
+- Dashboard `recent_records[i]` now includes `actor` (`{id, name, avatar_url, action}`) derived from the latest `record.created` / `record.updated` audit event per record (single aggregation, no N+1).
+- Dashboard `entity_types[i]` gains a computed `name` (`= name_plural || name_singular`) so the widget renders without picking between singular/plural. `name_singular` / `name_plural` still returned for backwards compat.
 

@@ -62,20 +62,62 @@ async def _recent_records(db, org_id: str) -> list[dict]:
         tags = {t["_id"]: t for t in tag_docs}
     else:
         tags = {}
+
+    # Derive last-actor per record from the most recent record.created / record.updated
+    # audit event on each target_id (one aggregation, no N+1).
+    actors_by_record: dict[str, dict[str, Any]] = {}
+    rec_ids = [d["_id"] for d in docs]
+    if rec_ids:
+        pipeline = [
+            {"$match": {
+                "org_id": org_id,
+                "target_type": "record",
+                "target_id": {"$in": rec_ids},
+                "action": {"$in": ["record.created", "record.updated"]},
+            }},
+            {"$sort": {"ts": -1}},
+            {"$group": {
+                "_id": "$target_id",
+                "actor_id": {"$first": "$actor_id"},
+                "action": {"$first": "$action"},
+                "ts": {"$first": "$ts"},
+            }},
+        ]
+        rows = await db.audit_logs.aggregate(pipeline).to_list(len(rec_ids))
+        actor_ids = list({r.get("actor_id") for r in rows if r.get("actor_id")})
+        if actor_ids:
+            user_docs = await db.users.find(
+                {"_id": {"$in": actor_ids}},
+                {"name": 1, "email": 1, "avatar_url": 1},
+            ).to_list(len(actor_ids))
+            users = {u["_id"]: u for u in user_docs}
+        else:
+            users = {}
+        for r in rows:
+            u = users.get(r.get("actor_id")) or {}
+            actors_by_record[r["_id"]] = {
+                "id": r.get("actor_id"),
+                "name": u.get("name") or u.get("email") or "someone",
+                "avatar_url": u.get("avatar_url"),
+                "action": r.get("action"),  # tells UI whether it was create vs update
+            }
+
     out = []
     for d in docs:
         et = ets.get(d.get("entity_type_id"), {})
+        et_name = et.get("name_plural") or et.get("name_singular") or "Records"
         out.append({
             "id": d["_id"],
             "title": d.get("title") or "(untitled)",
             "record_number": d.get("record_number"),
             "entity_type": {
                 "id": d.get("entity_type_id"),
-                "name": et.get("name_plural") or et.get("name_singular") or "Records",
+                "name": et_name,
                 "icon": et.get("icon"),
                 "color": et.get("color"),
             },
             "updated_at": d.get("updated_at"),
+            "actor": actors_by_record.get(d["_id"]),
             "tags": [
                 {"id": tid, "name": tags.get(tid, {}).get("name"), "color": tags.get(tid, {}).get("color")}
                 for tid in (d.get("tag_ids") or [])[:3] if tid in tags
@@ -159,16 +201,20 @@ async def _entity_types_overview(db, org_id: str) -> list[dict]:
     counts = {g["_id"]: int(g["count"]) async for g in db.records.aggregate(pipeline)}
     rows = []
     for e in ets:
+        name_plural = e.get("name_plural")
+        name_singular = e.get("name_singular")
         rows.append({
             "id": e["_id"],
             "key": e.get("key"),
-            "name_singular": e.get("name_singular"),
-            "name_plural": e.get("name_plural"),
+            # Unified `name` for dashboard clients; falls back to singular
+            "name": name_plural or name_singular or "Records",
+            "name_singular": name_singular,
+            "name_plural": name_plural,
             "icon": e.get("icon"),
             "color": e.get("color"),
             "record_count": counts.get(e["_id"], 0),
         })
-    rows.sort(key=lambda r: (-r["record_count"], (r["name_plural"] or "").lower()))
+    rows.sort(key=lambda r: (-r["record_count"], (r["name"] or "").lower()))
     return rows
 
 

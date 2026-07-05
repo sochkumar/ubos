@@ -175,12 +175,21 @@ function RecentRecordsWidget({ records, onOpen }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{r.title}</div>
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                     <span className="font-mono">{r.record_number}</span>
                     <span>·</span>
                     <span>{r.entity_type.name}</span>
                     <span>·</span>
                     <span>{relTime(r.updated_at)}</span>
+                    {r.actor?.name && (
+                      <>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <UserIcon className="w-2.5 h-2.5" />
+                          <span data-testid={`recent-actor-${r.id}`}>{r.actor.name}</span>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 {r.tags?.length > 0 && (
@@ -359,7 +368,7 @@ function EntityTypesWidget({ entityTypes, onOpen, onNew }) {
                   <Boxes className="w-3 h-3" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{e.name_plural || e.name_singular}</div>
+                  <div className="text-sm font-medium truncate">{e.name || e.name_plural || e.name_singular}</div>
                   <div className="text-[11px] text-muted-foreground font-mono truncate">{e.key}</div>
                 </div>
               </div>
