@@ -184,11 +184,30 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 **Bug fixes carried into Phase 1:**
 - Field-key slugifier no longer strips underscores — it only strips non-alpha prefixes (backend regex `^[a-z][a-z0-9_]*$`)
 
+## Phase 3 Sub-pass A — Records Core (2026-02) — DONE ✅
+
+**Backend:**
+- **Query Builder** (`services/query_builder.py`) — 10 operators (eq/ne/contains/gt/lt/gte/lte/between/in/not_in/is_empty/is_not_empty) with strict per-field-type validation (422 on invalid op × type). Supports system fields (title/record_number/created_at/updated_at) and dynamic `fields.*`. Mirrored client-side in `frontend/src/lib/filterOps.js`.
+- **Saved Views** (`routes/views.py` + `views` collection) — CRUD + `/duplicate` + `/set-default`. Private per-user with optional org-wide sharing (owner/admin only). Stores layout, q, filters, sort, category_ids, tag_ids, visible_fields, column_widths.
+- **`POST /entity-types/{et_id}/records/search`** — accepts `{q, category_id, tag_ids, filters, sort, limit(≤200), skip, view_id}`. When `view_id` supplied, hydrates saved state as base; body overrides win.
+- **Activity Timeline** (`record_activity` collection) — created/updated/deleted/comment/restored events with actor_name denormalized. `GET/POST /records/{id}/activity`. Update payload includes per-field before/after diff. Comment endpoint validates non-empty text; requires `records.update`.
+- **Version History** (`record_versions` collection) — every mutating operation snapshots the pre-update state. `GET /records/{id}/versions` + `GET /records/{id}/versions/{v}` + `POST /records/{id}/versions/{v}/restore` (writes pre-restore snapshot, applies fields/cats/tags, increments version, emits restored activity).
+- **Bulk Actions** — `POST /entity-types/{et_id}/records/bulk` with `action` = delete | assign_categories | assign_tags | update_field. `assign_*` supports mode add/remove/replace. `update_field` allowed for `text/longtext/number/currency/boolean/dropdown/date/datetime/email/phone/url`; blocked with 422 for richtext/multi_select/image/file/relation; blocks bulk-set of unique fields to a non-empty value across multiple records. Every action emits activity + audit.
+- **qr_payload** — set on record create as `{PUBLIC_APP_URL || APP_BASE_URL}/r/{record_id}`. Startup migration `_backfill_qr_payload` (re)writes any record whose qr_payload doesn't match the current base. `PUBLIC_APP_URL` added to `backend/.env` pointing at the public preview URL.
+- **Indexes** — `(org_id, entity_type_id, category_ids)`, `(org_id, entity_type_id, tag_ids)`, `(org_id, entity_type_id, updated_at desc)`, `(org_id, entity_type_id, deleted_at)` on records. Compound indexes on views, record_activity (ts desc), record_versions (version desc).
+- **Snapshot ordering fix** — `update_record` now snapshots *after* validation succeeds so failed PATCH payloads don't create orphan versions.
+
+**Frontend:**
+- **RecordsPage rewritten** — top row has Views picker + 5-layout switch (Table/Gallery/Grid/Card/List) + search. Second row has Category filter dropdown + toggleable tag pills + Filter chips + Sort popover + Clear button.
+- **5 layouts** (`components/RecordLayouts.jsx`) — Table (multi-select checkboxes + row actions), Gallery (large tiles with monogram), Grid (dense cards), Card (2-column detail cards), List (compact rows). Every record row / card has `open-record-{record_number}` link to detail.
+- **FilterBar** (`components/FilterBar.jsx`) — Add-filter popover with field → op dropdown filtered to valid ops for the picked field's type, dynamic value input (single/range/list/boolean/dropdown). Chips show `{Label} {op} {value}` with X. Sort popover supports multi-key ordering.
+- **ViewsBar** (`components/ViewsBar.jsx`) — dropdown listing "All records" + saved views (star = default, "shared" badge). Save-as / Update-active / Duplicate / Set-default / Delete inline actions. Shared toggle only visible for owner/admin.
+- **BulkToolbar** (`components/BulkToolbar.jsx`) — sticky top banner on selection with Categories (add/remove/replace + CategoryPicker), Tags (add/remove/replace + TagCombobox), Edit field (dynamically renders `DynamicField` for the picked field; unsupported types filtered out), Delete, and Clear. Toasts show `{updated} updated, {skipped} skipped`.
+- **RecordDetailPage** (`pages/RecordDetailPage.jsx`) — route `/records/:id`. Tabs Overview / Activity / Versions / Attachments (stub) / Relationships (stub). Overview grid of all fields. Activity has comment box + timeline with actor avatars and diff rendering. Versions shows all versions with actor + timestamp; clicking opens a side-by-side diff dialog with Restore action. Right rail: metadata (created/updated/version/QR payload), categories, tags.
+- **Route added** in `App.js`, "Views" chip in the sidebar removed since it's now real.
+
 ## Prioritized Backlog
-- P0: Starter templates gallery (Phase 2 hook)
-- P1: Search UI, filters, sorts, saved views (text index already in place)
-- P1: Media fields (image/file) + relations (upload playbook via `integration_playbook_expert_v2`)
-- P1: Invitations flow (deferred from Phase 1)
-- P2: Categories/tags, dashboards, sharing / public views
-- P2: Electron wrapper + Expo mirror
-- P3: Migrate FastAPI on_event → lifespan
+- P0 (Sub-pass B, next): Media library, image/file dynamic field wiring, relationship instance CRUD + picker
+- P1: QR PNG / barcode generation / printable labels; Public share links; Dashboard widgets; Global search UI
+- P2: CSV/Excel import-export; User invitations flow
+- P3: Electron wrapper; Expo mobile mirror; Migrate FastAPI on_event → lifespan

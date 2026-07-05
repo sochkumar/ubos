@@ -156,20 +156,29 @@ def _public_base_url() -> str:
 
 
 async def _backfill_qr_payload() -> None:
-    """Phase 3 sub-pass A migration: set qr_payload on records lacking it."""
+    """Phase 3 sub-pass A migration: set / repair qr_payload on records.
+
+    Repairs entries that either lack qr_payload OR were built with a different
+    public base (e.g. a stale APP_BASE_URL). Idempotent per base URL."""
     db = get_db()
     base = _public_base_url()
     if not base:
-        # nothing to prefix with; leave records untouched, they can be backfilled later
         return
-    cursor = db.records.find({"qr_payload": None}, {"_id": 1})
-    ids = [d["_id"] for d in await cursor.to_list(10000)]
+    # find records whose qr_payload doesn't start with the current base
+    cursor = db.records.find(
+        {"$or": [
+            {"qr_payload": None},
+            {"qr_payload": {"$not": {"$regex": f"^{base}/r/"}}},
+        ]},
+        {"_id": 1},
+    )
+    ids = [d["_id"] for d in await cursor.to_list(50000)]
     for rid in ids:
         await db.records.update_one(
             {"_id": rid}, {"$set": {"qr_payload": f"{base}/r/{rid}"}}
         )
     if ids:
-        log.info("phase-3 migration: backfilled qr_payload on %d records", len(ids))
+        log.info("phase-3 migration: (re)set qr_payload on %d records", len(ids))
 
 
 @app.on_event("startup")

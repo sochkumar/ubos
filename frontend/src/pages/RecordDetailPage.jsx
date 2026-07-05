@@ -498,12 +498,6 @@ export default function RecordDetailPage() {
                 )}
               </CardContent>
             </Card>
-
-            <Card className="border-dashed">
-              <CardContent className="py-4 text-center text-xs text-muted-foreground">
-                Relationships coming in the next update
-              </CardContent>
-            </Card>
           </aside>
         </div>
       </PageBody>

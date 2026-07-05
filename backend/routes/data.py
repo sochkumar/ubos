@@ -430,9 +430,6 @@ async def update_record(
     if not current:
         raise HTTPException(status_code=404, detail="record not found")
 
-    # Snapshot pre-update state so restore-to-previous works
-    await snapshot_version(db, record=current, actor_id=ctx.user["_id"], reason="pre-update")
-
     updates: dict = {"updated_at": _now()}
 
     if payload.fields is not None:
@@ -448,6 +445,10 @@ async def update_record(
         title = payload.title or current.get("title") or _derive_title(field_defs, coerced) or current.get("record_number")
         updates["title"] = title
         updates["search_text"] = f"{title} {payload.description or current.get('description') or ''} {search_text}".strip()
+
+    # Snapshot pre-update state ONLY after validation succeeded so failed
+    # payloads don't leave orphan versions.
+    await snapshot_version(db, record=current, actor_id=ctx.user["_id"], reason="pre-update")
 
     if payload.title is not None and "title" not in updates:
         updates["title"] = payload.title
