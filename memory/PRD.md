@@ -206,6 +206,15 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - **RecordDetailPage** (`pages/RecordDetailPage.jsx`) — route `/records/:id`. Tabs Overview / Activity / Versions / Attachments (stub) / Relationships (stub). Overview grid of all fields. Activity has comment box + timeline with actor avatars and diff rendering. Versions shows all versions with actor + timestamp; clicking opens a side-by-side diff dialog with Restore action. Right rail: metadata (created/updated/version/QR payload), categories, tags.
 - **Route added** in `App.js`, "Views" chip in the sidebar removed since it's now real.
 
+## Phase 3 Sub-pass A — Patch (2026-02) — DONE ✅
+
+Independent verification found 4 issues (2 blocking bugs, 2 polish). All fixed:
+
+1. **`in`/`not_in` operator validation gap** — `OPS_BY_TYPE` in `services/query_builder.py` (and the client mirror in `lib/filterOps.js`) now reserves `in`/`not_in` strictly for `dropdown` and `multi_select`. Any other field type — including unknown / system fields that fall back to `text` — returns 422 `"op 'in' not valid for type '{type}'"`.
+2. **Default view not auto-applied server-side** — `POST /records/search` without a `view_id` now auto-loads the caller's default view (user-scoped default first, then org-scoped shared default). Body overrides use these semantics: `q` / `sort` / `category_id` / `tag_ids` — body wins when truthy; `filters` — MERGED per `field` key so an explicit body condition on a field replaces the view's condition on that same field while other view filters survive. Response now includes `applied_view_id`. Documented in the endpoint's OpenAPI description.
+3. **Version numbering duplicated at v=1** — `record_versions` now carries a unique index `(org_id, record_id, version_number)`. `services/history.snapshot_version` swallows `DuplicateKeyError`, keeping the earliest snapshot per version_number (the `created` snapshot at v=1 wins over the redundant `pre-update` snapshot before the first edit). A startup migration `_dedupe_record_versions` collapses any existing duplicates before the unique index builds. Result: versions list shows exactly one row per version_number (v1, v2, v3, …).
+4. **BulkAction discriminated union** — `BulkAction` is now a proper Pydantic v2 discriminated union with four action-specific payload models (`BulkDeletePayload`, `BulkAssignCategoriesPayload`, `BulkAssignTagsPayload`, `BulkUpdateFieldPayload`), each with `extra="forbid"`. OpenAPI now exposes `oneOf` + `discriminator.mapping` keyed on `action`. Wrong payload keys (e.g. `field` instead of `field_key`) return precise 422s pointing to the exact problem.
+
 ## Prioritized Backlog
 - P0 (Sub-pass B, next): Media library, image/file dynamic field wiring, relationship instance CRUD + picker
 - P1: QR PNG / barcode generation / printable labels; Public share links; Dashboard widgets; Global search UI

@@ -210,10 +210,61 @@ class ViewUpdate(BaseModel):
     is_shared: bool | None = None
 
 
-class BulkAction(BaseModel):
+class BulkDeletePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class BulkAssignCategoriesPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    category_ids: list[str] = Field(default_factory=list)
+    mode: Literal["add", "remove", "replace"] = "add"
+
+
+class BulkAssignTagsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tag_ids: list[str] = Field(default_factory=list)
+    mode: Literal["add", "remove", "replace"] = "add"
+
+
+class BulkUpdateFieldPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    field_key: str = Field(min_length=1)
+    value: Any = None
+
+
+class BulkDeleteAction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     ids: list[str] = Field(min_length=1)
-    action: Literal["assign_categories","assign_tags","delete","update_field"]
-    payload: dict[str, Any] = Field(default_factory=dict)
+    action: Literal["delete"]
+    payload: BulkDeletePayload = Field(default_factory=BulkDeletePayload)
+
+
+class BulkAssignCategoriesAction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    ids: list[str] = Field(min_length=1)
+    action: Literal["assign_categories"]
+    payload: BulkAssignCategoriesPayload
+
+
+class BulkAssignTagsAction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    ids: list[str] = Field(min_length=1)
+    action: Literal["assign_tags"]
+    payload: BulkAssignTagsPayload
+
+
+class BulkUpdateFieldAction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    ids: list[str] = Field(min_length=1)
+    action: Literal["update_field"]
+    payload: BulkUpdateFieldPayload
+
+
+# Discriminated union — OpenAPI clients get a proper `oneOf` keyed on `action`.
+BulkAction = Annotated[
+    BulkDeleteAction | BulkAssignCategoriesAction | BulkAssignTagsAction | BulkUpdateFieldAction,
+    Field(discriminator="action"),
+]
 
 
 class RecordSearchBody(BaseModel):

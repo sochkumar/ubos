@@ -181,8 +181,33 @@ async def _backfill_qr_payload() -> None:
         log.info("phase-3 migration: (re)set qr_payload on %d records", len(ids))
 
 
+async def _dedupe_record_versions() -> None:
+    """Phase 3-A patch: collapse duplicate (record, version_number) rows so the
+    new unique index can be created without conflict. Keep earliest per version."""
+    db = get_db()
+    pipeline = [
+        {"$sort": {"changed_at": 1}},
+        {"$group": {
+            "_id": {"o": "$org_id", "r": "$record_id", "v": "$version_number"},
+            "keep": {"$first": "$_id"},
+            "all": {"$push": "$_id"},
+            "count": {"$sum": 1},
+        }},
+        {"$match": {"count": {"$gt": 1}}},
+    ]
+    dupes = 0
+    async for row in db.record_versions.aggregate(pipeline):
+        losers = [i for i in row["all"] if i != row["keep"]]
+        if losers:
+            r = await db.record_versions.delete_many({"_id": {"$in": losers}})
+            dupes += r.deleted_count
+    if dupes:
+        log.info("phase-3-A patch: removed %d duplicate record_versions rows", dupes)
+
+
 @app.on_event("startup")
 async def _startup():
+    await _dedupe_record_versions()  # BEFORE ensure_indexes so unique index can build
     await ensure_indexes()
     await _wipe_phase0_demo_org()
     await _seed_demo_users_and_org()

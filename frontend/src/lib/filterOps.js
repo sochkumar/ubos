@@ -2,10 +2,10 @@
 // Keep both in sync — backend still validates, this only shapes the UI.
 
 export const OPS_BY_TYPE = {
-  text: ["eq", "ne", "contains", "in", "not_in", "is_empty", "is_not_empty"],
+  text: ["eq", "ne", "contains", "is_empty", "is_not_empty"],
   longtext: ["eq", "ne", "contains", "is_empty", "is_not_empty"],
   richtext: ["contains", "is_empty", "is_not_empty"],
-  number: ["eq", "ne", "gt", "lt", "gte", "lte", "between", "in", "not_in", "is_empty", "is_not_empty"],
+  number: ["eq", "ne", "gt", "lt", "gte", "lte", "between", "is_empty", "is_not_empty"],
   currency: ["eq", "ne", "gt", "lt", "gte", "lte", "between", "is_empty", "is_not_empty"],
   date: ["eq", "ne", "gt", "lt", "gte", "lte", "between", "is_empty", "is_not_empty"],
   datetime: ["eq", "ne", "gt", "lt", "gte", "lte", "between", "is_empty", "is_not_empty"],

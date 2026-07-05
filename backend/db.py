@@ -141,3 +141,11 @@ async def ensure_indexes() -> None:
     await db.views.create_index([("org_id", 1), ("user_id", 1)])
     await db.record_activity.create_index([("org_id", 1), ("record_id", 1), ("ts", -1)])
     await db.record_versions.create_index([("org_id", 1), ("record_id", 1), ("version_number", -1)])
+    # Guarantee ONE snapshot per (record, version_number) — the initial 'created'
+    # snapshot at v=1 and any subsequent 'pre-update' snapshot for that same
+    # version_number collapse into a single row (kept: earliest write wins via
+    # DuplicateKeyError being swallowed in services/history.snapshot_version).
+    await db.record_versions.create_index(
+        [("org_id", 1), ("record_id", 1), ("version_number", 1)],
+        unique=True, name="uniq_record_version",
+    )

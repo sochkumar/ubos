@@ -15,7 +15,8 @@ from audit import audit
 from auth_deps import AuthContext, require_permission
 from db import get_db, tenant_filter
 from models import (
-    BulkAction,
+    BulkAction, BulkAssignCategoriesAction, BulkAssignTagsAction,
+    BulkDeleteAction, BulkUpdateFieldAction,
     EntityType, EntityTypeCreate, EntityTypeUpdate,
     FieldDef, FieldDefCreate, FieldDefUpdate,
     Record, RecordCreate, RecordSearchBody, RecordUpdate, ReorderPayload,
@@ -303,7 +304,19 @@ async def list_records(
     return {"total": total, "items": items}
 
 
-@router.post("/entity-types/{et_id}/records/search")
+@router.post("/entity-types/{et_id}/records/search",
+              description=(
+                  "Search records with structured filters/sort. "
+                  "When `view_id` is omitted, the caller's default view for this "
+                  "entity_type is applied automatically (user-scoped default takes "
+                  "priority over org-scoped shared default). Body values then "
+                  "override the view's saved state as follows: q/sort/category_id/"
+                  "tag_ids/visible_fields — body wins when truthy; filters — "
+                  "MERGED per `field` key (body's condition for a given field "
+                  "replaces the view's condition on that same field; other view "
+                  "conditions are kept). Pass an explicit empty `q`/`filters`/… "
+                  "in the body to force the fallback lookup."
+              ))
 async def search_records(
     et_id: str, body: RecordSearchBody,
     ctx: AuthContext = Depends(require_permission("records.read")),
@@ -312,14 +325,13 @@ async def search_records(
     if not await db.entity_types.find_one(tenant_filter(ctx.org_id, {"_id": et_id}), {"_id": 1}):
         raise HTTPException(status_code=404, detail="entity type not found")
 
-    # If a view_id is provided we hydrate the view's saved state as *base*, then
-    # apply any additional runtime overrides from the body (so users can tweak
-    # while staying on a view).
-    base_q = body.q
-    base_cat = body.category_id
-    base_tags = list(body.tag_ids or [])
-    base_filters = [f.model_dump() for f in body.filters]
-    base_sort = [s.model_dump() for s in body.sort]
+    body_q = body.q
+    body_cat = body.category_id
+    body_tags = list(body.tag_ids or [])
+    body_filters = [f.model_dump() for f in body.filters]
+    body_sort = [s.model_dump() for s in body.sort]
+
+    view = None
     if body.view_id:
         view = await db.views.find_one({
             "_id": body.view_id, "org_id": ctx.org_id, "entity_type_id": et_id,
@@ -328,23 +340,46 @@ async def search_records(
         })
         if not view:
             raise HTTPException(404, "view not found")
-        if not body.q:
-            base_q = view.get("q")
-        if not base_cat:
-            base_cat = (view.get("category_ids") or [None])[0]
-        if not base_tags:
-            base_tags = view.get("tag_ids") or []
-        if not base_filters:
-            base_filters = view.get("filters") or []
-        if not base_sort:
-            base_sort = view.get("sort") or []
+    else:
+        # Auto-apply default view: user's personal default takes precedence over
+        # org-scoped (shared) default.
+        view = await db.views.find_one({
+            "org_id": ctx.org_id, "entity_type_id": et_id, "deleted_at": None,
+            "user_id": ctx.user["_id"], "is_default": True,
+        }) or await db.views.find_one({
+            "org_id": ctx.org_id, "entity_type_id": et_id, "deleted_at": None,
+            "is_shared": True, "is_default": True,
+        })
+
+    if view:
+        # q / sort / category / tags / visible_fields — body wins when truthy.
+        base_q = body_q if body_q else view.get("q")
+        base_cat = body_cat if body_cat else (view.get("category_ids") or [None])[0]
+        base_tags = body_tags if body_tags else (view.get("tag_ids") or [])
+        base_sort = body_sort if body_sort else (view.get("sort") or [])
+        # filters: per-field merge, body condition on a field REPLACES the view's
+        # condition on that same field. Other view conditions survive.
+        merged: dict[str, dict] = {}
+        for f in (view.get("filters") or []):
+            if f.get("field"):
+                merged[f["field"]] = f
+        for f in body_filters:
+            if f.get("field"):
+                merged[f["field"]] = f
+        base_filters = list(merged.values())
+    else:
+        base_q = body_q
+        base_cat = body_cat
+        base_tags = body_tags
+        base_sort = body_sort
+        base_filters = body_filters
 
     filt = await _build_records_query(db, ctx, et_id, base_q, base_cat, base_tags, base_filters)
     sort_spec = build_sort_spec(base_sort)
     total = await db.records.count_documents(filt)
     cursor = db.records.find(filt).sort(sort_spec).skip(body.skip).limit(body.limit)
     items = [strip_id(d) for d in await cursor.to_list(body.limit)]
-    return {"total": total, "items": items}
+    return {"total": total, "items": items, "applied_view_id": view["_id"] if view else None}
 
 
 @router.post("/entity-types/{et_id}/records", status_code=201)
@@ -545,7 +580,7 @@ async def bulk_records(
     actor_name = ctx.user.get("name") or ctx.user.get("email")
     now = _now()
 
-    if body.action == "delete":
+    if isinstance(body, BulkDeleteAction):
         if "records.delete" not in ctx.permissions:
             raise HTTPException(403, "missing permission: records.delete")
         rids = [r["_id"] for r in records]
@@ -568,9 +603,9 @@ async def bulk_records(
               diff={"count": len(rids)}, request=request)
         return {"updated": len(rids), "skipped": len(ids) - len(rids)}
 
-    if body.action == "assign_categories":
-        mode = body.payload.get("mode", "add")  # add | remove | replace
-        raw_ids = body.payload.get("category_ids") or []
+    if isinstance(body, BulkAssignCategoriesAction):
+        mode = body.payload.mode
+        raw_ids = body.payload.category_ids
         # validate that all cat ids belong to this org+et
         valid = await db.categories.find(
             tenant_filter(ctx.org_id, {"entity_type_id": et_id, "_id": {"$in": raw_ids}}),
@@ -608,9 +643,9 @@ async def bulk_records(
               diff={"count": updated, "mode": mode}, request=request)
         return {"updated": updated, "skipped": len(ids) - updated}
 
-    if body.action == "assign_tags":
-        mode = body.payload.get("mode", "add")
-        raw_ids = body.payload.get("tag_ids") or []
+    if isinstance(body, BulkAssignTagsAction):
+        mode = body.payload.mode
+        raw_ids = body.payload.tag_ids
         valid = await db.tags.find(
             tenant_filter(ctx.org_id, {
                 "_id": {"$in": raw_ids},
@@ -650,13 +685,11 @@ async def bulk_records(
               diff={"count": updated, "mode": mode}, request=request)
         return {"updated": updated, "skipped": len(ids) - updated}
 
-    if body.action == "update_field":
+    if isinstance(body, BulkUpdateFieldAction):
         BULK_ALLOWED = {"text","longtext","number","currency","boolean","dropdown",
                         "date","datetime","email","phone","url"}
-        key = body.payload.get("field_key")
-        value = body.payload.get("value")
-        if not key:
-            raise HTTPException(422, "field_key is required")
+        key = body.payload.field_key
+        value = body.payload.value
         defs = await _load_field_defs(db, ctx.org_id, et_id)
         fdef = next((d for d in defs if d["key"] == key), None)
         if not fdef:
@@ -693,4 +726,5 @@ async def bulk_records(
               diff={"count": updated, "field": key}, request=request)
         return {"updated": updated, "skipped": skipped + (len(ids) - len(records))}
 
-    raise HTTPException(422, f"unknown action '{body.action}'")
+    # discriminator guarantees one of the above matches; belt-and-braces:
+    raise HTTPException(422, "unknown action")

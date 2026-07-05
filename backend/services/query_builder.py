@@ -7,11 +7,13 @@ from typing import Any
 from fastapi import HTTPException
 
 # Ops allowed per field type. Types not listed fall back to 'text' behaviour.
+# NOTE: `in` / `not_in` are strictly reserved for enumerated types (dropdown,
+# multi_select). Other types get 422 if they try to use them.
 OPS_BY_TYPE = {
-    "text": {"eq","ne","contains","in","not_in","is_empty","is_not_empty"},
+    "text": {"eq","ne","contains","is_empty","is_not_empty"},
     "longtext": {"eq","ne","contains","is_empty","is_not_empty"},
     "richtext": {"contains","is_empty","is_not_empty"},
-    "number": {"eq","ne","gt","lt","gte","lte","between","in","not_in","is_empty","is_not_empty"},
+    "number": {"eq","ne","gt","lt","gte","lte","between","is_empty","is_not_empty"},
     "currency": {"eq","ne","gt","lt","gte","lte","between","is_empty","is_not_empty"},
     "date": {"eq","ne","gt","lt","gte","lte","between","is_empty","is_not_empty"},
     "datetime": {"eq","ne","gt","lt","gte","lte","between","is_empty","is_not_empty"},

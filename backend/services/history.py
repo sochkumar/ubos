@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 
 def _now() -> str:
@@ -18,8 +19,11 @@ async def snapshot_version(
     actor_id: str | None,
     reason: str | None = None,
 ) -> int:
-    """Snapshot the given record doc as its current version.
-    Returns the version_number written."""
+    """Snapshot the given record as its current version_number.
+
+    Idempotent: exactly one row per (org_id, record_id, version_number). A
+    unique index guards this so racy writers converge on the earliest snapshot.
+    Returns the version_number written (or the existing one)."""
     n = int(record.get("version", 1))
     doc = {
         "_id": str(uuid.uuid4()),
@@ -31,7 +35,11 @@ async def snapshot_version(
         "changed_at": _now(),
         "reason": reason,
     }
-    await db.record_versions.insert_one(doc)
+    try:
+        await db.record_versions.insert_one(doc)
+    except DuplicateKeyError:
+        # A snapshot for this (record, version_number) already exists; keep it.
+        pass
     return n
 
 
