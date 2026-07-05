@@ -267,3 +267,29 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - **P2**: CSV/Excel import-export; User invitations flow
 - **P3**: Electron wrapper; Expo mobile mirror; Migrate FastAPI on_event → lifespan
 - **Deferred quality items**: S3Adapter real implementation; SVG upload sanitisation (nh3/bleach) so we can lift the SVG mime rejection; PDF page-1 thumbnails; sweep any orphan `.thumb.jpg` files that got left behind by pre-hardening deletes (new deletes now clean them up).
+
+
+## Phase 4 Sub-pass A — Sharing + QR/Barcode + Printable Labels (SHIPPED Feb 2026)
+
+**Backend**
+- `share_links` collection (token unique, per-record listing, revoke lifecycle).
+- `POST /records/{id}/shares`, `GET /records/{id}/shares`, `PATCH /shares/{id}`, `POST /shares/{id}/revoke`, `DELETE /shares/{id}`.
+- Public read: `GET /api/public/records/{token}` + `.../qr.png` + `.../barcode.png` + `.../media/{id}`.
+- Authed codes: `GET /api/records/{id}/qr.png`, `GET /api/records/{id}/barcode.png` — LRU-cached in memory (no persistence).
+- Label rendering: `GET /api/labels/presets` (Avery 5160/5163/L7160/L7163), `POST /api/records/labels`, `POST /api/entity-types/{et_id}/records/labels` (view-scoped, X-Records-Included header).
+- `field_definitions.sensitive: bool = False` — always stripped from public share payloads (also honours legacy `config.sensitive`).
+- Optional-auth dependency `try_auth` (never raises 401) enables `org_only` visibility resolution on public endpoints.
+- In-memory rate limiter (env-configurable via `PUBLIC_READ_RATE_LIMIT` / `PUBLIC_CODE_RATE_LIMIT`) with per-IP+route buckets; honours `X-Forwarded-For`.
+- Visibility semantics: `public` (open), `org_only` (requires matching-org auth), `private` (creator + admins only). Expired/revoked share → 410; underlying record soft-deleted → 404; org soft-deleted → 410 with `code: org_gone`.
+- `visible_fields` distinguishes `null` (all non-sensitive), `[]` (title/record # only), and `list` (intersection with non-sensitive).
+
+**Frontend**
+- Public page `/s/:token` — read-only view with QR + Code128 sidebar, expiry banner in footer, optional "Report a problem" mailto when org has `settings.support_email`.
+- Right-rail **Share & Print** card on RecordDetailPage — inline QR (~104px) + Code128 (~90px) previews, create/list/revoke/delete public shares, launch Print Labels dialog.
+- **PrintLabelsDialog** — preset picker, code mode (QR + Code128 / QR only / Code128 only), copies, start slot, extra field chips, live label-count stats, downloads PDF.
+- **BulkToolbar** gains a "Print labels" action for selected records.
+- **FieldsPage** exposes a `Sensitive` toggle in the field builder + a red `sensitive` badge in the row.
+
+**Tests**: 28/28 backend pass (`/app/backend/tests/test_ubos_phase4a.py`); frontend flows verified via testing agent.
+
+**Deferred to Sub-pass B**: Global data-search UI, Dashboard widgets. Password-protected shares, whole-view sharing, and CSV import/export are Phase 5.
