@@ -1,0 +1,47 @@
+{
+  "summary": "Phase 3 Sub-pass A end-to-end verification. Ran 16 pytest scenarios covering query builder, saved views, activity/versions/restore, bulk actions, qr_payload, and multitenancy — all PASSED. Frontend Playwright verified login, entity-types → records navigation, all 5 layouts (Table/Gallery/Grid/Card/List), views picker, filter/sort popovers, record detail tabs (Overview/Activity/Versions/Attachments/Relationships), QR payload rendering, comment input, and version list. Attachments & Relationships tabs render the required 'coming in the next update' empty state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/records/{id}/activity",
+        "issue": "Returns 404 for soft-deleted records because tenant_filter excludes deleted_at != None. Frontend cannot show a deleted record's timeline. Consider dropping the deleted_at filter for activity + versions read endpoints so history remains inspectable."
+      },
+      {
+        "endpoint": "POST /api/entity-types/{et_id}/records (qr_payload build)",
+        "issue": "qr_payload is generated from APP_BASE_URL/PUBLIC_APP_URL. In this environment APP_BASE_URL='http://localhost:3000' and PUBLIC_APP_URL is unset, so records get qr_payload=http://localhost:3000/r/<id>, which is unusable outside the container. Recommend setting PUBLIC_APP_URL=REACT_APP_BACKEND_URL for the preview, and re-running the _backfill_qr_payload migration."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RecordDetailPage right rail", "issues": ["Sidebar always shows 'Relationships coming in the next update' block even on the Overview tab — consider moving that stub inside the Relationships tab body only to reduce noise."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase3a.py",
+    "/app/test_reports/pytest/phase3a.xml"
+  ],
+  "action_items": [
+    "Set PUBLIC_APP_URL to the public preview URL in backend/.env and re-run the qr_payload backfill so QR codes are shareable.",
+    "Decide whether GET /records/:id/activity + /versions should be available for soft-deleted records; if yes, relax tenant_filter for those endpoints."
+  ],
+  "critical_code_review_comments": [
+    "routes/data.py bulk_records: raw category/tag ids from request payload are inserted into a $in query without validating they are strings — safe today because Mongo tolerates it, but validate_ids_belong_to_org_and_et would be safer.",
+    "routes/data.py update_record: pre-update snapshot writes the version even when the PATCH fails validation later (validator raises after snapshot). Consider snapshotting only after successful validation to avoid orphan versions when clients send bad payloads.",
+    "routes/views.py update_view: is_shared flip does not audit before/after distinctly; consider explicit action names ('view.shared'/'view.unshared') for audit trails.",
+    "services/query_builder.py: 'contains' regex uses re.escape — good. Consider adding a max-length guard on the value to prevent very large regexes."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubos_phase3a.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of critical flows"},
+  "test_credentials": "owner@ubos.test/OwnerPass!123, editor@ubos.test/EditorPass!123, viewer@ubos.test/ViewerPass!123 — NOTE: owner's default_org is 'TmplTest'; the Acme Furniture org shared by editor/viewer requires a POST /api/orgs/{acme_org}/switch by the owner. The test fixture handles this automatically.",
+  "seed_data_creation": "Called POST /api/dev/seed-demo once as owner (in Acme Furniture org) — seeded 'products' entity type with sku/price/in_stock/category/launch_date/notes fields and a dozen records. Idempotent.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test env has TWO orgs for owner ('TmplTest' bbb12755, 'Acme Furniture' 9920200c). Editor/viewer are ONLY in Acme Furniture. Frontend auto-picks Acme Furniture after login, but backend /auth/login for owner returns TmplTest by default — call /api/orgs/{acme_id}/switch to align. Phase 3-A endpoints and UI are all wired correctly; only cosmetic PUBLIC_APP_URL config gap remains.",
+  "rca of the issue": "The qr_payload issue is purely env-config: services/data.py._public_base() reads PUBLIC_APP_URL then APP_BASE_URL. Because APP_BASE_URL is 'http://localhost:3000' in backend/.env, all new records embed the localhost URL. Fix: set PUBLIC_APP_URL to the external URL (or update APP_BASE_URL), then rerun _backfill_qr_payload on startup. The soft-delete activity 404 is a code choice in routes/record_history.py list_activity — the `tenant_filter` call includes deleted_at:None. If preserving history for deleted records is desired, replace with a bare {'org_id':..., '_id':rid} lookup."
+}

@@ -25,6 +25,8 @@ from routes.relationships import router as relationships_router
 from routes.templates import router as templates_router
 from routes.audit import router as audit_router
 from routes.dev import router as dev_router
+from routes.views import router as views_router
+from routes.record_history import router as record_history_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -72,6 +74,8 @@ api.include_router(relationships_router)
 api.include_router(templates_router)
 api.include_router(audit_router)
 api.include_router(dev_router)
+api.include_router(views_router)
+api.include_router(record_history_router)
 
 app.include_router(api)
 
@@ -143,12 +147,38 @@ async def _wipe_phase0_demo_org() -> None:
         log.info("phase-1 migration: removed %d demo-org entity_types + their fields/records", n)
 
 
+def _public_base_url() -> str:
+    return (
+        os.environ.get("PUBLIC_APP_URL")
+        or os.environ.get("APP_BASE_URL")
+        or ""
+    ).rstrip("/")
+
+
+async def _backfill_qr_payload() -> None:
+    """Phase 3 sub-pass A migration: set qr_payload on records lacking it."""
+    db = get_db()
+    base = _public_base_url()
+    if not base:
+        # nothing to prefix with; leave records untouched, they can be backfilled later
+        return
+    cursor = db.records.find({"qr_payload": None}, {"_id": 1})
+    ids = [d["_id"] for d in await cursor.to_list(10000)]
+    for rid in ids:
+        await db.records.update_one(
+            {"_id": rid}, {"$set": {"qr_payload": f"{base}/r/{rid}"}}
+        )
+    if ids:
+        log.info("phase-3 migration: backfilled qr_payload on %d records", len(ids))
+
+
 @app.on_event("startup")
 async def _startup():
     await ensure_indexes()
     await _wipe_phase0_demo_org()
     await _seed_demo_users_and_org()
-    log.info("UBOS Phase 1 backend ready — Google=%s",
+    await _backfill_qr_payload()
+    log.info("UBOS Phase 3-A backend ready — Google=%s",
              "enabled" if os.environ.get("GOOGLE_CLIENT_ID", "REPLACE_ME") not in ("", "REPLACE_ME") else "disabled")
 
 

@@ -17,6 +17,7 @@ import OnboardingPage from "@/pages/OnboardingPage";
 import EntityTypesPage from "@/pages/EntityTypesPage";
 import FieldsPage from "@/pages/FieldsPage";
 import RecordsPage from "@/pages/RecordsPage";
+import RecordDetailPage from "@/pages/RecordDetailPage";
 import ProfilePage from "@/pages/settings/ProfilePage";
 import OrgSettingsPage from "@/pages/settings/OrgSettingsPage";
 import MembersPage from "@/pages/settings/MembersPage";
@@ -78,6 +79,7 @@ function App() {
               <Route path="/entity-types" element={<EntityTypesPage />} />
               <Route path="/entity-types/:id/fields" element={<FieldsPage />} />
               <Route path="/entity-types/:id/records" element={<RecordsPage />} />
+              <Route path="/records/:id" element={<RecordDetailPage />} />
               <Route path="/entity-types/:id/categories" element={<CategoriesPage />} />
               <Route path="/entity-types/:id/tags" element={<TagsPage />} />
               <Route path="/entity-types/:id/relationships" element={<RelationshipsPage />} />
@@ -85,10 +87,6 @@ function App() {
               <Route
                 path="/dashboard"
                 element={<ComingSoonPage title="Dashboard" phase="Phase 4" description="Charts, KPIs, and quick actions across your workspace." />}
-              />
-              <Route
-                path="/config/views"
-                element={<ComingSoonPage title="Views" phase="Phase 3" />}
               />
               <Route path="/settings/organization" element={<OrgSettingsPage />} />
               <Route path="/settings/members" element={<MembersPage />} />

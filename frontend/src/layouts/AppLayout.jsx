@@ -37,7 +37,6 @@ const NAV_GROUPS = [
     label: "Config",
     items: [
       { to: "/templates", label: "Templates", icon: FolderKanban },
-      { to: "/config/views", label: "Views", icon: ListChecks, soon: "Phase 3" },
     ],
   },
   {

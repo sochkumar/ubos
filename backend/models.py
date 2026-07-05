@@ -212,8 +212,20 @@ class ViewUpdate(BaseModel):
 
 class BulkAction(BaseModel):
     ids: list[str] = Field(min_length=1)
-    action: Literal["assign_categories","assign_tags","delete"]
+    action: Literal["assign_categories","assign_tags","delete","update_field"]
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class RecordSearchBody(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    q: str | None = None
+    category_id: str | None = None
+    tag_ids: list[str] = Field(default_factory=list)
+    filters: list[FilterCondition] = Field(default_factory=list)
+    sort: list[SortSpec] = Field(default_factory=list)
+    limit: int = Field(default=50, ge=1, le=200)
+    skip: int = Field(default=0, ge=0)
+    view_id: str | None = None
 
 
 class CommentPayload(BaseModel):
