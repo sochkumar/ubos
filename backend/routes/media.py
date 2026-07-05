@@ -223,7 +223,64 @@ async def get_media_file(
     return {"url": url, "filename": doc["filename"], "mime": doc["mime"], "size": doc["size"]}
 
 
-@router.get("/media/{mid}/thumb")
+@router.get("/media/mime-icon/{family}", include_in_schema=False)
+async def mime_icon(family: str):
+    """Public static icon endpoint. Serves the same colored-letter SVG that
+    /media/:id/thumb points at for non-image files. `family` is a mime string
+    (e.g. `application/pdf`) or family shortcut (`pdf`, `doc`, `xls`, `ppt`,
+    `txt`, `video`, `audio`, `image`, `generic`)."""
+    shortcuts = {
+        "pdf": "application/pdf",
+        "doc": "application/msword",
+        "xls": "application/vnd.ms-excel",
+        "ppt": "application/vnd.ms-powerpoint",
+        "txt": "text/plain",
+        "video": "video/mp4",
+        "audio": "audio/mpeg",
+        "image": "image/generic",
+        "generic": "application/octet-stream",
+    }
+    from urllib.parse import unquote
+    key = shortcuts.get(family.lower(), unquote(family))
+    return Response(
+        content=media_svc.icon_for_mime(key),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+def _icon_family_for(mime: str) -> str:
+    m = (mime or "").lower()
+    if m == "application/pdf":
+        return "pdf"
+    if "word" in m or m == "application/msword":
+        return "doc"
+    if "sheet" in m or "excel" in m:
+        return "xls"
+    if "presentation" in m or "powerpoint" in m:
+        return "ppt"
+    if m.startswith("text/"):
+        return "txt"
+    if m.startswith("video/"):
+        return "video"
+    if m.startswith("audio/"):
+        return "audio"
+    if m.startswith("image/"):
+        return "image"
+    return "generic"
+
+
+@router.get("/media/{mid}/thumb",
+             description=(
+                 "Returns a JSON envelope `{url, mime}` regardless of the "
+                 "underlying media type. For image mimes the URL is a signed, "
+                 "time-limited link to a Pillow-generated 256×256 JPEG "
+                 "(generated on first hit, cached in `thumb_key`). For every "
+                 "other mime family the URL points to a stable, publicly "
+                 "cacheable SVG icon under `/api/media/mime-icon/{family}`. "
+                 "Clients should always follow the URL rather than parse "
+                 "response body bytes."
+             ))
 async def get_media_thumb(
     mid: str, ctx: AuthContext = Depends(require_permission("media.read")),
 ):
@@ -232,23 +289,35 @@ async def get_media_thumb(
     if not doc:
         raise HTTPException(404, "media not found")
     adapter = get_storage_adapter()
-    # Non-image → static SVG icon
-    if not (doc["mime"] or "").startswith("image/") or doc["mime"] == "image/svg+xml":
-        return Response(content=media_svc.icon_for_mime(doc["mime"]),
-                        media_type="image/svg+xml")
-    # Serve cached thumb if we have one
+    mime = doc.get("mime") or ""
+
+    # Non-image (including image/svg+xml which we don't render) → static icon URL
+    if not mime.startswith("image/") or mime == "image/svg+xml":
+        return {
+            "url": f"/api/media/mime-icon/{_icon_family_for(mime)}",
+            "mime": "image/svg+xml",
+        }
+
+    # Image path: signed URL to generated JPEG thumbnail
     if doc.get("thumb_key") and await adapter.exists(doc["thumb_key"]):
         url = await adapter.presigned_get(doc["thumb_key"])
         return {"url": url, "mime": "image/jpeg"}
-    # Generate on first request (LocalDiskAdapter only for now)
+
     if not isinstance(adapter, LocalDiskAdapter):
-        return Response(content=media_svc.icon_for_mime(doc["mime"]),
-                        media_type="image/svg+xml")
+        # Storage backend doesn't support inline thumb generation yet
+        return {
+            "url": f"/api/media/mime-icon/{_icon_family_for(mime)}",
+            "mime": "image/svg+xml",
+        }
+
     data = await adapter.read_all(doc["storage_key"])
     thumb = await media_svc.make_image_thumb(data, size=256)
     if not thumb:
-        return Response(content=media_svc.icon_for_mime(doc["mime"]),
-                        media_type="image/svg+xml")
+        # Corrupt image, degrade to family icon
+        return {
+            "url": f"/api/media/mime-icon/{_icon_family_for(mime)}",
+            "mime": "image/svg+xml",
+        }
     thumb_key = doc["storage_key"] + ".thumb.jpg"
     await adapter.put_bytes_at_key(thumb_key, thumb)
     await db.media.update_one({"_id": mid}, {"$set": {"thumb_key": thumb_key}})

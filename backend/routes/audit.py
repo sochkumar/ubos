@@ -10,12 +10,21 @@ from models import strip_id
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 
 
-@router.get("")
+@router.get("",
+            description=(
+                "List audit log entries for the active org, newest first. "
+                "Filter by `action` (exact match, e.g. `record.cascade_deleted`), "
+                "`actor_id`, `target_type` (e.g. `record`, `media`, `org`), or "
+                "`target_id` (the affected entity's id). Requires the `audit.read` "
+                "permission — owner/admin roles by default."
+            ))
 async def list_audit_logs(
     limit: int = Query(default=50, ge=1, le=500),
     skip: int = Query(default=0, ge=0),
     action: str | None = None,
     actor_id: str | None = None,
+    target_type: str | None = None,
+    target_id: str | None = None,
     ctx: AuthContext = Depends(require_permission("audit.read")),
 ):
     db = get_db()
@@ -24,6 +33,10 @@ async def list_audit_logs(
         q["action"] = action
     if actor_id:
         q["actor_id"] = actor_id
+    if target_type:
+        q["target_type"] = target_type
+    if target_id:
+        q["target_id"] = target_id
     total = await db.audit_logs.count_documents(q)
     cursor = db.audit_logs.find(q).sort("ts", -1).skip(skip).limit(limit)
     items = [strip_id(d) for d in await cursor.to_list(limit)]

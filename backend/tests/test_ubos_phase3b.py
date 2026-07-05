@@ -174,7 +174,17 @@ class TestMediaCore:
         mid = r.json()[0]["id"]
         r = requests.get(f"{API}/media/{mid}/thumb", headers=_h(owner), timeout=15)
         assert r.status_code == 200
-        assert r.headers.get("content-type", "").startswith("image/svg+xml")
+        # Sub-pass B patch: thumb is now ALWAYS a JSON envelope, not raw SVG
+        assert r.headers.get("content-type", "").startswith("application/json"), r.headers
+        j = r.json()
+        assert set(["url", "mime"]).issubset(j.keys())
+        assert j["url"] == "/api/media/mime-icon/pdf"
+        assert j["mime"] == "image/svg+xml"
+        # Follow the URL (no auth required) → SVG bytes
+        r2 = requests.get(BASE + j["url"], timeout=15)
+        assert r2.status_code == 200
+        assert r2.headers.get("content-type", "").startswith("image/svg+xml")
+        assert r2.content.lstrip().startswith(b"<")
 
     def test_svg_upload_rejected(self, owner):
         svg = b'<svg xmlns="http://www.w3.org/2000/svg"/>'

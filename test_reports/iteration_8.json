@@ -1,0 +1,41 @@
+{
+  "summary": "Sub-pass B PATCH verification. Added /app/backend/tests/test_ubos_phase3b_patch.py (24 new tests) covering the 3 patch-pass fixes + updated the pdf-thumb assertion in phase3b.py to expect JSON envelope. Full regression (phase3b 18 + patch 24 = 42 tests) — 41 passed, 1 flaky race under pytest-xdist (test_delete_attached_conflict_and_cascade sees a 179-byte quota drift when a parallel worker uploads concurrently; passes cleanly in isolation, confirmed). All 3 fixes verified end-to-end: (1) /media/{id}/thumb now returns JSON {url, mime} for image (mime=image/jpeg, url=/api/media/serve/<token>), pdf/doc/docx/xls/xlsx/ppt/txt/video/generic (mime=image/svg+xml, url=/api/media/mime-icon/<family>). Following the serve URL yields real JPEG bytes; following the mime-icon URL yields valid SVG bytes. Content-Type is always application/json for /thumb — never raw SVG. (2) GET /api/audit-logs supports new target_type and target_id filters; cascade_delete produces action='record.cascade_deleted', target_type='record', target_id=<source_id>, diff.cascaded_ids includes deleted target ids and diff.count is set. Filter combinations (action + target_id) narrow correctly. (3) POST /api/orgs creates org with settings.storage_quota_bytes = 5368709120 (5 GB); GET /api/orgs/{id} and /api/media/storage on the fresh org both reflect that value. (4) /api/media/mime-icon/{family} is publicly accessible without Authorization for all 9 family shortcuts (pdf/doc/xls/ppt/txt/video/audio/image/generic) and returns valid SVG; unknown family ('wibble') falls back to a valid SVG without erroring. Frontend regression via Playwright: /media page loads 50 tiles — 16 PNG image thumbnails all loaded (0 broken, naturalWidth>0) and 34 non-image files show colored SVG letter icons (VID/TXT/PPT/XLS/DOC/FILE etc.), storage bar reads 121 MB of 5.0 GB, no console errors. MediaThumb.jsx already reads r.data.url (JSON envelope) and non-image paths render client-side icons — so contract change is safe.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/media/{id}/thumb (LocalDisk adapter)", "issue": "For non-LocalDisk adapters, image mimes silently degrade to the family icon. Fine as documented, but consider logging/warning so ops notice if S3 is misconfigured."},
+      {"endpoint": "GET /api/audit-logs", "issue": "target_type and target_id are exact-match only (case-sensitive). Not a bug — matches spec — just noting for API docs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase3b.py",
+    "/app/backend/tests/test_ubos_phase3b_patch.py",
+    "/app/test_reports/pytest/phase3b_patch.xml",
+    "/app/test_reports/pytest/phase3b_full.xml"
+  ],
+  "action_items": [
+    "None blocking. Optional: MediaDeleteCascade test_delete_attached_conflict_and_cascade should snapshot its own upload's size and compare quota-refund against a delta rather than absolute used_bytes to avoid pytest-xdist worker cross-talk."
+  ],
+  "critical_code_review_comments": [
+    "routes/media.py get_media_thumb: for image mime but non-LocalDisk adapter, silently returns the family icon URL (mime='image/svg+xml') — the client will render a placeholder for what is actually a real image. Consider a header hint like X-Thumb-Fallback: adapter-unsupported so ops can grep.",
+    "routes/media.py mime_icon: `include_in_schema=False` means the endpoint is invisible to OpenAPI consumers — but the thumb response now shapes clients to hit it. Consider exposing at least a stub in OpenAPI (or documenting under the /thumb description that the URL is public and cacheable).",
+    "routes/_org_helpers.py create_organization: reads DEFAULT_ORG_STORAGE_QUOTA_BYTES via os.environ every call — fine, but if the env var is missing the default fallback is hard-coded to 5*1024**3. Consider centralizing in security/config so all seed paths share one constant.",
+    "routes/audit.py: filter is exact match; consider indexing (org_id, target_id) and (org_id, action, target_id) if audit_logs collection grows — otherwise this endpoint will scan-sort as data volume increases."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubos_phase3b.py (pdf-thumb assertion updated to expect JSON envelope + follow-through SVG fetch)",
+    "/app/backend/tests/test_ubos_phase3b_patch.py (NEW — 24 tests covering the 3 patch-pass fixes)"
+  ],
+  "success_rate": {"backend": "100% (42/42 tests pass in isolation; 41/42 under pytest-xdist due to 1 pre-existing flaky race unrelated to this patch)", "frontend": "100% of critical Phase-3-B thumb-rendering flow"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (Acme Furniture org via editor login switch), editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123",
+  "seed_data_creation": "Standard seed-demo; new test data: ~10 fresh media uploads across mime families (pdf/doc/docx/xls/xlsx/ppt/txt/mp4/octet-stream/png), a handful of entity_types (auda_/audb_/eta_/etb_/casa_/casb_/uxa_/uxb_/rba_/rbb_ prefixes), and 1 TEST_QuotaOrg_* organization per run for the fresh-org test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Patch pass verified. All 3 fixes work end-to-end. The one flaky test (TestMediaDeleteCascade under xdist) is a pre-existing test-race not related to Sub-pass B patch — fix by comparing delta against media size instead of absolute used_bytes. To reproduce all patch tests: `pytest backend/tests/test_ubos_phase3b_patch.py -v`. Note the /api/media/mime-icon endpoint is deliberately include_in_schema=False so it won't appear in openapi.json — that's intentional (static asset). Fresh org via POST /api/orgs returns body {org: {...settings: {storage_quota_bytes: 5368709120}...}, access_token, ...} — the returned tokens are already scoped to the new org, no separate /switch needed.",
+  "rca of the issue": "No app bugs. Only 1 test failure — TestMediaDeleteCascade under pytest-xdist parallel workers — is a test race: worker A captures used_before, then worker B uploads 179 bytes of test data, then worker A computes used_after and sees +179 bytes so 'quota not refunded' fails. Reproducible only under -n 2; passes in isolation. Recommend refactoring the assertion to `assert used_after == used_before - media_size` scoped to the single media's size."
+}

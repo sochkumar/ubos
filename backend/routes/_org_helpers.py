@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -45,12 +46,15 @@ async def create_organization(
     slug = slug or slugify(name)
     slug = await _unique_slug(db, slug)
     now = _now()
+    default_quota = int(os.environ.get("DEFAULT_ORG_STORAGE_QUOTA_BYTES", str(5 * 1024**3)))
     org = {
         "_id": str(uuid.uuid4()),
         "name": name,
         "slug": slug,
         "plan": "free",
-        "settings": {},
+        # Freshly-created orgs get exactly DEFAULT_ORG_STORAGE_QUOTA_BYTES so
+        # they're deterministic in tests + fresh installs.
+        "settings": {"storage_quota_bytes": default_quota},
         "storage_used_bytes": 0,
         "created_at": now,
         "updated_at": now,
