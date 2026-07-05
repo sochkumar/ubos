@@ -57,41 +57,81 @@ export default function PublicRecordPage() {
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [bcDataUrl, setBcDataUrl] = useState(null);
   const [mediaUrls, setMediaUrls] = useState({});
+  const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockError, setUnlockError] = useState(null);
+
+  const load = async () => {
+    try {
+      // withCredentials so any unlock cookie is sent
+      const r = await axios.get(`${API_BASE}/api/public/records/${token}`, {
+        withCredentials: true,
+      });
+      setState({ loading: false, data: r.data, error: null });
+    } catch (e) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
+      const code = typeof detail === "object" ? detail?.code : null;
+      setState({
+        loading: false, data: null,
+        error: {
+          status: status || 0,
+          code: code || (status === 404 ? "not_found" : status === 410 ? "gone" : "error"),
+          message: typeof detail === "string" ? detail : (detail?.detail || "This link is unavailable."),
+        },
+      });
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    async function pull() {
-      try {
-        const r = await axios.get(`${API_BASE}/api/public/records/${token}`);
-        if (cancelled) return;
-        setState({ loading: false, data: r.data, error: null });
-      } catch (e) {
-        if (cancelled) return;
-        const status = e?.response?.status;
-        const detail = e?.response?.data?.detail;
-        const code = typeof detail === "object" ? detail?.code : null;
-        setState({
-          loading: false, data: null,
-          error: {
-            status: status || 0,
-            code: code || (status === 404 ? "not_found" : status === 410 ? "gone" : "error"),
-            message: typeof detail === "string" ? detail : (detail?.detail || "This link is unavailable."),
-          },
-        });
-      }
-    }
-    pull();
-    return () => { cancelled = true; };
+    load();
   }, [token]);
 
+  const submitUnlock = async (e) => {
+    e?.preventDefault?.();
+    if (!unlockPassword) return;
+    setUnlockBusy(true);
+    setUnlockError(null);
+    try {
+      await axios.post(
+        `${API_BASE}/api/public/records/${token}/unlock`,
+        { password: unlockPassword },
+        { withCredentials: true },
+      );
+      setUnlockPassword("");
+      setState({ loading: true, data: null, error: null });
+      await load();
+    } catch (e) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
+      if (status === 429) {
+        setUnlockError({
+          type: "throttled",
+          message: (typeof detail === "object" ? detail?.detail : detail) || "Too many attempts.",
+        });
+      } else {
+        setUnlockError({
+          type: "invalid",
+          message: (typeof detail === "object" ? detail?.detail : detail) || "Incorrect password.",
+        });
+      }
+    } finally {
+      setUnlockBusy(false);
+    }
+  };
+
   useEffect(() => {
-    if (!state.data || state.data.share.visibility !== "public") return;
+    if (!state.data || state.data.share.visibility === "org_only" || state.data.share.visibility === "private") return;
     let cancelled = false;
     (async () => {
       try {
         const [q, b] = await Promise.all([
-          axios.get(`${API_BASE}/api/public/records/${token}/qr.png?size=280`, { responseType: "blob" }),
-          axios.get(`${API_BASE}/api/public/records/${token}/barcode.png?height=90`, { responseType: "blob" }),
+          axios.get(`${API_BASE}/api/public/records/${token}/qr.png?size=280`, {
+            responseType: "blob", withCredentials: true,
+          }),
+          axios.get(`${API_BASE}/api/public/records/${token}/barcode.png?height=90`, {
+            responseType: "blob", withCredentials: true,
+          }),
         ]);
         if (cancelled) return;
         setQrDataUrl(URL.createObjectURL(q.data));
@@ -110,7 +150,9 @@ export default function PublicRecordPage() {
       const entries = await Promise.all(
         imageMedia.map(async (m) => {
           try {
-            const r = await axios.get(`${API_BASE}/api/public/records/${token}/media/${m.id}`);
+            const r = await axios.get(`${API_BASE}/api/public/records/${token}/media/${m.id}`, {
+              withCredentials: true,
+            });
             return [m.id, r.data.url];
           } catch { return [m.id, null]; }
         }),
@@ -130,6 +172,20 @@ export default function PublicRecordPage() {
   }
 
   if (state.error) {
+    // Password-protected shares raise 401 with code=password_required.
+    // Show the unlock form instead of the generic error screen.
+    if (state.error.code === "password_required" || state.error.status === 401) {
+      return (
+        <PasswordGate
+          token={token}
+          onSubmit={submitUnlock}
+          password={unlockPassword}
+          setPassword={setUnlockPassword}
+          busy={unlockBusy}
+          error={unlockError}
+        />
+      );
+    }
     return (
       <ErrorScreen err={state.error} />
     );
@@ -268,7 +324,7 @@ export default function PublicRecordPage() {
 
         {/* Right: sidebar with codes */}
         <aside className="space-y-4 md:sticky md:top-6 self-start">
-          {share.visibility === "public" && (
+          {(share.visibility === "public" || share.visibility === "password") && (
             <div className="rounded-lg border border-border bg-white p-4 space-y-3" data-testid="public-codes">
               <div className="text-[10px] font-mono uppercase text-muted-foreground flex items-center gap-1.5">
                 <QrCode className="w-3 h-3" /> Scan to open this page
@@ -338,6 +394,60 @@ export default function PublicRecordPage() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function PasswordGate({ token, onSubmit, password, setPassword, busy, error }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-muted/30 flex items-center justify-center px-4">
+      <form
+        onSubmit={onSubmit}
+        className="max-w-md w-full rounded-lg border border-border bg-white p-8"
+        data-testid="password-gate"
+      >
+        <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <ShieldAlert className="w-6 h-6 text-primary" />
+        </div>
+        <h1 className="text-lg font-semibold text-center">Password required</h1>
+        <p className="mt-1 text-sm text-muted-foreground text-center">
+          This link is protected. Enter the password to view the record.
+        </p>
+        <div className="mt-6 space-y-2">
+          <label className="text-xs font-mono uppercase text-muted-foreground" htmlFor="unlock-pw">
+            Password
+          </label>
+          <input
+            id="unlock-pw"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            className="w-full h-10 px-3 rounded-md border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            data-testid="unlock-password-input"
+          />
+          {error && (
+            <div
+              className={`text-xs ${error.type === "throttled" ? "text-amber-800" : "text-destructive"}`}
+              data-testid="unlock-error"
+            >
+              {error.message}
+            </div>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={busy || password.length < 1}
+          className="mt-6 w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          data-testid="unlock-submit"
+        >
+          {busy ? "Unlocking…" : "Unlock"}
+        </button>
+        <div className="mt-6 text-[10px] font-mono text-muted-foreground/70 uppercase tracking-wider text-center">
+          UBOS · secure share · token {token.slice(0, 8)}…
+        </div>
+      </form>
     </div>
   );
 }

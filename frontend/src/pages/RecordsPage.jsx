@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Plus, Trash2, Layers, ListChecks, FolderTree, Tag as TagIcon,
-  Table2, LayoutGrid, Rows3, Boxes, List as ListIcon,
+  Table2, LayoutGrid, Rows3, Boxes, List as ListIcon, Upload,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { extractErrorMessage, extractFieldErrors } from "@/lib/errors";
@@ -21,6 +21,8 @@ import { FilterBar } from "@/components/FilterBar";
 import { ViewsBar } from "@/components/ViewsBar";
 import { BulkToolbar } from "@/components/BulkToolbar";
 import { RecordsLayoutRenderer, LAYOUTS } from "@/components/RecordLayouts";
+import { ExportMenu } from "@/components/ExportMenu";
+import { ImportWizard } from "@/components/ImportWizard";
 import { useAuth } from "@/lib/auth";
 
 const LAYOUT_ICONS = {
@@ -214,6 +216,8 @@ export default function RecordsPage() {
 
   const toggleFilterTag = (tid) => setFilterTags((p) => p.includes(tid) ? p.filter((x) => x !== tid) : [...p, tid]);
 
+  const [importOpen, setImportOpen] = useState(false);
+
   const currentState = { layout, q, category_id: filterCat, tag_ids: filterTags, filters, sort, visible_fields: [] };
 
   return (
@@ -227,13 +231,27 @@ export default function RecordsPage() {
           { label: "Records" },
         ]}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => nav(`/entity-types/${etId}/categories`)} data-testid="go-cats-btn">
               <FolderTree className="w-4 h-4 mr-1.5" /> Categories
             </Button>
             <Button variant="outline" onClick={() => nav(`/entity-types/${etId}/fields`)} data-testid="go-fields-btn">
               <Layers className="w-4 h-4 mr-1.5" /> Fields
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              disabled={fields.length === 0}
+              data-testid="import-btn"
+            >
+              <Upload className="w-4 h-4 mr-1.5" /> Import
+            </Button>
+            <ExportMenu
+              entityTypeId={etId}
+              currentState={currentState}
+              selectedIds={[...selected]}
+              disabled={total === 0}
+            />
             <Button onClick={openCreate} disabled={fields.length === 0} data-testid="new-record-btn">
               <Plus className="w-4 h-4 mr-1.5" /> New record
             </Button>
@@ -399,6 +417,14 @@ export default function RecordsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        entityTypeId={etId}
+        fields={fields}
+        onImported={() => { setImportOpen(false); loadRecords(); }}
+      />
     </>
   );
 }

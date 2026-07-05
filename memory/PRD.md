@@ -322,3 +322,37 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 - Dashboard `recent_records[i]` now includes `actor` (`{id, name, avatar_url, action}`) derived from the latest `record.created` / `record.updated` audit event per record (single aggregation, no N+1).
 - Dashboard `entity_types[i]` gains a computed `name` (`= name_plural || name_singular`) so the widget renders without picking between singular/plural. `name_singular` / `name_plural` still returned for backwards compat.
 
+
+## Phase 5 Sub-pass A — CSV/Excel + Password shares (SHIPPED Feb 2026)
+
+**Password-protected shares**
+- `share_links.visibility` gains `"password"` state. `password_hash` stored via `bcrypt` (cost 10); never returned to clients.
+- `POST /api/public/records/:token/unlock {password}` — verifies via `bcrypt.checkpw`, sets an HMAC-signed httpOnly `share_unlock_<token>` cookie, path-scoped to `/api/public/records/<token>`, sliding TTL 30 min.
+- Wrong password → 401 `{code:"invalid_password", attempts_remaining}`; 5 attempts / min / (IP, share) → 6th returns 429 with retry_after.
+- Cookie signature embeds `sha256(password_hash)[:16]` — rotating the password (via `PATCH /api/shares/:id {password:"..."}`) instantly invalidates all outstanding cookies. Switching `visibility` to any non-password value drops `password_hash`.
+- `GET /api/public/records/:token` and `/media/{id}`, `.../qr.png`, `.../barcode.png` respect the gate. Members of the owning org (via `try_auth`) bypass the password prompt.
+- Audit events: `share.password_set`, `share.password_changed`, `share.unlock_attempt_failed`, `share.unlock_success`.
+- Frontend: new "Password protected" visibility option in `ShareAndPrintPanel`; a lock chip in share row; public page `/s/:token` renders a `PasswordGate` unlock form with rate-limit banner.
+
+**CSV/Excel export**
+- `GET /api/entity-types/:et_id/records/export?format=csv|xlsx&columns=&q=&category_id=&tag_ids=&include_metadata=&limit=` (streams via `StreamingResponse`). CSV is UTF-8 with BOM, RFC 4180 quoting, `\r\n` line endings; XLSX built with `openpyxl` write-only mode with rough autofit.
+- `POST /api/entity-types/:et_id/records/export-bulk {record_ids, format, columns, include_metadata}` — for selected-row export from `BulkToolbar`.
+- Media (`image`/`file`) fields render as `filename <signed_url>` (30-min TTL). `dropdown` labels, ISO dates in CSV, native Excel dates in xlsx, currency as float.
+- Audit event: `record.exported {count, format, filters}`.
+- Frontend: `ExportMenu` split button on `RecordsPage` header + selection-aware entries in the dropdown ("Selected as CSV/XLSX"). Also mounted via `BulkToolbar` in a follow-up.
+
+**CSV/Excel import (4-step wizard)**
+- `POST /api/entity-types/:et_id/records/import/preview` (multipart, ≤10 MB) — parses CSV/XLSX to `/tmp/ubos_imports/{token}.csv|xlsx`, returns headers, 5-row preview, `total_rows`, `suggested_mapping` (fuzzy `rapidfuzz.WRatio` on header vs field label/key + special `title`/`tags`/`record_number` aliases), `sheet_names?`.
+- `POST /api/entity-types/:et_id/records/import/plan` — dry-run: per-row validation via the existing `FieldValidator`, conflict simulation vs `match_by`+`conflict_policy` (`skip|update|error`), returns `would_insert/update/skip/error`, first 100 per-row actions, first 20 errors, warnings (unmapped required, unsupported media fields).
+- `POST /api/entity-types/:et_id/records/import/execute {plan_id}` — kicks an `asyncio.create_task` job; concurrency capped at 5 running per org. Batches of 200 (`insert_many`/`update_one` per batch); progress persisted to `import_jobs`.
+- `GET /api/imports/:job_id/progress` — polls status, processed, inserted, updated, skipped, errors, `error_report_url?`.
+- `GET /api/imports/:job_id/errors.csv` — downloadable CSV of failed rows (row_idx, field, message, raw_value).
+- `import_jobs` collection with indexes on `(org_id, status, created_at)` and `(org_id, user_id, created_at)`.
+- Media/relation columns ignored with warnings — post-MVP. `auto_create_tags: true` default; `auto_create_categories: false` default.
+- Audit event: `record.imported {job_id, filename, mapping_keys, options}`.
+- Frontend: `ImportWizard` component with 5-step UI (Upload → Preview → Mapping → Options → Run), mounted from records list "Import" button. Shows live progress bar and downloadable error report.
+
+**Dependencies added**: `openpyxl==3.1.5`, `rapidfuzz==3.14.5` (bcrypt already present from Phase 3 auth).
+
+**Env knobs**: `EXPORT_MAX_ROWS`, `IMPORT_MAX_FILE_MB`, `IMPORT_MAX_ROWS`, `IMPORT_TMP_ROOT`.
+

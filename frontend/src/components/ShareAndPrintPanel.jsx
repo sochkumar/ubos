@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Copy, Link as LinkIcon, Printer, QrCode, ScanLine, Share2, ShieldOff, Trash2,
+  Copy, Link as LinkIcon, Lock, Printer, QrCode, ScanLine, Share2, ShieldOff, Trash2,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -203,6 +203,11 @@ function ShareRow({ share, onCopy, onRevoke, onDelete }) {
     >
       <div className="flex items-center gap-1.5 mb-1">
         <Badge variant="secondary" className="text-[9px] font-mono uppercase">{share.visibility}</Badge>
+        {share.has_password && (
+          <Badge className="bg-amber-100 text-amber-800 border-transparent text-[9px] inline-flex items-center gap-0.5" data-testid={`share-locked-${share.token}`}>
+            <Lock className="w-2.5 h-2.5" /> password
+          </Badge>
+        )}
         {revoked && <Badge className="bg-destructive/15 text-destructive border-transparent text-[9px]">revoked</Badge>}
         {!revoked && share.expires_at && (
           <Badge className={`text-[9px] border-transparent ${expiresSoon ? "bg-amber-100 text-amber-800" : "bg-muted text-muted-foreground"}`}>
@@ -246,6 +251,7 @@ function ShareRow({ share, onCopy, onRevoke, onDelete }) {
 function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
   const [visibility, setVisibility] = useState("public");
   const [expires, setExpires] = useState("");
+  const [password, setPassword] = useState("");
   const [includeMedia, setIncludeMedia] = useState(true);
   const [includeRels, setIncludeRels] = useState(false);
   const [restrict, setRestrict] = useState(false);
@@ -256,6 +262,7 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
     if (open) {
       setVisibility("public");
       setExpires("");
+      setPassword("");
       setIncludeMedia(true);
       setIncludeRels(false);
       setRestrict(false);
@@ -268,6 +275,10 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
   const toggle = (k) => setVisibleFields((p) => p.includes(k) ? p.filter((x) => x !== k) : [...p, k]);
 
   const submit = async () => {
+    if (visibility === "password" && password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
     setBusy(true);
     try {
       const body = {
@@ -276,9 +287,10 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
         include_relationships: includeRels,
         expires_at: fromDateInput(expires),
       };
+      if (visibility === "password") body.password = password;
       if (restrict) body.visible_fields = visibleFields; // may be []
       await api.post(`/records/${record.id}/shares`, body);
-      toast.success("Public link created");
+      toast.success("Share link created");
       onCreated?.();
       onOpenChange(false);
     } catch (e) { toast.error(extractErrorMessage(e)); }
@@ -298,11 +310,27 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
               <SelectTrigger data-testid="share-visibility"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="public">Public — anyone with the link</SelectItem>
+                <SelectItem value="password">Password protected — anyone with the link + password</SelectItem>
                 <SelectItem value="org_only">Organization only — must be signed in</SelectItem>
                 <SelectItem value="private">Private — creator + admins only</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {visibility === "password" && (
+            <div>
+              <Label className="text-sm">Password <span className="text-muted-foreground text-xs">(min 8 chars)</span></Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                data-testid="share-password"
+              />
+            </div>
+          )}
 
           <div>
             <Label className="text-sm">Expires on <span className="text-muted-foreground text-xs">(optional)</span></Label>
