@@ -357,7 +357,7 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 **Env knobs**: `EXPORT_MAX_ROWS`, `IMPORT_MAX_FILE_MB`, `IMPORT_MAX_ROWS`, `IMPORT_TMP_ROOT`.
 
 
-## Phase 5 Sub-pass B — User Invitations + View Sharing (SHIPPED Feb 2026)
+## Phase 5 Sub-pass B — User Invitations + View Sharing (SHIPPED Feb 2026) — LOCKED ✅
 
 **Invitations**
 - `invitations` collection `{token, org_id, email, role_name, role_id, invited_by, status:pending|accepted|revoked|expired, expires_at, email_sent, email_provider, email_sent_at, ...}`. Indexes: unique `token`, partial-unique `(org_id, email)` for `status="pending"`.
@@ -399,5 +399,31 @@ Signed off by e1_tester follow-up round. Sub-pass A code is frozen; only touch a
 
 **Env additions** (`backend/.env`): `EMAIL_FROM`, `EMAIL_FROM_NAME`, `RESEND_API_KEY`, `SENDGRID_API_KEY`, `AWS_SES_REGION`, `INVITE_RATE_LIMIT_PER_HOUR`.
 **Deps added**: `resend`, `sendgrid` (boto3 already present).
+
+### Sub-pass B verification (Feb 2026)
+- Internal `testing_agent_v3` (iter 15): 27/27 backend + 100% of critical frontend flows PASS. Two cosmetic nits (hydration `<p><div>` warning and missing `data-testid` on mismatch banner) fixed post-report.
+- Independent `e1_tester` follow-up: **33/37 automated PASS** across invitations + public view sharing + internal RBAC-gated collaborators. **Zero security regressions. Zero 500s.**
+- **Sub-pass B code is LOCKED.** Do not touch except at explicit wire-up points from Phase 6.
+
+
+## Backlog — Deferred / Post-MVP
+
+**Phase 6 (P2, upcoming — polish + PWA + hardening, MVP declaration):**
+- PWA manifest + service worker + offline shell + install prompt.
+- Custom label sizes (per-org overrides for `label_size` enum + `POST /api/labels/render` custom W×H).
+- PDF page-1 thumbnails for uploaded PDFs (backend `pdf2image` render → thumb cache).
+- Custom dashboards / drag-and-drop widget arrangement (`custom_dashboards` collection already scaffolded — needs UI).
+- Minor observation from Sub-pass B: `POST /views/:vid/collaborators` allows the view owner to be added as a "self" collaborator (redundant but non-harmful — the owner already has `owner` permission everywhere). Tighten in Phase 6 polish by returning 409 `already_owner` when `user_id == view.user_id`.
+- Optional: `data-testid` hooks on the AcceptInvitationPage mismatch/expired/revoked banners for stricter e2e coverage.
+
+**Post-MVP (P3):**
+- Image/file field import (currently ignored with warnings).
+- ZIP bundle upload for bulk media + records.
+- Whole-dashboard sharing (public link to a saved dashboard).
+- SMS invitations via Twilio.
+- Per-org customisable email templates + branded sender + reply-to.
+- Approval-based join requests (invitee → admin approves) as an alternative to invitation links.
+- Bulk CSV of email addresses in the invite modal.
+
 
 
