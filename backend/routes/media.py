@@ -68,8 +68,29 @@ async def upload_media(
     adapter = get_storage_adapter()
 
     created: list[dict] = []
+    max_upload = int(os.environ.get("MAX_UPLOAD_SIZE_BYTES", str(25 * 1024 * 1024)))
     for up in files:
-        data = await up.read()
+        # Stream-read with early bail — avoids loading a hostile giant body
+        # into memory before quota_svc gets a chance to reject it.
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await up.read(64 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_upload:
+                raise HTTPException(
+                    status_code=413,
+                    detail={
+                        "code": "file_too_large",
+                        "detail": "File exceeds MAX_UPLOAD_SIZE_BYTES",
+                        "max_bytes": max_upload,
+                        "incoming_bytes": total,
+                    },
+                )
+            chunks.append(chunk)
+        data = b"".join(chunks)
         size = len(data)
         mime = up.content_type or "application/octet-stream"
         if mime not in ALLOWED_MIMES:
@@ -264,8 +285,12 @@ async def serve_media(token: str):
     fn = doc.get("filename") or "file"
     return StreamingResponse(
         gen(), media_type=doc.get("mime") or "application/octet-stream",
-        headers={"Content-Disposition": f'inline; filename="{fn}"',
-                 "Cache-Control": "private, max-age=3600"},
+        headers={
+            "Content-Disposition": f'inline; filename="{fn}"',
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+            "Cross-Origin-Resource-Policy": "same-origin",
+        },
     )
 
 
@@ -354,13 +379,14 @@ async def delete_media(
         if not r:
             continue
         cur = (r.get("fields") or {}).get(f_key)
+        matches = lambda v: (  # noqa: E731
+            (isinstance(v, dict) and (v.get("media_id") == mid or v.get("id") == mid))
+            or v == mid
+        )
         if isinstance(cur, list):
-            new = [v for v in cur
-                   if not (isinstance(v, dict) and (v.get("media_id") == mid or v.get("id") == mid))
-                   and v != mid]
-        elif isinstance(cur, dict) and (cur.get("media_id") == mid or cur.get("id") == mid):
-            new = None
-        elif cur == mid:
+            kept = [v for v in cur if not matches(v)]
+            new = kept if kept else None   # normalise empty → None (align w/ scalar)
+        elif matches(cur):
             new = None
         else:
             continue
@@ -374,11 +400,15 @@ async def delete_media(
         {"$set": {"deleted_at": now, "updated_at": now, "attached_to": []}})
     await quota_svc.add_bytes(db, ctx.org_id, -int(doc.get("size", 0)))
 
-    # Best-effort: remove the file from disk (thumb stays for now — harmless orphan)
-    try:
-        await get_storage_adapter().delete(doc["storage_key"])
-    except Exception:  # pragma: no cover
-        pass
+    # Best-effort: remove original + cached thumb from disk.
+    adapter = get_storage_adapter()
+    for k in (doc.get("storage_key"), doc.get("thumb_key")):
+        if not k:
+            continue
+        try:
+            await adapter.delete(k)
+        except Exception:  # pragma: no cover
+            pass
 
     audit(bg, action="media.deleted", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="media", target_id=mid,

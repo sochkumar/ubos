@@ -5,6 +5,7 @@ import os
 
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 
 def _default_quota() -> int:
@@ -69,7 +70,7 @@ async def set_quota(db: AsyncIOMotorDatabase, org_id: str, quota_bytes: int) -> 
     org = await db.organizations.find_one_and_update(
         {"_id": org_id},
         {"$set": {"settings.storage_quota_bytes": int(quota_bytes)}},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
     )
     if not org:
         raise HTTPException(404, "org not found")

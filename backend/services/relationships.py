@@ -96,12 +96,14 @@ async def link_records(
         if _count_links(tgt, rel_def_id, tgt_dir) >= 1:
             raise HTTPException(409, "one_to_one: target is already linked")
     elif card == "one_to_many":
-        # source is "from" → can have many; target is "to" → can only have ONE from-side
-        # If we're writing src_dir='from', check target has no existing 'to' link
+        # The 'from' side may fan out to many, the 'to' side is 1:1. We check
+        # the target (whichever side plays the 'to' role) has no prior link.
         if src_dir == "from":
             if _count_links(tgt, rel_def_id, "to") >= 1:
                 raise HTTPException(409, "one_to_many: target is already linked to another source")
-        else:  # src_dir == 'to' — we're linking from the target's side, same rule
+        else:
+            # src plays the 'to' role; if it already has an existing 'to' link,
+            # that means it's already claimed by another source.
             if _count_links(src, rel_def_id, "to") >= 1:
                 raise HTTPException(409, "one_to_many: this record is already linked to another source")
 
