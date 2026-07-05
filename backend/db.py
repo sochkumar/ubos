@@ -134,3 +134,10 @@ async def ensure_indexes() -> None:
     # Record category/tag lookup indexes
     await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("category_ids", 1)])
     await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("tag_ids", 1)])
+    await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("updated_at", -1)])
+
+    # Phase 3: Views, activity, versions
+    await db.views.create_index([("org_id", 1), ("entity_type_id", 1)])
+    await db.views.create_index([("org_id", 1), ("user_id", 1)])
+    await db.record_activity.create_index([("org_id", 1), ("record_id", 1), ("ts", -1)])
+    await db.record_versions.create_index([("org_id", 1), ("record_id", 1), ("version_number", -1)])

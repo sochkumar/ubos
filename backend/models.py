@@ -159,12 +159,69 @@ class Record(BaseModel):
     category_ids: list[str] = Field(default_factory=list)
     tag_ids: list[str] = Field(default_factory=list)
     record_number: str
+    qr_payload: str | None = None
     search_text: str = ""
     version: int = 1
     created_at: str = Field(default_factory=_now)
     updated_at: str = Field(default_factory=_now)
     deleted_at: str | None = None
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+
+# ─────────────────────── Views ───────────────────────
+class FilterCondition(BaseModel):
+    field: str
+    op: Literal["eq","ne","contains","gt","lt","gte","lte","between","in","not_in","is_empty","is_not_empty"]
+    value: Any = None
+
+
+class SortSpec(BaseModel):
+    field: str
+    dir: Literal["asc","desc"] = "asc"
+
+
+class ViewCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = None
+    layout: Literal["table","gallery","grid","card","list"] = "table"
+    filters: list[FilterCondition] = Field(default_factory=list)
+    category_ids: list[str] = Field(default_factory=list)
+    tag_ids: list[str] = Field(default_factory=list)
+    q: str | None = None
+    sort: list[SortSpec] = Field(default_factory=list)
+    visible_fields: list[str] = Field(default_factory=list)
+    column_widths: dict[str, int] = Field(default_factory=dict)
+    is_shared: bool = False
+
+
+class ViewUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = None
+    description: str | None = None
+    layout: Literal["table","gallery","grid","card","list"] | None = None
+    filters: list[FilterCondition] | None = None
+    category_ids: list[str] | None = None
+    tag_ids: list[str] | None = None
+    q: str | None = None
+    sort: list[SortSpec] | None = None
+    visible_fields: list[str] | None = None
+    column_widths: dict[str, int] | None = None
+    is_shared: bool | None = None
+
+
+class BulkAction(BaseModel):
+    ids: list[str] = Field(min_length=1)
+    action: Literal["assign_categories","assign_tags","delete"]
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommentPayload(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class RestorePayload(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
 
 
 # ─────────────────────── Users, Orgs, Memberships ───────────────────────
