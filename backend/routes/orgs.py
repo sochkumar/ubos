@@ -93,6 +93,14 @@ async def update_org(
         if not doc:
             raise HTTPException(status_code=404, detail="organization not found")
         return strip_id(doc)
+    # Deep-merge `settings` so callers can PATCH a single key (e.g. support_email)
+    # without wiping storage_quota_bytes or other keys.
+    if "settings" in updates and isinstance(updates["settings"], dict):
+        existing = await db.organizations.find_one(
+            {"_id": org_id, "deleted_at": None}, {"settings": 1},
+        )
+        merged = {**((existing or {}).get("settings") or {}), **updates["settings"]}
+        updates["settings"] = merged
     updates["updated_at"] = _iso(_now_dt())
     from pymongo import ReturnDocument
     doc = await db.organizations.find_one_and_update(

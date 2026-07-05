@@ -301,9 +301,18 @@ export default function PublicRecordPage() {
       <footer className="border-t border-border bg-white mt-8">
         <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="font-mono">UBOS</span>
-            <span>·</span>
-            <span>read-only public view</span>
+            <a
+              href="https://ubos.app"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-1 hover:border-primary/60 hover:text-primary transition-colors"
+              data-testid="powered-by-ubos"
+            >
+              <span className="inline-block w-4 h-4 rounded-sm bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold leading-none">U</span>
+              <span>Powered by <b className="font-semibold">UBOS</b></span>
+            </a>
+            <span className="hidden md:inline">·</span>
+            <span className="hidden md:inline">read-only public view</span>
           </div>
           <div className="md:ml-auto flex flex-wrap items-center gap-4">
             {expiry && (
