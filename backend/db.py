@@ -100,6 +100,9 @@ async def ensure_indexes() -> None:
     # Audit logs — indexed by org + ts descending, keep forever
     await db.audit_logs.create_index([("org_id", 1), ("ts", -1)])
     await db.audit_logs.create_index([("actor_id", 1), ("ts", -1)])
+    # Sub-pass B patch: audit filters now include target_type/target_id
+    await db.audit_logs.create_index([("org_id", 1), ("action", 1), ("ts", -1)])
+    await db.audit_logs.create_index([("org_id", 1), ("target_id", 1)])
 
     # ── Phase 2 collections ──
     # Categories: hierarchical, materialized path

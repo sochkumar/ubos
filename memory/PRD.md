@@ -215,53 +215,49 @@ No auth, no orgs UI, no media/QR, no search UI, no categories/tags, no views, no
 - Patch pass (4 fixes): all confirmed via curl locally.
 - e1_tester independent re-verification: 23/23 PASS. Sub-pass A LOCKED.
 
-## Phase 3 Sub-pass B — PENDING (fresh session)
+## Phase 3 Sub-pass B — Media + Relationship Instances (2026-02) — LOCKED ✅
 
-**Status:** Not started. Will be initiated in a fresh session for full context budget.
+**Status:** VERIFIED. iteration_7 → 18/18 backend + 100% critical frontend flows PASS. Independent verification then surfaced 2 API-consistency items (thumb response shape, audit filter visibility) + 1 bonus (fresh-org default quota). All folded in via iteration_8 → **42/42 pytest tests pass in isolation** (41/42 under pytest-xdist due to a pre-existing test race — flagged as test-only refactor, not an app bug).
 
-**Scope (locked at Sub-pass A kickoff):**
-- **Media storage** — LocalDiskAdapter (dev) + S3-compatible adapter (stub for prod)
-- **image / file dynamic field wiring** — currently stubbed in the validator; will get real upload → attach → validate → render behaviour
-- **Relationship instances** — Record ↔ Record link CRUD using existing `relationship_definitions`, with bidirectional saving
-- **Wire up Attachments tab + Relationships tab** on RecordDetailPage (currently rendering "Coming in the next update" empty states)
+### Sub-pass B patch (2026-02)
+- **`GET /api/media/{id}/thumb` now returns a uniform `{url, mime}` JSON envelope for every media doc.** Image mimes → `url` points at a signed `/api/media/serve/<token>` link to a Pillow-generated 256×256 JPEG (mime `image/jpeg`). Non-image / SVG mimes → `url` points at the new public static endpoint `/api/media/mime-icon/{family}` (mime `image/svg+xml`). Corrupt-image and non-LocalDisk-adapter paths gracefully degrade to the family icon URL. Endpoint description updated in OpenAPI. **Contract is now consistent regardless of underlying mime.**
+- **`/api/media/mime-icon/{family}`** — publicly accessible, cacheable (`Cache-Control: public, max-age=86400`), no auth. Family shortcuts: `pdf`, `doc`, `xls`, `ppt`, `txt`, `video`, `audio`, `image`, `generic`. Unknown family falls back to the generic icon. `include_in_schema=False` (documented in the `/thumb` endpoint description as the target of returned URLs).
+- **`GET /api/audit-logs` gains `target_type` and `target_id` filters** so testers (and admin UI) can grep cascade events, media events, etc. `?action=` was already supported; now `?action=record.cascade_deleted&target_id=<src>` narrows precisely. New indexes `(org_id, action, ts desc)` and `(org_id, target_id)` on `audit_logs`.
+- **Fresh organizations get exactly `DEFAULT_ORG_STORAGE_QUOTA_BYTES` at creation.** `_org_helpers.create_organization` now sets `settings.storage_quota_bytes = env(DEFAULT_ORG_STORAGE_QUOTA_BYTES, 5 GB)` on insert so tests + fresh installs are deterministic. Verified: `POST /api/orgs` returns `settings.storage_quota_bytes = 5368709120`.
+- **Cascade-delete audit event confirmed emitting properly** — `?action=record.cascade_deleted` returns entries carrying `target_type='record'`, `target_id=<deleted_source_id>`, `diff.cascaded_ids=[…]`, `diff.count`.
 
-**Do NOT touch these in the meantime:**
-- The 404 behaviour of `/records/{id}/activity` + `/versions` for soft-deleted records — this is intentional, do not relax `tenant_filter`.
-- Existing Sub-pass A code paths — no refactors, no incidental cleanups.
-
-## Phase 3 Sub-pass B — Media + Relationship Instances (2026-02) — DONE ✅
-
-**Status:** testing_agent_v3 iteration_7 — 18/18 backend + 100% critical frontend flows PASS. Zero blocking issues. Reviewer's 5 code-quality items all folded in (streaming multipart with early size bail, cascade normalises list-with-only-matching to `None`, ReturnDocument.AFTER on quota update, `X-Content-Type-Options: nosniff` + `Cross-Origin-Resource-Policy: same-origin` on `/api/media/serve/{token}`, thumb file removed from disk on cascade delete).
+### Sub-pass B main deliverables (retained from initial pass)
 
 **Backend:**
-- **Storage abstraction** (`core/storage/`) — `StorageAdapter` ABC + `StorageObject`/`StorageStat` dataclasses. `LocalDiskAdapter` writes atomically (`{key}.tmp` → rename), computes sha256, exposes `presigned_get()` returning `/api/media/serve/{token}` where token = `base64(key).exp_ts.hmac_sha256(secret)`. `S3Adapter` is a stub that imports safely without boto3 and raises NotImplementedError on every call. `factory.get_storage_adapter()` reads `STORAGE_BACKEND` (default `local`).
+- **Storage abstraction** (`core/storage/`) — `StorageAdapter` ABC + `LocalDiskAdapter` (atomic writes, sha256, HMAC-signed `/api/media/serve/{token}` URLs with 1h TTL) + `S3Adapter` stub (imports safely without boto3) + `factory.get_storage_adapter()`.
 - **Media collection** — `{_id, org_id, uploader_id, filename, mime, size, checksum, storage_backend, storage_key, thumb_key?, width?, height?, attached_to[], created_at, updated_at, deleted_at}`. Indexes: `(org_id, deleted_at)`, `(org_id, checksum)` (dedup), `(org_id, attached_to.record_id)`, `(org_id, created_at desc)`.
-- **Endpoints** — `POST /media/upload` (multipart, streaming with per-file size guard bailing at `MAX_UPLOAD_SIZE_BYTES`; per-org same-checksum dedup; optional `record_id`/`field_key`/`role` for attach-on-upload). `GET /media`, `GET /media/:id` (with attached_to record hydration), `GET /media/:id/file` (returns `{url, filename, mime, size}` with signed URL), `GET /media/:id/thumb` (image → generates 256×256 JPEG via Pillow on first hit, caches thumb_key; non-image → static SVG icon per mime family). `POST /media/:id/attach`, `POST /media/:id/detach`, `DELETE /media/:id` (409 with attached_to detail unless `?cascade=true` which detaches from `records.fields.<key>` first, refunds quota, removes source + thumb from disk). `GET /media/serve/{token}` (HMAC-verified, streams with `X-Content-Type-Options: nosniff` + `Cross-Origin-Resource-Policy: same-origin`).
-- **Quota service** (`services/quota.py`) — `check_can_upload` (raises 413 with `code=quota_exceeded` OR `code=file_too_large`), `add_bytes` (per-org counter), `set_quota` (100 MB ≤ quota ≤ 100 GB). `PATCH /orgs/:id/storage-quota` gated by `org.update` perm.
-- **Field types activated** — `image` and `file` no longer stubbed. `_extract_media_ref` coerces bare id / `{media_id}` / `{id}` into canonical `{media_id, ...}`. Async post-pass in `FieldValidator.validate` batches media lookup per org and enforces: media exists, mime family match, per-field `max_size_mb` and `allowed_mimes` from `config`. Multiple/single handled via `config.multiple`.
-- **Record hooks** (`routes/data.py`) — `create_record` walks image/file field defs, calls `apply_media_diff` for added ids. `update_record` diffs old vs new field values per image/file field and calls `apply_media_diff` symmetrically. `delete_record` detaches all image/file media THEN calls `cascade_on_delete` from `services/relationships.py`.
-- **Relationship instances** (`services/relationships.py` + `routes/relationship_instances.py`) — stored as `records.relationships[{rel_def_id, target_record_id, direction, created_at}]`, written on BOTH sides. Cardinality enforced on link (`one_to_one`: both sides ≤ 1; `one_to_many`: the 'to' side ≤ 1; `many_to_many`: no cap). Entity-type match against the rel_def; wrong types return 422. Unlink deletes both sides idempotently. `cascade_on_delete` soft-deletes 'to'-side targets when `rel_def.cascade_delete=true` and cleans up reverse links on surviving records; emits `record.cascade_deleted` audit event with the id list.
-- **Audit events added** — `media.uploaded`, `media.attached`, `media.detached`, `media.deleted`, `record.linked`, `record.unlinked`, `record.cascade_deleted`, `org.quota_updated`.
-- **Rejected mimes** — SVG is intentionally not in `ALLOWED_MIMES` because sanitisation is out of scope for Sub-pass B. Documented in code.
-- **Migrations** — `_backfill_org_storage_fields` sets `storage_used_bytes:0` on any org that lacks it.
+- **Endpoints** — `POST /media/upload` (streaming multipart with early-bail if > `MAX_UPLOAD_SIZE_BYTES`; per-org same-checksum dedup; optional `record_id`/`field_key`/`role` for attach-on-upload). `GET /media`, `GET /media/:id` (with attached_to record hydration), `GET /media/:id/file` (returns `{url, filename, mime, size}` with signed URL), `GET /media/:id/thumb` (uniform `{url, mime}` envelope). `POST /media/:id/attach`, `POST /media/:id/detach`, `DELETE /media/:id` (409 with attached_to detail unless `?cascade=true` which detaches from `records.fields.<key>`, refunds quota, removes source + thumb from disk). `GET /media/serve/{token}` (HMAC-verified, streams with `nosniff` + `CORP same-origin`).
+- **Quota service** — `check_can_upload` raises 413 with `code=file_too_large` OR `code=quota_exceeded`; `add_bytes` per-org counter; `set_quota` (100 MB ≤ q ≤ 100 GB) returns AFTER doc. `PATCH /orgs/:id/storage-quota` gated by `org.update`.
+- **Field types activated** — `image` and `file` no longer stubbed. Async post-pass validates media exists in the same org + mime family + `max_size_mb` + `allowed_mimes`.
+- **Record hooks** — create attaches, update diffs old-vs-new media_ids per image/file field and attach/detach symmetrically, delete detaches + cascades relationship targets when `rel_def.cascade_delete=true`.
+- **Relationship instances** — bidirectional writes on `records.relationships[]`, cardinality enforced (`one_to_one` / `one_to_many` / `many_to_many`), 422 on entity-type mismatch, `record.cascade_deleted` audit event.
+- **Audit events**: `media.uploaded / attached / detached / deleted`, `record.linked / unlinked / cascade_deleted`, `org.quota_updated`.
+- **Migration**: `_backfill_org_storage_fields` sets `storage_used_bytes:0` on any org that lacks it.
 
 **Frontend:**
-- **`MediaThumb`** (`components/MediaThumb.jsx`) — image mime → hits `/media/:id/thumb`, renders signed URL; else → colored icon block with mime-family letter (PDF/DOC/XLS/PPT/TXT/VID/AUD/IMG). `useMediaFileUrl` hook returns a signed URL for the actual file.
-- **`MediaUploadZone`** — drag-drop + click-to-choose, `multipart/form-data`, supports optional `record_id`/`field_key`/`role`, converts 413 responses into friendly toasts.
-- **`ImageFieldRenderer` / `FileFieldRenderer`** — real UIs for image/file field types. Image renderer: 96×96 thumbnails with hover-to-remove, "Set as main" on multi, "Main" badge on index 0. File renderer: filename + mime + size + download link + remove. Both respect `config.multiple` + `max_count`.
-- **`DynamicField`** — image/file now route to the two new renderers (was inline stub input before). All other types unchanged.
-- **`MediaPage` (`/media`)** — grid of media tiles with mime-family filter chips + filename search + storage bar in the header. Clicking a tile opens a right drawer with inline preview (image/video/pdf), full metadata, "Used in N records" list linking to `/records/:id`, Download, Delete. Multi-select + bulk delete.
-- **`RelationshipsPanel`** (used by RecordDetail's Relationships tab) — one card per rel_def+direction, chip list of linked records, `+ Add` opens `RecordPicker` filtered to the target entity type with already-linked ids pre-disabled (radio mode for `one_to_one`, checkbox for multi). Unlink via hover-X.
-- **`AttachmentsPanel`** (used by RecordDetail's Attachments tab) — drop zone that attaches new uploads with `role=attachment`, list with filename/mime/size + Download + Detach.
-- **`RecordDetailPage`** — Attachments and Relationships tabs now render the real panels (previously "Coming in the next update" placeholders — those strings are gone).
-- **`OrgSettingsPage`** — new Storage panel: quota bar + admin-editable MB input + Update button + "Manage in Media Library" link.
-- **Sidebar** — Media is now a real nav entry (no more "coming soon" chip).
+- `MediaThumb`, `MediaUploadZone`, `ImageFieldRenderer`, `FileFieldRenderer`, `RecordPicker`, `RelationshipsPanel`, `AttachmentsPanel`, `StorageQuotaBar` — all new.
+- `MediaPage` (`/media`) with grid + mime filter chips + filename search + storage bar + drawer + bulk delete.
+- `RecordDetailPage` Attachments and Relationships tabs render real panels (previous "Coming in the next update" strings removed).
+- `OrgSettingsPage` gets a Storage panel with editable quota (owner/admin only).
+- Sidebar unchips Media.
+- `DynamicField` routes image/file to the two new renderers.
 
-**Env additions** (`backend/.env`): `STORAGE_BACKEND=local`, `LOCAL_STORAGE_ROOT=/app/backend/uploads`, `MEDIA_SIGNING_SECRET`, `MAX_UPLOAD_SIZE_BYTES=26214400`, `DEFAULT_ORG_STORAGE_QUOTA_BYTES=5368709120`. New deps in `requirements.txt`: `pillow`, `aiofiles`.
+**Env additions** (`backend/.env`): `STORAGE_BACKEND=local`, `LOCAL_STORAGE_ROOT=/app/backend/uploads`, `MEDIA_SIGNING_SECRET`, `MAX_UPLOAD_SIZE_BYTES=26214400`, `DEFAULT_ORG_STORAGE_QUOTA_BYTES=5368709120`. New deps: `pillow`, `aiofiles`.
 
 **Verification history:**
-- `/app/backend/tests/test_ubos_phase3b.py` — 18/18 pytest passes (media upload/dedup/thumb/serve, RBAC, quota + file_too_large, image/file field validators, cascade delete + refund, relationship cardinalities + cascade, storage-quota RBAC).
-- Playwright end-to-end verified: `/media`, `/settings/organization`, `/records/:id` all working.
+- iteration_7 (initial): 18/18 backend + Playwright frontend PASS
+- iteration_8 (patch): 42/42 pytest tests in isolation (thumb envelope, audit filters, fresh-org quota, full Sub-pass B regression). 1 pre-existing test-only race under pytest-xdist (flagged, not a bug).
+
+**Deferred (backlog):**
+- S3Adapter real implementation
+- SVG upload sanitisation (nh3/bleach) → lift `image/svg+xml` from the rejected-mimes list
+- PDF page-1 thumbnails
+- Refactor `TestMediaDeleteCascade` to compare quota delta vs media size instead of absolute `used_bytes` (avoids xdist worker cross-talk)
 
 ## Prioritized Backlog
 - **P1 (next)**: QR PNG / barcode generation / printable labels; Public share links (read-only tokenised record URLs); Dashboard widgets; Global search UI
