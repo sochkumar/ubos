@@ -96,6 +96,7 @@ class FieldDefBase(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     required: bool = False
     unique: bool = False
+    sensitive: bool = False
     order: int = 0
     group: str | None = None
     help_text: str | None = None
@@ -111,6 +112,7 @@ class FieldDefUpdate(BaseModel):
     config: dict[str, Any] | None = None
     required: bool | None = None
     unique: bool | None = None
+    sensitive: bool | None = None
     order: int | None = None
     group: str | None = None
     help_text: str | None = None

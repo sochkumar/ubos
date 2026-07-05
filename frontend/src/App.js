@@ -28,6 +28,7 @@ import TagsPage from "@/pages/TagsPage";
 import RelationshipsPage from "@/pages/RelationshipsPage";
 import TemplatesPage from "@/pages/TemplatesPage";
 import MediaPage from "@/pages/MediaPage";
+import PublicRecordPage from "@/pages/PublicRecordPage";
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
 
             {/* Standalone (no chrome) */}
             <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+            <Route path="/s/:token" element={<PublicRecordPage />} />
             <Route
               path="/onboarding"
               element={

@@ -101,3 +101,44 @@ def require_org() -> Any:
         return ctx
 
     return _dep
+
+
+async def try_auth(
+    request: Request,
+    x_org_id: str | None = Header(default=None, alias="X-Org-Id"),
+) -> AuthContext | None:
+    """Optional auth dependency — never raises. Returns AuthContext or None.
+
+    Public endpoints use this to unlock `org_only` visibility when the caller
+    is signed in as a member of the owning org."""
+    auth = request.headers.get("Authorization", "")
+    scheme, token = get_authorization_scheme_param(auth)
+    if not token or scheme.lower() != "bearer":
+        return None
+    try:
+        payload = decode_token(token)
+    except ValueError:
+        return None
+    if payload.get("type") != "access":
+        return None
+    db = get_db()
+    user = await db.users.find_one({"_id": payload["sub"], "is_active": True})
+    if not user:
+        return None
+    request.state.jwt_payload = payload
+    org_id = payload.get("org_id") or user.get("default_org_id")
+    if x_org_id and x_org_id != org_id:
+        m = await db.memberships.find_one(
+            {"user_id": user["_id"], "org_id": x_org_id, "status": "active"}
+        )
+        if not m:
+            # header points at an org the user is not part of → treat as anon
+            return None
+        org_id = x_org_id
+        role_doc = await db.roles.find_one({"_id": m["role_id"]})
+        role_name = role_doc["name"] if role_doc else None
+        permissions = permissions_for_role(role_name or "viewer")
+    else:
+        role_name = payload.get("role")
+        permissions = list(payload.get("permissions") or [])
+    return AuthContext(user=user, org_id=org_id, role=role_name, permissions=permissions)

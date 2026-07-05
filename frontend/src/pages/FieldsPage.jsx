@@ -68,6 +68,7 @@ const emptyForm = () => ({
   type: "text",
   required: false,
   unique: false,
+  sensitive: false,
   help_text: "",
   optionsText: "",
   min: "",
@@ -121,6 +122,7 @@ export default function FieldsPage() {
       type: form.type,
       required: form.required,
       unique: form.unique,
+      sensitive: form.sensitive,
       help_text: form.help_text || null,
       config,
     };
@@ -330,7 +332,7 @@ export default function FieldsPage() {
                         }
                       />
                     </div>
-                    <div className="flex gap-6 pt-1">
+                    <div className="flex gap-6 pt-1 flex-wrap">
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
                         <Switch
                           checked={form.required}
@@ -350,6 +352,19 @@ export default function FieldsPage() {
                           data-testid="field-input-unique"
                         />
                         Unique
+                      </label>
+                      <label
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                        title="Sensitive fields are never exposed in public share links"
+                      >
+                        <Switch
+                          checked={form.sensitive}
+                          onCheckedChange={(v) =>
+                            setForm((f) => ({ ...f, sensitive: v }))
+                          }
+                          data-testid="field-input-sensitive"
+                        />
+                        Sensitive
                       </label>
                     </div>
                   </div>
@@ -421,6 +436,15 @@ export default function FieldsPage() {
                       {f.unique && (
                         <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-transparent">
                           unique
+                        </Badge>
+                      )}
+                      {f.sensitive && (
+                        <Badge
+                          className="bg-rose-100 text-rose-800 hover:bg-rose-100 border-transparent"
+                          data-testid={`field-badge-sensitive-${f.key}`}
+                          title="Hidden from public share links"
+                        >
+                          sensitive
                         </Badge>
                       )}
                     </TableCell>

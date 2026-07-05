@@ -36,8 +36,21 @@ def _public_base() -> str:
     return (os.environ.get("PUBLIC_APP_URL") or os.environ.get("APP_BASE_URL") or "").rstrip("/")
 
 
-# ---------------- Simple in-memory rate limiter ----------------
+# ---------------- Simple in-memory rate limiter (per-IP+route) ----------------
 _RL: dict[str, list[float]] = defaultdict(list)
+
+
+def _parse_rate(spec: str, default_per_min: int) -> int:
+    """Parse '60/min' | '30/min' → int per-minute. Falls back on parse error."""
+    try:
+        n, _ = spec.split("/", 1)
+        return max(1, int(n.strip()))
+    except Exception:
+        return default_per_min
+
+
+_READ_PER_MIN = _parse_rate(os.environ.get("PUBLIC_READ_RATE_LIMIT", "60/min"), 60)
+_CODE_PER_MIN = _parse_rate(os.environ.get("PUBLIC_CODE_RATE_LIMIT", "30/min"), 30)
 
 
 def _check_rate(key: str, per_minute: int) -> None:
@@ -49,6 +62,13 @@ def _check_rate(key: str, per_minute: int) -> None:
     if len(hits) >= per_minute:
         raise HTTPException(429, {"code": "rate_limited", "detail": "Too many requests"})
     hits.append(now)
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("X-Forwarded-For")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 # ---------------- Models ----------------
@@ -211,6 +231,17 @@ async def _build_public_payload(
     db, share: dict, ctx_org: str | None = None,
 ) -> dict:
     org_id = share["org_id"]
+
+    # Org must exist and not be soft-deleted (→ 410, org gone).
+    org = await db.organizations.find_one(
+        {"_id": org_id, "deleted_at": None},
+        {"name": 1, "settings": 1},
+    )
+    if not org:
+        raise HTTPException(status_code=410, detail={
+            "code": "org_gone", "detail": "This workspace is no longer available.",
+        })
+
     rec = await db.records.find_one(tenant_filter(org_id, {"_id": share["record_id"]}))
     if not rec:
         raise HTTPException(404, "record not found")
@@ -219,20 +250,32 @@ async def _build_public_payload(
         tenant_filter(org_id, {"entity_type_id": rec["entity_type_id"]}),
     ).sort("order", 1).to_list(1000)
 
-    # Sensitive fields are always stripped in public payload assembly.
-    non_sensitive_keys = [f["key"] for f in field_defs if not (f.get("config") or {}).get("sensitive")]
-    if share.get("visible_fields") is not None:
-        keys = [k for k in share["visible_fields"] if k in non_sensitive_keys]
-    else:
+    # Sensitive fields are always stripped in public share payloads.
+    # Support both top-level `sensitive: True` (Phase 4) and legacy
+    # `config.sensitive` for forward compat.
+    def _is_sensitive(fd: dict) -> bool:
+        return bool(fd.get("sensitive")) or bool((fd.get("config") or {}).get("sensitive"))
+
+    non_sensitive_keys = [f["key"] for f in field_defs if not _is_sensitive(f)]
+
+    # visible_fields: None (or missing)  → all non-sensitive fields
+    # visible_fields: []                 → title/record-number-only share
+    # visible_fields: [k1, k2, …]        → intersect with non-sensitive
+    vf = share.get("visible_fields")
+    if vf is None:
         keys = non_sensitive_keys
+    else:
+        keys = [k for k in vf if k in non_sensitive_keys]
 
     fields_out = {k: rec.get("fields", {}).get(k) for k in keys}
     exposed_defs = [
-        {k2: v for k2, v in fd.items() if k2 != "_id" and k2 != "org_id" and k2 != "entity_type_id"}
+        {k2: v for k2, v in fd.items()
+         if k2 not in ("_id", "org_id", "entity_type_id", "sensitive")}
         for fd in field_defs if fd["key"] in keys
     ]
 
-    org = await db.organizations.find_one({"_id": org_id}, {"name": 1})
+    org_settings = (org.get("settings") or {})
+    support_email = org_settings.get("support_email") or None
 
     payload = {
         "record": {
@@ -245,12 +288,14 @@ async def _build_public_payload(
             "updated_at": rec.get("updated_at"),
         },
         "field_defs": exposed_defs,
-        "org": {"name": (org or {}).get("name"), "id": org_id},
+        "org": {"name": org.get("name"), "id": org_id, "support_email": support_email},
         "share": {
             "token": share["token"],
             "visibility": share["visibility"],
             "include_media": share.get("include_media", True),
             "include_relationships": share.get("include_relationships", False),
+            "expires_at": share.get("expires_at"),
+            "created_at": share.get("created_at"),
         },
     }
 
@@ -325,7 +370,7 @@ async def public_get_record(
     token: str, request: Request, bg: BackgroundTasks,
     ctx: AuthContext | None = Depends(try_auth),
 ):
-    _check_rate(f"pub:{request.client.host if request.client else 'unknown'}", per_minute=60)
+    _check_rate(f"pub_read:{_client_ip(request)}", per_minute=_READ_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
 
@@ -349,7 +394,7 @@ async def public_serve_shared_media(
     token: str, media_id: str, request: Request,
     ctx: AuthContext | None = Depends(try_auth),
 ):
-    _check_rate(f"pub_media:{request.client.host if request.client else 'unknown'}", per_minute=60)
+    _check_rate(f"pub_media:{_client_ip(request)}", per_minute=_READ_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
     v = share["visibility"]
@@ -431,7 +476,7 @@ async def qr_for_shared_record(
     margin: int = Query(default=4, ge=0, le=16),
     level: Literal["L", "M", "Q", "H"] = Query(default="M"),
 ):
-    _check_rate(f"pub_qr:{request.client.host if request.client else 'unknown'}", per_minute=30)
+    _check_rate(f"pub_qr:{_client_ip(request)}", per_minute=_CODE_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
     if share["visibility"] != "public":
@@ -449,7 +494,7 @@ async def barcode_for_shared_record(
     height: int = Query(default=80, ge=30, le=300),
     text: bool = Query(default=True),
 ):
-    _check_rate(f"pub_bc:{request.client.host if request.client else 'unknown'}", per_minute=30)
+    _check_rate(f"pub_bc:{_client_ip(request)}", per_minute=_CODE_PER_MIN)
     db = get_db()
     share = await _load_share(db, token)
     if share["visibility"] != "public":

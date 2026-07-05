@@ -45,7 +45,7 @@ class ViewLabelsBody(BaseModel):
     q: str | None = None
     category_id: str | None = None
     tag_ids: list[str] = Field(default_factory=list)
-    limit: int = Field(default=500, ge=1, le=500)
+    limit: int = Field(default=200, ge=1, le=200)
     config: LabelConfig = Field(default_factory=LabelConfig)
 
 

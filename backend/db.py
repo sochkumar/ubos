@@ -160,3 +160,9 @@ async def ensure_indexes() -> None:
     await db.media.create_index([("org_id", 1), ("created_at", -1)])
     # Records: index for relationship lookups
     await db.records.create_index([("org_id", 1), ("relationships.target_record_id", 1)])
+
+    # ── Phase 4 Sub-pass A collections ──
+    # Share links
+    await db.share_links.create_index("token", unique=True, name="uniq_share_token")
+    await db.share_links.create_index([("org_id", 1), ("record_id", 1), ("created_at", -1)])
+    await db.share_links.create_index([("org_id", 1), ("revoked_at", 1)])

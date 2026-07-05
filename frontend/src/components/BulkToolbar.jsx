@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, FolderTree, Tag as TagIcon, Edit, X } from "lucide-react";
+import { Trash2, FolderTree, Tag as TagIcon, Edit, X, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import {
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { TagCombobox } from "@/components/TagCombobox";
 import { DynamicField } from "@/components/DynamicField";
+import { PrintLabelsDialog } from "@/components/PrintLabelsDialog";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { BULK_ALLOWED_FIELD_TYPES } from "@/lib/filterOps";
@@ -21,6 +22,7 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
   const [tagOpen, setTagOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [cats, setCats] = useState([]);
   const [catMode, setCatMode] = useState("add");
   const [tags, setTags] = useState([]);
@@ -70,6 +72,9 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
       </Button>
       <Button variant="ghost" size="sm" className="h-8 text-primary-foreground hover:bg-white/10" onClick={() => setEditOpen(true)} data-testid="bulk-edit-btn">
         <Edit className="w-3.5 h-3.5 mr-1" /> Edit field
+      </Button>
+      <Button variant="ghost" size="sm" className="h-8 text-primary-foreground hover:bg-white/10" onClick={() => setPrintOpen(true)} data-testid="bulk-print-btn">
+        <Printer className="w-3.5 h-3.5 mr-1" /> Print labels
       </Button>
       <Button variant="ghost" size="sm" className="h-8 text-primary-foreground hover:bg-white/10" onClick={() => setDelOpen(true)} data-testid="bulk-del-btn">
         <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
@@ -187,6 +192,13 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintLabelsDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        recordIds={selectedIds}
+        fields={fields}
+      />
     </div>
   );
 }

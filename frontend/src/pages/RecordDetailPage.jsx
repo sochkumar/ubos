@@ -23,6 +23,7 @@ import { TagCombobox } from "@/components/TagCombobox";
 import { formatCellValue } from "@/components/RecordLayouts";
 import { AttachmentsPanel } from "@/components/AttachmentsPanel";
 import { RelationshipsPanel } from "@/components/RelationshipsPanel";
+import { ShareAndPrintPanel } from "@/components/ShareAndPrintPanel";
 
 function initialValues(fields, existing) {
   const v = {};
@@ -435,6 +436,8 @@ export default function RecordDetailPage() {
 
           {/* Right rail */}
           <aside className="space-y-4">
+            <ShareAndPrintPanel record={rec} fields={fields} />
+
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Metadata</CardTitle></CardHeader>
               <CardContent className="text-sm space-y-2">

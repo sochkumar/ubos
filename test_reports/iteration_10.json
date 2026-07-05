@@ -1,0 +1,37 @@
+{
+  "summary": "UBOS Phase 4 Sub-pass A verified end-to-end (backend + frontend). 28/28 backend tests pass in test_ubos_phase4a.py covering share CRUD, public payload sensitive stripping (both top-level & legacy config.sensitive), visible_fields semantics (None=all, []=title-only, list=intersection), visibility gates (private/org_only 401, public 200), try_auth non-raising on bad Bearer, expired->410 with code:share_expired_or_revoked, unknown token 404, QR/barcode PNGs (authed + public), labels presets + PDF (>10KB, %PDF header, copies_per_record honored, invalid preset 422), view-scoped labels (X-Records-Included header), rate limiter (429 after burst, per-IP+XFF buckets), relationship summaries (no field leakage), sensitive field flag persistence + patch. Frontend: /s/:token public page renders correctly with QR + Code128 + workspace name + details table + read-only footer, all data-testids present. Share & Print right rail on RecordDetailPage shows inline QR & Code128 previews, New public link dialog + Print labels dialog work, share row testids match spec. FieldsPage Add-field modal exposes Sensitive toggle and the sensitive badge renders on existing fields. BulkToolbar shows Print labels button between Edit field & Delete, opens PrintLabelsDialog. Fixed one critical backend bug (labels view endpoint 500).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/entity-types/{et_id}/records/labels", "issue": "ViewLabelsBody.limit had default=500,le=500 but internal RecordSearchBody caps at le=200 → 500 Internal Server Error whenever caller didn't pass explicit limit. Fixed by lowering default/upper bound to 200."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase4a.py",
+    "/app/test_reports/pytest/phase4a.xml"
+  ],
+  "action_items": [
+    "Please review the small fix I applied in /app/backend/routes/labels.py (ViewLabelsBody.limit=200/le=200). This was blocking POST /api/entity-types/{et_id}/records/labels — the default triggered a 500 because RecordSearchBody caps limit at 200. If you need to support >200 records per view print, raise RecordSearchBody.limit's ceiling as well."
+  ],
+  "critical_code_review_comments": [
+    "routes/labels.py line 120: passing limit=500 from ViewLabelsBody straight into RecordSearchBody(limit=500) silently 500'd because the search model has le=200. Now aligned. Consider adding a unit test on the search body constructor to catch such upstream cap drift.",
+    "routes/shares.py in-memory rate limiter is fine for a single-worker uvicorn; if you ever run multiple workers/pods, buckets will diverge. Fine for MVP, worth noting in code comment.",
+    "routes/shares.py _load_share returns 404 for missing token before any auth check — that's the desired outcome for the visible_fields expired->410 vs revoked->410 vs record-gone->404 distinction. Verified in tests."
+  ],
+  "updated_files": [
+    "/app/backend/routes/labels.py — reduced ViewLabelsBody.limit default+ceiling from 500 to 200 to match RecordSearchBody",
+    "/app/backend/tests/test_ubos_phase4a.py — new comprehensive Phase 4 Sub-pass A suite (28 tests)"
+  ],
+  "success_rate": {"backend": "100% (28/28)", "frontend": "100% (all data-testids + flows verified)"},
+  "test_credentials": "owner@ubos.test / OwnerPass!123 (from /app/memory/test_credentials.md). Note: seeded owner and editor are in DIFFERENT orgs, so the 'only creator/admin can revoke' check was validated via cross-org isolation (404) instead of same-org 403. If same-org RBAC is required, seed both users into the same org.",
+  "seed_data_creation": "Tests create ephemeral TEST_p4a_* entity types with sensitive/non-sensitive fields and a test record inside the owner's org; no seed data is required. Each pytest session generates unique slugs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 4 Sub-pass A is fully green. Backend suite lives at /app/backend/tests/test_ubos_phase4a.py — run with `pytest tests/test_ubos_phase4a.py -o addopts=''` (pytest.ini defaults enable xdist which breaks fixture ordering for the session-scoped entity_type fixture; -o addopts='' disables it). Rate-limit test uses a unique X-Forwarded-For per invocation to isolate buckets. Public page URL pattern: PUBLIC_APP_URL + /s/{token}. Sensitive stripping handles both `sensitive: true` and legacy `config.sensitive: true` and also strips the `sensitive` key itself from the exposed field_defs.",
+  "rca of the issue": "Bug: POST /api/entity-types/{et_id}/records/labels returned 500 whenever the caller omitted `limit`.\nRoot cause: ViewLabelsBody defined `limit: int = Field(default=500, ge=1, le=500)`. The handler passes that value directly into RecordSearchBody(limit=body.limit), and RecordSearchBody caps `limit` at le=200. Pydantic then raised ValidationError → FastAPI surfaced as 500.\nRepro: curl -X POST .../api/entity-types/{et_id}/records/labels -H 'Authorization: Bearer …' -d '{\"config\":{\"preset\":\"avery_5160\"}}' → 500.\nFix: lowered ViewLabelsBody default+ceiling to 200 to match RecordSearchBody. File /app/backend/routes/labels.py line ~48."
+}
