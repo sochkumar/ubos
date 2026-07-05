@@ -19,7 +19,10 @@ _db: AsyncIOMotorDatabase | None = None
 def get_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
-        _client = AsyncIOMotorClient(MONGO_URL)
+        # tz_aware=True + explicit tzinfo so Motor returns tz-aware datetimes
+        # (matches the tz-aware datetimes we write, keeps compares safe).
+        from datetime import timezone
+        _client = AsyncIOMotorClient(MONGO_URL, tz_aware=True, tzinfo=timezone.utc)
     return _client
 
 

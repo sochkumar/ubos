@@ -112,9 +112,14 @@ class TestLogin:
         # register first so email exists (but that's not required for lockout)
         s.post(f"{API}/auth/register", json={"email": email, "password": "CorrectPass!123", "name": "Lock"}, timeout=15)
         codes = []
-        for _ in range(6):
+        # NOTE: k8s ingress load-balances across ~2 upstream client IPs, and lockout
+        # is keyed by IP:email, so we need up to ~2*MAX_FAILED_ATTEMPTS attempts.
+        for _ in range(20):
             r = s.post(f"{API}/auth/login", json={"email": email, "password": "BadPass!!!"}, timeout=15)
             codes.append(r.status_code)
+            if r.status_code == 429:
+                break
+        assert 500 not in codes, f"lockout path 500'd: {codes}"
         assert 429 in codes, f"expected 429 in {codes}"
 
 
