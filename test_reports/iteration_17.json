@@ -1,0 +1,38 @@
+{
+  "summary": "Phase 6-B Sub-pass D — Security & performance verification sweep (backend only, live supervisor stack). 28/28 pytest cases pass covering: cross-org isolation (7), public share sensitive-field masking + password gate (4), share visibility semantics (3), rate limiting (login brute-force lockout, public unlock, public read) (3), dashboard layout regression from Pass B (7), audit-log sweep additions (1), and N+1 latency sanity (3). No regressions found. MVP security posture verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase6b_security.py",
+    "/app/test_reports/pytest/phase6b_security.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "shares.py::_check_rate uses in-memory _RL dict keyed by client_ip; behind Kubernetes ingress + multi-worker uvicorn the buckets are per-worker, so effective limit is per_minute * workers. For MVP this is acceptable (backend runs single-worker via supervisor), but flag for post-MVP: swap to Redis-backed slowapi if multi-worker is enabled.",
+    "auth.py login lockout stores login_attempts in Mongo keyed by (IP:email). Legitimate users behind shared corporate NAT could get locked out by an attacker enumerating their email. Consider adding a user-scoped counter that resets on success from any IP, and/or exponential backoff instead of hard lockout. Not blocking for MVP.",
+    "dashboard_layout.py::_validate_and_normalize deduplicates by widget_key using a `seen` dict and drops unknown keys silently (extra=ignore Pydantic Literal already 422s bad keys). Fine, but the empty-layout edge case is guarded by Pydantic min_length=1 — good.",
+    "shares.py::_build_public_payload strips sensitive field_defs and record fields correctly, but exposed_defs still leaks `config` dict verbatim — if any non-sensitive field has PII hints in `config` (e.g. options list, help strings), those go out. Recommend a whitelist projection on exposed_defs (key/label/type/order/group/help_text) rather than a blacklist. Not blocking.",
+    "invitations.py::_check_rate_limit appends to the bucket BEFORE the invitation payload is validated. A malformed POST that 422s still counts against the org's hourly bucket. Move `hits.append(now)` to just before the DB insert to make the counter fair. Not blocking.",
+    "shares.py public unlock cookie has `path=/api/public/records/{token}` which is correct scoping, but the ingress may or may not preserve the /api prefix depending on where the rewrite happens — verify in staging with real subdomain routing before MVP declare."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubos_phase6b_security.py"
+  ],
+  "success_rate": {
+    "backend": "100% (28/28)",
+    "frontend": "N/A (backend-only run per request)"
+  },
+  "test_credentials": "owner@ubos.test / OwnerPass!123, viewer@ubos.test / ViewerPass!123 (Acme Furniture org). Test-scoped outsider users are auto-registered with pattern TEST_outsider_<hex>@ubos.test in their own TEST_outsider org.",
+  "seed_data_creation": "Each test-module run creates one throwaway outsider user + org (TEST_outsider_<hex>), one throwaway ET 'test_et_sens_<hex>' in Acme with fields (public_note, ssn:sensitive=True) + one record + two shares (public, password). ET is best-effort deleted in fixture teardown (cascades records/fields/shares). Login-lockout test uses a random TEST_lockout_<hex>@ubos.test email that never exists, so no real user is locked out — a login_attempts row keyed by (ingress_ip:that_email) persists for 15 min and self-expires. Prompt-dismissed test writes a TEST_prompt_<hex> entry to users/me/dismissed-prompts (owner) — harmless.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Full security sweep is green. Test file at /app/backend/tests/test_ubos_phase6b_security.py — 28 test cases across 7 classes. Verified end-to-end via public URL. Notes for anyone re-running: (1) Public-read rate limit test fires 65 requests in a tight loop — takes ~4-5s, expects at least one 429 by 65th request; the in-memory bucket is per-worker so if backend workers are increased later this test may flake. (2) Login-lockout test uses a fresh random email each run so it's idempotent but leaves ephemeral login_attempts docs (auto-expire in 15 min). (3) All cross-org isolation checks verified via a freshly-registered outsider in a private test-outsider org — no manipulation of Acme membership. (4) N+1 tests are wall-clock based (< 3s per endpoint) — acceptable for now but not a real query-count check; if suspicion arises, add mongo-level query logging. Everything Phase 6-B security spec asked for is verified. Ready for MVP declaration on the security dimension.",
+  "rca of the issue": "N/A — no bugs found. One transient test failure during authoring (unlock-cookie session propagation across requests.Session in pytest) was self-inflicted; fixed by extracting the unlock cookie explicitly and passing it into the follow-up GET. All 28 cases now pass reliably."
+}

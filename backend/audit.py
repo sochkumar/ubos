@@ -38,10 +38,16 @@ def audit(
         "target_type": target_type,
         "target_id": target_id,
         "diff": diff or {},
-        "ip": (request.client.host if request and request.client else None),
+        "ip": None,
         "ua": (request.headers.get("user-agent") if request else None),
         "ts": _now(),
     }
+    if request is not None:
+        try:
+            from core.request_ip import get_client_ip
+            entry["ip"] = get_client_ip(request)
+        except Exception:
+            entry["ip"] = request.client.host if request.client else None
     if bg is not None:
         bg.add_task(_write, entry)
     else:

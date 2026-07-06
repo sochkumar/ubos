@@ -1243,6 +1243,22 @@ async def _run_import_job(job_id: str, plan: dict, meta: dict) -> None:
                 "completed_at": now_iso(),
             }},
         )
+        # Emit completion audit (background task with no BackgroundTasks — insert directly)
+        try:
+            await db.audit_logs.insert_one({
+                "_id": str(uuid.uuid4()),
+                "org_id": ctx_org,
+                "actor_id": meta.get("user_id"),
+                "action": "record.imported.completed",
+                "target_type": "entity_type",
+                "target_id": et_id,
+                "diff": {"job_id": job_id, "inserted": inserted, "updated": updated,
+                         "skipped": skipped, "errors": errors, "processed": processed},
+                "ip": None, "ua": None,
+                "ts": now_iso(),
+            })
+        except Exception:
+            pass  # best-effort
     except Exception as exc:  # pragma: no cover
         await db.import_jobs.update_one(
             {"_id": job_id},

@@ -517,7 +517,8 @@ class DismissPromptBody(BaseModel):
 
 @router.post("/users/me/dismissed-prompts")
 async def dismiss_prompt(
-    body: DismissPromptBody, user: dict = Depends(get_current_user),
+    body: DismissPromptBody, bg: BackgroundTasks, request: Request,
+    user: dict = Depends(get_current_user),
 ):
     db = get_db()
     await db.users.update_one(
@@ -525,6 +526,10 @@ async def dismiss_prompt(
         {"$addToSet": {"dismissed_prompts": body.prompt_key},
          "$set": {"updated_at": _iso(_now())}},
     )
+    audit(bg, action="prompt.dismissed", actor_id=user["_id"],
+          org_id=user.get("default_org_id"),
+          target_type="user", target_id=user["_id"],
+          diff={"prompt_key": body.prompt_key}, request=request)
     return {"ok": True, "prompt_key": body.prompt_key}
 
 

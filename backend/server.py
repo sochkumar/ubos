@@ -8,10 +8,12 @@ from __future__ import annotations
 import logging
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from db import ensure_indexes, get_client, get_db
@@ -37,17 +39,68 @@ from routes.export_import import router as export_import_router
 from routes.invitations import router as invitations_router
 from routes.view_shares import router as view_shares_router
 from routes.label_presets import router as label_presets_router
+from routes.dashboard_layout import router as dashboard_layout_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
+
+# ─────────────────────── lifespan (Phase 6-B) ───────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log_ = logging.getLogger("ubos")
+    await _dedupe_record_versions()  # BEFORE ensure_indexes so unique index can build
+    await ensure_indexes()
+    await _wipe_phase0_demo_org()
+    await _seed_demo_users_and_org()
+    await _backfill_qr_payload()
+    await _backfill_org_storage_fields()
+    # First-boot auto-seed: if DB is empty (no users at all), invoke the
+    # standalone seed script for consistent test data.
+    try:
+        db = get_db()
+        if await db.users.count_documents({}) == 0:
+            log_.info("empty DB → running scripts.seed")
+            from scripts.seed import run_seed
+            await run_seed(reset=False, minimal=False)
+    except Exception as e:
+        log_.warning("auto-seed skipped: %s", e)
+    log_.info(
+        "UBOS backend ready — Google=%s",
+        "enabled" if os.environ.get("GOOGLE_CLIENT_ID", "REPLACE_ME") not in ("", "REPLACE_ME") else "disabled",
+    )
+    yield
+    # ── shutdown ──
+    get_client().close()
+
+
 app = FastAPI(
     title="UBOS API",
-    version="0.2.0-phase1",
-    description="Universal Business Operating System — Phase 1 (Auth + Orgs + RBAC).",
+    version="0.2.0-phase6b",
+    description="Universal Business Operating System.",
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
+
+
+# ─────────────────────── security headers middleware ───────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer-when-downgrade")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        # Cross-Origin-Resource-Policy on media routes so external embeds work.
+        path = request.url.path
+        if path.startswith("/api/media/serve/") or path.startswith("/api/public/"):
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
+        else:
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -96,6 +149,7 @@ api.include_router(export_import_router)
 api.include_router(invitations_router)
 api.include_router(view_shares_router)
 api.include_router(label_presets_router)
+api.include_router(dashboard_layout_router)
 
 app.include_router(api)
 
@@ -234,18 +288,5 @@ async def _backfill_org_storage_fields() -> None:
     )
 
 
-@app.on_event("startup")
-async def _startup():
-    await _dedupe_record_versions()  # BEFORE ensure_indexes so unique index can build
-    await ensure_indexes()
-    await _wipe_phase0_demo_org()
-    await _seed_demo_users_and_org()
-    await _backfill_qr_payload()
-    await _backfill_org_storage_fields()
-    log.info("UBOS Phase 3-A backend ready — Google=%s",
-             "enabled" if os.environ.get("GOOGLE_CLIENT_ID", "REPLACE_ME") not in ("", "REPLACE_ME") else "disabled")
-
-
-@app.on_event("shutdown")
-async def _shutdown():
-    get_client().close()
+# Phase 6-B: startup logic lives in the lifespan context manager above.
+# All previous @app.on_event("startup"|"shutdown") hooks have been migrated.

@@ -119,8 +119,8 @@ async def register(
 
 # ─────────────────────── login ───────────────────────
 async def _lockout_key(email: str, request: Request) -> str:
-    ip = request.client.host if request.client else "unknown"
-    return f"{ip}:{email}"
+    from core.request_ip import get_client_ip
+    return f"{get_client_ip(request)}:{email}"
 
 
 async def _check_lockout(db, ident: str) -> None:

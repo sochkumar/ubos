@@ -1,0 +1,11 @@
+.git
+.env
+.venv
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+tests/
+uploads/
+dev_emails.log

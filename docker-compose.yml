@@ -1,0 +1,72 @@
+# UBOS — local full-stack via Docker Compose.
+#
+# ┌──────────────┐   :8080   ┌───────────────┐   :8001   ┌──────────────┐
+# │  browser     │──────────▶│  web (nginx)  │──────────▶│  backend     │
+# └──────────────┘           └───────────────┘           └──────────────┘
+#                                    │                          │
+#                                    └── /api/* proxied ────────┘
+#                                                                │
+#                                                                ▼
+#                                                       ┌──────────────┐
+#                                                       │  mongo:7     │
+#                                                       └──────────────┘
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - ubos_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    # MongoDB is only reachable from other compose services by default.
+    # Uncomment to expose to the host:
+    # ports:
+    #   - "27017:27017"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      # Compose-managed overrides (override values from .env).
+      MONGO_URL: "mongodb://mongo:27017"
+      DB_NAME: "ubos"
+      LOCAL_STORAGE_ROOT: "/app/backend/uploads"
+      # trust the single nginx hop in front of us
+      TRUST_PROXY_HOPS: "1"
+    volumes:
+      - ubos_uploads:/app/backend/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty → axios uses relative /api/*; nginx proxies to `backend`.
+        REACT_APP_BACKEND_URL: ""
+        REACT_APP_ENABLE_SW: "1"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  ubos_mongo_data:
+  ubos_uploads:

@@ -1,0 +1,38 @@
+.git
+.gitignore
+.github
+.vscode
+.idea
+.env
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.log
+**/*.egg-info
+
+# node
+**/node_modules
+**/npm-debug.log
+**/yarn-error.log
+
+# build artefacts
+**/build
+**/dist
+**/.next
+
+# test reports / caches
+test_reports
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# uploaded content — always start clean in an image
+backend/uploads
+backend/dev_emails.log
+
+# mobile (not part of docker builds)
+mobile

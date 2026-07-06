@@ -142,10 +142,9 @@ def _check_rate(key: str, per_minute: int) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("X-Forwarded-For")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # Delegates to the central helper which honours TRUST_PROXY_HOPS.
+    from core.request_ip import get_client_ip
+    return get_client_ip(request)
 
 
 # ---------------- Models ----------------
