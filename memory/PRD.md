@@ -516,6 +516,25 @@ Additional housekeeping in the same patch:
 ### Sub-pass B — API consistency polish (Feb 2026)
 **`POST /api/view-shares/{sid}/revoke`** added, mirroring `POST /api/shares/{sid}/revoke` for record shares. Sets `revoked_at`; subsequent public GETs return `410 {"code": "share_expired_or_revoked"}`. Emits `share.revoked` audit event with `diff={kind:"view", view_id:...}`. Verified end-to-end: BEFORE=200 → revoke returns updated share doc with `revoked_at` set → AFTER=410. Audit row confirmed present.
 
+### Sub-pass B — Final MVP verification (Feb 2026) — **LOCKED ✅**
+
+Independent `e1_tester` re-run after blocker + WARN fixes:
+
+| Area                                          | Result           |
+|-----------------------------------------------|------------------|
+| Cross-org isolation                           | **6/6 PASS**     |
+| Public share sensitive-field masking          | **6/6 PASS**     |
+| Rate-limiting — leftmost-XFF branch           | **2/2 PASS** (60 × 200 + 5 × 429 with `Retry-After: 54`; fresh XFF → fresh bucket) |
+| Rate-limiting — `CF-Connecting-IP` branch     | **HUMAN_REQUIRED** — Cloudflare edge correctly rejects client-supplied `CF-Connecting-IP` (1000 response). In this preview, K8s ingress strips CF's own `CF-Connecting-IP` before reaching the pod. Leftmost-XFF path handles it safely — not blocking. Verified in prod via `GET /api/dev/whoami-ip`. |
+| View-share revoke API consistency             | **5/5 PASS**     |
+
+**Debug endpoint**: `GET /api/dev/whoami-ip` (gated by `require_permission("org.update")` → owner + admin only; viewer/editor get 403) echoes `{resolved_ip, cf_connecting_ip, x_forwarded_for, x_real_ip, remote_addr}` for ops to trace ingress config.
+
+**Deployment note added to README** — "Behind Cloudflare + Kubernetes ingress" subsection documents both codepaths, the common `CF-Connecting-IP` stripping gotcha, and how to verify with `whoami-ip` and (if desired) re-enable header preservation in the ingress config.
+
+### **Phase 6 Sub-pass B and Phase 6 overall — LOCKED ✅**
+All acceptance criteria met. Ready for MVP declaration on completion of user's Test 4/5 spot-check.
+
 
 
 

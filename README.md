@@ -257,6 +257,45 @@ For a self-managed VM:
    local disk (the S3 adapter is currently a stub — implement upload/download
    before flipping the switch in production).
 
+### Behind Cloudflare + Kubernetes ingress
+
+Rate-limit bucketing and login lockouts rely on resolving the true client IP.
+The resolver in `backend/core/request_ip.py` tries three sources in order:
+
+1. **`CF-Connecting-IP`** — Cloudflare overwrites this on every request and
+   strips any client-supplied value at the edge. Tamper-proof through their
+   network. Preferred whenever present.
+2. **Leftmost `X-Forwarded-For`** — enabled by default via
+   `TRUST_LEFTMOST_XFF=true`. Correct behaviour behind any trusted front door
+   (Cloudflare, ELB, K8s ingress), because the leftmost XFF entry is the
+   original client and prepended proxy hops sit to the right.
+3. **`request.client.host`** — direct-connect fallback.
+
+**Common gotcha (observed in this preview):** Kubernetes ingress can strip
+`CF-Connecting-IP` before it reaches the app pod. Both branches are safe —
+the leftmost-XFF path handles it because Cloudflare *also* populates XFF with
+the real client IP at position 0 — but if you rely on `CF-Connecting-IP`
+downstream you'll want the ingress to preserve it.
+
+**How to verify** your ingress:
+
+```bash
+# From outside the cluster, as an admin+ user:
+curl -H "Authorization: Bearer $TOKEN" https://your-domain.com/api/dev/whoami-ip
+# Expected: { "resolved_ip": "<your public IP>", "cf_connecting_ip": "<same>", ... }
+```
+
+If `cf_connecting_ip` is `null` in production while your traffic actually
+routes through Cloudflare, whitelist the header in your ingress (nginx
+example: add `proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;` in
+the relevant `server` block, or add `CF-Connecting-IP` to the ingress
+`preserve_headers` / `use-forwarded-headers` config).
+
+**Not sure which branch is firing?** Hit `GET /api/dev/whoami-ip` from any
+client — the response echoes `resolved_ip`, `cf_connecting_ip`,
+`x_forwarded_for`, `x_real_ip`, and the raw `remote_addr` so you can trace
+exactly what your reverse-proxy chain forwards.
+
 ---
 
 ## License
