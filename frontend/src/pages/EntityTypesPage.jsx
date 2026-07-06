@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Boxes, Plus, Trash2, Layers, ListChecks, FolderTree, Tags, GitBranch } from "lucide-react";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
+import { useTerminology } from "@/lib/terminology";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,18 @@ export default function EntityTypesPage() {
   });
   const [keyTouched, setKeyTouched] = useState(false);
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useTerminology();
+  const newCollectionLabel = t("collection.new");
+
+  // Sidebar "+ Add new Collection" navigates here with ?new=1 to auto-open the dialog.
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setOpen(true);
+      searchParams.delete("new");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const load = async () => {
     try {
@@ -99,7 +112,7 @@ export default function EntityTypesPage() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button data-testid="new-entity-type-btn">
-                <Plus className="w-4 h-4 mr-1.5" /> Add new Collection
+                <Plus className="w-4 h-4 mr-1.5" /> {newCollectionLabel}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg" data-testid="entity-type-dialog">
@@ -199,7 +212,7 @@ export default function EntityTypesPage() {
             action={
               <div className="flex gap-2">
                 <Button onClick={() => setOpen(true)} data-testid="empty-new-entity-type">
-                  <Plus className="w-4 h-4 mr-1.5" /> Add new Collection
+                  <Plus className="w-4 h-4 mr-1.5" /> {newCollectionLabel}
                 </Button>
               </div>
             }

@@ -536,5 +536,48 @@ Independent `e1_tester` re-run after blocker + WARN fixes:
 All acceptance criteria met. Ready for MVP declaration on completion of user's Test 4/5 spot-check.
 
 
+## Phase 7 Sub-pass A — Vocabulary Layer & Jargon-Free UI (SHIPPED Feb 2026) — LOCKED ✅
+
+**Goal**: Make the app understandable to someone who runs a bakery or furniture store — not a developer. Backend schema stays generic; only presentational layer changes.
+
+**Vocabulary foundation**
+- New `/app/frontend/src/lib/terminology.js` module with `DEFAULT_TERMS`, `TERM_GROUPS`, a pure `t()` resolver, and a `TerminologyProvider` React context. `t()` is context-aware — `t("record.new", {collectionName: "Product"})` returns "Add new Product". Overrides load from `organizations.settings.terminology` on active-org change; single `/api/orgs/:id` fetch per switch.
+- `App.js` wraps the authed shell with `<TerminologyProvider>` so every page inside can call `useTerminology()`.
+
+**Per-org customization page**
+- New `/settings/terminology` page (`TerminologyPage.jsx`) — grouped table (Structural / Navigation / Verbs / Sharing & roles / Data ops / Settings) with editable overrides, per-row revert, "Reset all", debounced save, live preview panel (sidebar heading, primary CTA, records-page CTA, field-builder helper, empty state, share-link visibility labels — all re-render as you type).
+- Persists via existing `PATCH /api/orgs/:id` deep-merge on `settings.terminology`. Empty string = revert to default. Sending `{}` = clear everything.
+- RBAC — inputs + save + reset-all are disabled for editors/viewers with a "Only owners and admins can edit terminology" banner. Backend enforcement was already there (`require_permission("org.update")`).
+
+**Sidebar restructure (`AppLayout.jsx`)**
+- Top-level: **Home** (was Dashboard) · **My Data** (was Data + Entity Types) · **Files** (was Media) · **Starter Packs** (was Templates) · **Search**.
+- Under "My Data" — dynamic collections sub-tree (fetches `/api/entity-types`, refetches on window focus + org switch). Each collection links to `/entity-types/:id/records`. Shows up to 12 collections then "+N more…" spillover. Bottom item "+ Add new Collection" navigates to `/entity-types?new=1` which auto-opens the create dialog.
+- Setup: **Label Presets**. Settings: **Organization** · **Team & Roles** (was Users & Roles) · **Terminology** (new) · **Activity** (was Audit Log) · **Profile**.
+- Categories/Tags/Views/Links intentionally left OUT of the global sidebar — they're per-collection concerns and accessible from each collection card. (Documented divergence from the spec.)
+- Every nav row has a stable `data-testid` (`nav-my-data`, `nav-files`, `nav-terminology`, `sidebar-collection-<key>`, `sidebar-add-collection`, etc.).
+
+**Global jargon sweep** (only user-visible strings — schema keys, audit target_type raw data, and API URLs untouched)
+- `EntityTypesPage`, `RecordsPage`, `FieldsPage`, `RelationshipsPage`, `CategoriesPage`, `TagsPage`, `TemplatesPage`, `RecordDetailPage`, `DashboardPage`, `OnboardingPage`, `MembersPage`, `AuditLogPage`, `SearchPage`, `ComingSoonPage`, `CommandPalette`, `RecordPicker`, `RelationshipsPanel`, `GlobalHotkeys`, `AuthLayout`.
+- Replaced: "Entity Type(s)" → "Collection(s)"; "New/Add/Create Entity Type" → "Add new Collection" (via `t("collection.new")`); "New Record" → "Add new {name_singular}"; "Records" (as heading) → the collection's `name_plural`; "Manage Relationships" / "New relationship" / "Rels" → "Add a Link" / "Links"; "Sensitive" field label → "Private"; "Templates" → "Starter Packs"; "Apply" (template) → "Use this starter pack" / "Add to workspace"; "Audit Log" → "Activity"; "RBAC" → "Roles"; "Users & Roles" → "Team & Roles"; "Members" → "Team & Roles"; "Configure Fields" surface removed; delete-confirm copy rewritten to "Deleting **X** will also remove all X items. This can't be undone."
+- `git grep -i "entity type" src/` on user-visible strings returns **zero** matches (only schema/audit `target_type` data literals remain).
+
+**Verification (`testing_agent_v3` iteration 18)**
+- **Backend pytest 11/11 PASS** — new suite `/app/backend/tests/test_ubos_phase7a_terminology.py` covers: PATCH deep-merge on `settings.terminology`, empty-dict reset, RBAC gate (owner/admin vs editor/viewer), other org settings preserved when patching only terminology, records/fields/views/audit-log regression on Acme.
+- **Frontend**: sidebar labels humanized correctly (no raw dot-notation keys shown), terminology page CRUD works for owner, read-only banner + disabled controls correctly enforced for editor AND viewer, dynamic collection sub-tree populates + spills over at 12+ entries, `?new=1` auto-opens the create dialog.
+- **One HIGH bug found in first run**: `EntityTypesPage.jsx` had hardcoded "Add new Collection" that ignored `t("collection.new")` overrides. **FIXED** — page now imports `useTerminology()`, and both the top-right primary CTA and the empty-state CTA read `t("collection.new")`. Also picked up two adjacent minor comments: `CommandPalette` and `SearchPage` `kind` maps `record → "Record"` renamed to `"Item"`.
+- **End-to-end user flow verified via screenshots**: owner sets `collection.new = "Add new Menu Item"` → save → navigate to /entity-types → both the CTA button and the sidebar tail item read "Add new Menu Item"; click sidebar → dialog auto-opens.
+
+**Non-goals for Sub-pass A (deferred to Sub-pass B)**: onboarding wizard rewrite, shepherd.js coach marks, help center/glossary, sample-data auto-seed for new workspaces.
+
+**Files added/modified**:
+- Added: `/app/frontend/src/lib/terminology.js`, `/app/frontend/src/pages/settings/TerminologyPage.jsx`, `/app/backend/tests/test_ubos_phase7a_terminology.py`.
+- Modified: `App.js`, `AppLayout.jsx`, `DashboardPage.jsx`, `EntityTypesPage.jsx`, `RecordsPage.jsx`, `FieldsPage.jsx`, `RelationshipsPage.jsx`, `TagsPage.jsx`, `TemplatesPage.jsx`, `RecordDetailPage.jsx`, `CategoriesPage.jsx`, `SearchPage.jsx`, `MembersPage.jsx`, `AuditLogPage.jsx`, `ComingSoonPage.jsx`, `OnboardingPage.jsx`, `CommandPalette.jsx`, `RelationshipsPanel.jsx`, `GlobalHotkeys.jsx`, `AuthLayout.jsx`.
+
+**Known follow-ups** (post Sub-pass A, non-blocking):
+- `t()` naive pluralizer (`${cn}s`) is used when `collectionPlural` is not passed. Where the code path has `et.name_plural` available, prefer passing it explicitly. Not a regression — existing usages already pass `name_plural`.
+- Sidebar collection sub-tree only refreshes on window focus + org switch. Same-tab create currently requires a nav+return to appear — acceptable for Sub-pass A, but a global "collections-changed" event bus would be tidier.
+- Deep-merge on `settings.terminology` is one level deep — frontend sends the full replacement dict (correct contract today); document if any future caller needs partial merge.
+
+
 
 

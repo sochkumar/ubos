@@ -19,7 +19,7 @@ const KIND_ICONS = {
 };
 
 const KIND_LABELS = {
-  record: "Record",
+  record: "Item",
   entity_type: "Collection",
   category: "Category",
   tag: "Tag",
