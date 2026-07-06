@@ -501,8 +501,20 @@ Additional housekeeping in the same patch:
 - Zero of the failures are app bugs. Breakdown: (A) Phase-0-era tests written against the no-auth demo-org model (broken since Phase 1 mandated bearer); (B) Phase 5a export/import fixtures create the ET under a different org context than the acting bearer → 404; (C) Phase 5b/6a invitations + collaborators tests leak state on the shared Acme org across runs (need fixture-scoped reset); (D) Phase 2 template dry-run tests assume the org has no existing entity_types; (E) `TestRateLimit::test_public_read_rate_limit` — env constants vs current `PUBLIC_READ_RATE_LIMIT=120/minute` mismatch; (F) `TestMediaDeleteCascade` xdist worker race (already backlog-flagged in PRD line 263).
 - Recommended follow-ups documented in the triage MD; deferred until user reviews.
 
-**Env additions** (backend/.env): `TRUST_PROXY_HOPS=1`, `PUBLIC_READ_RATE_LIMIT=120/minute`, `PUBLIC_CODE_RATE_LIMIT=60/minute`.
+**Env additions** (backend/.env): `TRUST_PROXY_HOPS=1`, `TRUST_LEFTMOST_XFF=true`, `PUBLIC_READ_RATE_LIMIT=120/minute`, `PUBLIC_CODE_RATE_LIMIT=60/minute`.
 **Deps added** (frontend): `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`.
+
+### Sub-pass B — MVP blocker fix (Feb 2026)
+**BUG (BLOCKER)** — `core/request_ip.py` rate-limit bypass behind Cloudflare + K8s ingress.
+- **Symptom**: Tester fired 65 hits at `/api/public/records/{token}` with `X-Forwarded-For: 100.100.1.1`; all 65 returned 200. Zero 429s. Bucket was resolving to a rotating infra IP.
+- **Root cause**: The legacy right-index XFF read (`parts[len(parts) - hops - 1]`) is fooled when trusted proxies (Cloudflare, K8s ingress) prepend their own hops — the caller's XFF value is pushed off the trusted slice.
+- **Fix (layered)**: New resolution order — (1) `CF-Connecting-IP` (Cloudflare overwrites it, tamper-proof); (2) leftmost `X-Forwarded-For` (gated by `TRUST_LEFTMOST_XFF`, default `true`); (3) legacy right-index (only when `TRUST_LEFTMOST_XFF=false`); (4) `request.client.host`; (5) `"unknown"`. IPv4/IPv6 validation on each candidate rejects garbage.
+- **Debug route**: `GET /api/dev/whoami-ip` (admin+ only) echoes `{ resolved_ip, cf_connecting_ip, x_forwarded_for, x_real_ip, remote_addr }` for ops to sanity-check any deployment.
+- **End-to-end verified**: 65 hits from `XFF=100.100.1.1` → **60 × 200 + 5 × 429** (limit is `60/min` per current shares.py default); `Retry-After: 60` header present. Fresh XFF `200.200.2.2` → 5 × 200 (per-IP bucket isolation confirmed). Cloudflare blocks client-supplied `CF-Connecting-IP` at the edge (returns 1000), verified header wins over XFF via localhost bypass.
+- **Coverage**: same helper is already called from `shares.py` (public read + code + unlock via `_client_ip`), `view_shares.py`, `invitations.py`, and `security.py` login lockout — one-line fix, org-wide effect.
+
+### Sub-pass B — API consistency polish (Feb 2026)
+**`POST /api/view-shares/{sid}/revoke`** added, mirroring `POST /api/shares/{sid}/revoke` for record shares. Sets `revoked_at`; subsequent public GETs return `410 {"code": "share_expired_or_revoked"}`. Emits `share.revoked` audit event with `diff={kind:"view", view_id:...}`. Verified end-to-end: BEFORE=200 → revoke returns updated share doc with `revoked_at` set → AFTER=410. Audit row confirmed present.
 
 
 

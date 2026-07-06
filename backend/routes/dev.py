@@ -1,11 +1,12 @@
-"""Developer helpers — demo seed + PDF thumb backfill."""
+"""Developer helpers — demo seed + PDF thumb backfill + IP debug."""
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from auth_deps import AuthContext, require_permission
+from core.request_ip import get_client_ip
 from core.storage.factory import get_storage_adapter
 from core.storage.local import LocalDiskAdapter
 from db import get_db, tenant_filter
@@ -22,6 +23,26 @@ async def seed_demo(ctx: AuthContext = Depends(require_permission("entity_types.
     return await apply_template(
         get_db(), org_id=ctx.org_id, key="demo_basic", conflict_policy="skip",
     )
+
+
+@router.get("/whoami-ip")
+async def whoami_ip(
+    request: Request,
+    ctx: AuthContext = Depends(require_permission("org.update")),
+):
+    """Echo the layered client-IP resolution.
+
+    Ops uses this to sanity-check rate-limit bucketing behind any reverse
+    proxy stack (Cloudflare, K8s ingress, ALB, direct). Admin+ only so this
+    doesn't leak infra topology to viewers.
+    """
+    return {
+        "resolved_ip": get_client_ip(request),
+        "cf_connecting_ip": request.headers.get("cf-connecting-ip"),
+        "x_forwarded_for": request.headers.get("x-forwarded-for"),
+        "x_real_ip": request.headers.get("x-real-ip"),
+        "remote_addr": request.client.host if request.client else None,
+    }
 
 
 @router.post("/rebuild-pdf-thumbnails")

@@ -221,6 +221,36 @@ async def update_view_share(
     return _serialize_view_share(fresh)
 
 
+@router.post("/view-shares/{sid}/revoke")
+async def revoke_view_share(
+    sid: str, bg: BackgroundTasks, request: Request,
+    ctx: AuthContext = Depends(require_permission("records.update")),
+):
+    """Revoke a view share (mirrors POST /shares/{sid}/revoke for records).
+
+    Sets `revoked_at`; subsequent public GETs on `/api/public/views/{token}`
+    return `410 {"code": "share_expired_or_revoked"}`.
+    """
+    db = get_db()
+    doc = await db.share_links.find_one(
+        {"_id": sid, "org_id": ctx.org_id, "kind": "view"},
+    )
+    if not doc:
+        raise HTTPException(404, "view share not found")
+    v = await db.views.find_one({"_id": doc["view_id"], "org_id": ctx.org_id})
+    if not v or not await _can_manage_view(db, ctx, v):
+        raise HTTPException(403, "cannot manage this view share")
+    now = _now_iso()
+    await db.share_links.update_one(
+        {"_id": sid}, {"$set": {"revoked_at": now, "updated_at": now}},
+    )
+    audit(bg, action="share.revoked", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+          target_type="share", target_id=sid,
+          diff={"kind": "view", "view_id": doc.get("view_id")}, request=request)
+    fresh = await db.share_links.find_one({"_id": sid})
+    return _serialize_view_share(fresh)
+
+
 # ─────────────────────── public view endpoints ───────────────────────
 async def _apply_view_share_gate(db, share: dict, ctx, request):
     v = share["visibility"]
