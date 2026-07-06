@@ -56,9 +56,9 @@ const ACTION_VERBS = {
   "share.updated": "updated a share link",
   "share.revoked": "revoked a share link",
   "share.deleted": "deleted a share link",
-  "entity_type.created": "added entity type",
-  "entity_type.updated": "updated entity type",
-  "entity_type.deleted": "deleted entity type",
+  "entity_type.created": "added a collection",
+  "entity_type.updated": "updated a collection",
+  "entity_type.deleted": "deleted a collection",
   "field.created": "added a field",
   "field.updated": "updated a field",
   "field.deleted": "deleted a field",
@@ -80,10 +80,10 @@ const FAMILY_COLORS = {
 };
 
 const WIDGET_META = {
-  recent_records: { title: "Recent records", icon: Clock },
+  recent_records: { title: "Recent items",   icon: Clock },
   activity:       { title: "Activity",       icon: Activity },
   storage:        { title: "Storage",        icon: HardDrive },
-  entity_types:   { title: "Entity types",   icon: Boxes },
+  entity_types:   { title: "Collections",     icon: Boxes },
 };
 
 const DEFAULT_LAYOUT = [
@@ -271,7 +271,7 @@ export default function DashboardPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-5" data-testid="dashboard-page">
       <header className="flex items-center gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             A quick pulse of your workspace.
           </p>
@@ -608,10 +608,10 @@ function StorageBody({ storage }) {
   );
 }
 
-/* ────── Widget 4: Entity types body ────── */
+/* ────── Widget 4: Collections body ────── */
 function EntityTypesBody({ entityTypes, onOpen, onNew }) {
   if (entityTypes.length === 0) {
-    return <EmptyState title="No entity types yet" cta="Create your first entity type" to="/entity-types" />;
+    return <EmptyState title="No collections yet" cta="Add your first Collection" to="/entity-types" />;
   }
   return (
     <div className="grid grid-cols-2 gap-2 p-3" data-testid="ets-grid">

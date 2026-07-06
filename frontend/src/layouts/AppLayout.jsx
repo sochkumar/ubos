@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate, Link } from "react-router-dom";
 import {
-  Boxes, Database, LayoutDashboard, Settings, Users, Shield,
+  Boxes, Database, Home, Settings, Users, Activity,
   Search, ChevronDown, ChevronsUpDown, LogOut, Plus, Check,
-  User as UserIcon, Building2, FolderKanban, Layers, Tags,
-  ListChecks, GitBranch, Bell, Sparkles,
+  User as UserIcon, Building2, ImageIcon, Gift, Wrench, Layout,
+  Link as LinkIcon, Bell, Sparkles, Tag as TagIcon, FolderTree,
+  ArrowLeftRight, Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -13,8 +14,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { useTerminology } from "@/lib/terminology";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
@@ -22,42 +23,41 @@ import { CommandPalette, useCommandPalette } from "@/components/CommandPalette";
 import { InstallAppMenuItem } from "@/components/InstallAppMenuItem";
 import { Keyboard, Printer } from "lucide-react";
 
-// Sidebar nav groups
+// Sidebar nav groups — labels are resolved live via t() inside the render.
+// Each item declares its stable `key` (used for testid + t() lookup) alongside
+// its `to` path and default label (fallback if t() misses).
 const NAV_GROUPS = [
   {
-    label: "Overview",
+    label: "Workspace",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/search", label: "Search", icon: Search },
+      { key: "nav.dashboard", to: "/dashboard",    fallback: "Home",           icon: Home,      testid: "nav-dashboard" },
+      { key: "nav.data",      to: "/entity-types", fallback: "My Data",        icon: Boxes,     testid: "nav-my-data",   hasChildren: true },
+      { key: "nav.media",     to: "/media",        fallback: "Files",          icon: ImageIcon, testid: "nav-files" },
+      { key: "nav.templates", to: "/templates",    fallback: "Starter Packs",  icon: Gift,      testid: "nav-starter-packs" },
+      { key: "nav.search",    to: "/search",       fallback: "Search",         icon: Search,    testid: "nav-search" },
     ],
   },
   {
-    label: "Data",
+    label: "Setup",
     items: [
-      { to: "/entity-types", label: "Entity Types", icon: Boxes },
-      { to: "/media", label: "Media", icon: FolderKanban },
-    ],
-  },
-  {
-    label: "Config",
-    items: [
-      { to: "/templates", label: "Templates", icon: FolderKanban },
+      { key: "settings.labels",  to: "/settings/label-presets",  fallback: "Label Presets", icon: Printer,    testid: "nav-label-presets" },
     ],
   },
   {
     label: "Settings",
     items: [
-      { to: "/settings/organization", label: "Organization", icon: Building2 },
-      { to: "/settings/members", label: "Users & Roles", icon: Users },
-      { to: "/settings/label-presets", label: "Label Presets", icon: Printer },
-      { to: "/settings/audit-log", label: "Audit Log", icon: Shield },
-      { to: "/settings/profile", label: "Profile", icon: UserIcon },
+      { key: "settings.org",         to: "/settings/organization", fallback: "Organization",     icon: Building2, testid: "nav-organization" },
+      { key: "settings.members",     to: "/settings/members",      fallback: "Team & Roles",     icon: Users,     testid: "nav-team" },
+      { key: "settings.terminology", to: "/settings/terminology",  fallback: "Terminology",      icon: Type,      testid: "nav-terminology" },
+      { key: "settings.audit",       to: "/settings/audit-log",    fallback: "Activity",         icon: Activity,  testid: "nav-activity" },
+      { key: "settings.profile",     to: "/settings/profile",      fallback: "Profile",          icon: UserIcon,  testid: "nav-profile" },
     ],
   },
 ];
 
 export default function AppLayout() {
   const { user, orgs, activeOrgId, activeRole, logout, switchOrg, refreshMe } = useAuth();
+  const { t } = useTerminology();
   const location = useLocation();
   const nav = useNavigate();
   const [seeding, setSeeding] = useState(false);
@@ -65,14 +65,36 @@ export default function AppLayout() {
   const [newOrgName, setNewOrgName] = useState("");
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useCommandPalette();
+  const [collections, setCollections] = useState([]);
 
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
+
+  // Load collections for the "My Data" sub-tree. Refetches whenever the
+  // active org changes; refresh on window focus so freshly-created
+  // collections appear without a full reload.
+  const loadCollections = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      const r = await api.get("/entity-types");
+      const list = Array.isArray(r.data) ? r.data : (r.data?.items || []);
+      setCollections(list);
+    } catch {
+      setCollections([]);
+    }
+  }, [activeOrgId]);
+
+  useEffect(() => { loadCollections(); }, [loadCollections]);
+  useEffect(() => {
+    const onFocus = () => loadCollections();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadCollections]);
 
   const runSeed = async () => {
     setSeeding(true);
     try {
       const r = await api.post("/dev/seed-demo");
-      toast.success(`Demo seed complete · ${r.data.created_records} sample records created`);
+      toast.success(`Sample data loaded · ${r.data.created_records} demo items added`);
       window.location.assign("/entity-types");
     } catch (err) {
       toast.error(extractErrorMessage(err));
@@ -149,41 +171,71 @@ export default function AppLayout() {
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active =
-                    !item.soon && location.pathname.startsWith(item.to);
-                  const soon = !!item.soon;
-                  const dtid = `nav-${item.to.replace(/\//g, "-").replace(/^-+/, "")}`;
+                  // Prefer the translated label; fall back to the hard-coded
+                  // fallback when the key isn't in the vocabulary (avoids
+                  // rendering raw dot-notation keys in the sidebar).
+                  const translated = t(item.key);
+                  const label = (translated && translated !== item.key) ? translated : item.fallback;
+                  const active = location.pathname.startsWith(item.to);
+                  const dtid = item.testid || `nav-${item.to.replace(/\//g, "-").replace(/^-+/, "")}`;
                   const base = "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors";
-                  if (soon) {
-                    return (
-                      <div
-                        key={item.to}
-                        className={`${base} text-muted-foreground/70 cursor-not-allowed`}
-                        data-testid={`${dtid}-soon`}
-                        title={`${item.label} — ${item.soon}`}
+                  return (
+                    <div key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        data-testid={dtid}
+                        className={
+                          active
+                            ? `${base} bg-primary/10 text-primary font-medium`
+                            : `${base} text-foreground/80 hover:bg-muted`
+                        }
                       >
                         <Icon className="w-4 h-4" strokeWidth={2} />
-                        <span className="truncate">{item.label}</span>
-                        <span className="ml-auto text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted">
-                          {item.soon}
-                        </span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      data-testid={dtid}
-                      className={
-                        active
-                          ? `${base} bg-primary/10 text-primary font-medium`
-                          : `${base} text-foreground/80 hover:bg-muted`
-                      }
-                    >
-                      <Icon className="w-4 h-4" strokeWidth={2} />
-                      <span>{item.label}</span>
-                    </NavLink>
+                        <span>{label}</span>
+                      </NavLink>
+
+                      {/* Dynamic collection sub-tree under "My Data" */}
+                      {item.hasChildren && collections.length > 0 && (
+                        <div className="ml-6 mt-0.5 space-y-0.5 border-l border-border/50 pl-2" data-testid="sidebar-collections-list">
+                          {collections.slice(0, 12).map((c) => {
+                            const subActive = location.pathname === `/entity-types/${c.id}/records`;
+                            return (
+                              <NavLink
+                                key={c.id}
+                                to={`/entity-types/${c.id}/records`}
+                                data-testid={`sidebar-collection-${c.key}`}
+                                className={
+                                  subActive
+                                    ? `${base} py-1 text-primary font-medium bg-primary/5`
+                                    : `${base} py-1 text-foreground/70 hover:bg-muted`
+                                }
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: c.color || "#0d9488" }}
+                                />
+                                <span className="truncate text-[13px]">
+                                  {c.name_plural || c.name_singular || c.key}
+                                </span>
+                              </NavLink>
+                            );
+                          })}
+                          {collections.length > 12 && (
+                            <div className="px-3 py-0.5 text-[11px] text-muted-foreground italic">
+                              +{collections.length - 12} more…
+                            </div>
+                          )}
+                          <NavLink
+                            to="/entity-types?new=1"
+                            data-testid="sidebar-add-collection"
+                            className={`${base} py-1 text-[13px] text-muted-foreground hover:text-primary hover:bg-muted`}
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>{t("collection.new") || "Add new Collection"}</span>
+                          </NavLink>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -200,7 +252,7 @@ export default function AppLayout() {
             data-testid="seed-demo-btn"
           >
             <Sparkles className="w-4 h-4" />
-            {seeding ? "Seeding…" : "Load demo data"}
+            {seeding ? "Loading…" : "Load sample data"}
           </Button>
           <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground font-mono px-1">
             <span className="truncate" title={activeOrg?.slug}>

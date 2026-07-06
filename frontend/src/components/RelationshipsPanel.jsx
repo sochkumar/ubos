@@ -71,7 +71,7 @@ export function RelationshipsPanel({ record, onChanged }) {
           No relationships defined for this record's type yet.
         </p>
         <p className="text-xs text-muted-foreground">
-          Define relationships in <span className="font-mono">Entity Types → Rels</span> first.
+          Define links from a collection's <span className="font-mono">Open → Links</span> button first.
         </p>
       </div>
     );

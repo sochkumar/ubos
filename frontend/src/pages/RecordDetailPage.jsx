@@ -306,9 +306,9 @@ export default function RecordDetailPage() {
         title={rec.title || rec.record_number}
         subtitle={<span className="font-mono">{rec.record_number} · v{rec.version || 1}</span>}
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…", to: `/entity-types/${rec.entity_type_id}/records` },
-          { label: "Records", to: `/entity-types/${rec.entity_type_id}/records` },
+          { label: "Items", to: `/entity-types/${rec.entity_type_id}/records` },
           { label: rec.record_number },
         ]}
         actions={

@@ -175,7 +175,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="font-medium">Start blank</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  An empty workspace. Design your own entity types from scratch.
+                  An empty workspace. Design your own Collections from scratch.
                 </p>
               </button>
 

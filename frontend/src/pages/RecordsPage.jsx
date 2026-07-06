@@ -226,12 +226,13 @@ export default function RecordsPage() {
   return (
     <>
       <PageHeader
-        title={et ? `${et.name_plural} · Records` : "Records"}
-        subtitle={`${total} record${total === 1 ? "" : "s"} · pick a view or build a query below.`}
+        title={et?.name_plural || "Items"}
+        subtitle={et
+          ? `${total} ${total === 1 ? (et.name_singular || "item") : (et.name_plural || "items")} · pick a view or build a query below.`
+          : "Items in this collection."}
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
-          { label: "Records" },
         ]}
         actions={
           <div className="flex gap-2 flex-wrap">
@@ -256,7 +257,7 @@ export default function RecordsPage() {
               disabled={total === 0}
             />
             <Button onClick={openCreate} disabled={fields.length === 0} data-testid="new-record-btn">
-              <Plus className="w-4 h-4 mr-1.5" /> New record
+              <Plus className="w-4 h-4 mr-1.5" /> Add new {et?.name_singular || "item"}
             </Button>
           </div>
         }
@@ -265,7 +266,7 @@ export default function RecordsPage() {
         {fields.length === 0 ? (
           <EmptyState
             icon={Layers} title="Define fields first"
-            description="You need at least one field before you can create records."
+            description="Add at least one field first — you need something to fill in before you can add items."
             action={<Button onClick={() => nav(`/entity-types/${etId}/fields`)}><Layers className="w-4 h-4 mr-1.5" /> Go to fields</Button>}
           />
         ) : (
@@ -362,7 +363,7 @@ export default function RecordsPage() {
                 icon={ListChecks}
                 title={filters.length || filterCat || filterTags.length || q ? "No records match" : "No records yet"}
                 description={filters.length || filterCat || filterTags.length || q ? "Try relaxing the filters or clearing search." : `Create the first ${et?.name_singular || "record"}.`}
-                action={!(filters.length || filterCat || filterTags.length || q) && <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1.5" /> New record</Button>}
+                action={!(filters.length || filterCat || filterTags.length || q) && <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1.5" /> Add new {et?.name_singular || "item"}</Button>}
               />
             ) : (
               <RecordsLayoutRenderer

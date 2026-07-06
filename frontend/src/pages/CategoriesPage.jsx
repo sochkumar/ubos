@@ -152,7 +152,7 @@ export default function CategoriesPage() {
         title={et ? `${et.name_plural} · Categories` : "Categories"}
         subtitle="Hierarchical taxonomy. Drag a node onto another to make it a child; drop on the empty rail to move to root."
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
           { label: "Categories" },
         ]}

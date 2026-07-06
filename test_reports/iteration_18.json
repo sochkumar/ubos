@@ -1,0 +1,47 @@
+{
+  "summary": "Phase 7 Sub-pass A — Terminology & vocabulary layer verification. Backend: 11/11 pytest cases pass (PATCH /api/orgs/:id terminology override RBAC, deep-merge preservation, empty-dict reset, records/fields/views/audit regression). Frontend: sidebar labels fully humanized, terminology page works for owner (inputs, live preview, per-row revert, reset-all, save toast), read-only banner + disabled controls correctly enforced for viewer AND editor, dynamic collection sub-tree under 'My Data' populates and refreshes. One BUG found: /entity-types page primary CTA button hardcodes 'Add new Collection' — does NOT update when the org sets a `collection.new` terminology override, contradicting the review spec which explicitly says 'the primary CTA button on /entity-types (both) must now say Add new Product Line'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EntityTypesPage.jsx",
+        "issue": "Primary CTA button text 'Add new Collection' is hardcoded on lines 102 and 202. Does not consume t('collection.new') from useTerminology(). After the owner saves an override (e.g. collection.new='Add new Product Line'), the sidebar '+ Add new Collection' item DOES update to 'Add new Product Line' (uses t() correctly in AppLayout), but the same CTA on the /entity-types page still reads 'Add new Collection'. Review spec explicitly requires BOTH to update.",
+        "selector": "button containing 'Add new Collection' on /entity-types",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ubos_phase7a_terminology.py",
+    "/app/test_reports/pytest/phase7a.xml"
+  ],
+  "action_items": [
+    "In /app/frontend/src/pages/EntityTypesPage.jsx, replace the two hardcoded 'Add new Collection' strings (lines ~102 and ~202) with `{t('collection.new')}` from useTerminology(). Import: `import { useTerminology } from '@/lib/terminology'` and call `const { t } = useTerminology();` inside the component."
+  ],
+  "critical_code_review_comments": [
+    "TerminologyPage.jsx: `dirty` computation iterates union of draft+overrides keys but compares trimmed empty strings as equal — that's fine. However, `onChange` deletes a key when input is empty, so the Save button correctly disables when there's no net change. Good.",
+    "AppLayout.jsx loadCollections() refetches on window 'focus' — this is fine but if a collection is created via a modal and the user never leaves the tab, the sidebar won't update. Consider exposing a global refresh callback via context or emit an event after EntityTypesPage creates one.",
+    "orgs.py PATCH deep-merges settings only ONE level deep (spread on top-level settings dict). That's sufficient for `settings.terminology` because frontend sends the full replaced dict (`saveOverrides(clean)`). If any future caller sends a partial terminology patch (e.g. `settings.terminology.collection.singular = X`), keys not in the patch would be dropped. Frontend contract is correct today, but worth documenting.",
+    "terminology.js `t()` context-override for record.plural uses `${cn}s` as a naive pluralizer (e.g. 'Product' → 'Products' works; 'Category' → 'Categorys' would be wrong). Since entity_type has a proper `name_plural` field, prefer passing collectionPlural = et.name_plural whenever available. Currently code paths do pass it in some places (EntityTypesPage/RecordsPage), but not everywhere.",
+    "AppLayout.jsx line 178: `translated !== item.key` guard prevents rendering raw keys as fallback — but if a user overrides a nav key to the exact string equal to the key (unlikely), it would fall back to the default. Minor.",
+    "Both CommandPalette.jsx and SearchPage.jsx have `kind: { record: 'Record', ... }` maps hardcoded — the ⌘K palette and global search results still say 'Record'/'Records'. Not blocking (per spec, some non-critical places can linger), but worth noting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ubos_phase7a_terminology.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11)",
+    "frontend": "~92% — one HIGH bug (entity-types CTA), rest of terminology sweep clean"
+  },
+  "test_credentials": "owner@ubos.test / OwnerPass!123, editor@ubos.test / EditorPass!123, viewer@ubos.test / ViewerPass!123 (Acme Furniture). Note: owner's default_org_id currently points at 'test-quotaorg-d7e725' (leftover from earlier tests) — needed a manual org switch to Acme. Not blocking but worth cleanup.",
+  "seed_data_creation": "One TEST_phase7a_record created + updated + deleted within the flow test in a random Acme entity_type; leaves no persistent data. Terminology overrides on Acme are reset to {} at start AND end of the pytest module (autouse fixture).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_ubos_phase7a_terminology.py — 11 cases across TestTerminologyPatch (7) and TestPhase7ARegression (4). All pass. Frontend verified via live URL: sidebar labels all match spec (Home / My Data / Files / Starter Packs / Search / Label Presets / Organization / Team & Roles / Terminology / Activity / Profile). RBAC-gated terminology page: owner=editable, viewer=readonly-banner+disabled inputs+disabled save+disabled reset-all (confirmed), editor=SAME as viewer (confirmed — editors do NOT have org.update). Only bug: EntityTypesPage.jsx hardcodes 'Add new Collection' — sidebar updates correctly (AppLayout uses t()), but /entity-types page CTA does not. Fix is trivial: swap the two literal strings for t('collection.new'). Once fixed, no retest of backend needed, just re-run the frontend override→verify-CTA flow.",
+  "rca of the issue": "EntityTypesPage.jsx does NOT import or use useTerminology(). The 'Add new Collection' CTA button (both the top-right primary CTA at line 102 and a secondary occurrence at line 202) is a plain string literal. Sidebar's equivalent '+ Add new Collection' link in AppLayout.jsx line 234 correctly uses `{t('collection.new') || 'Add new Collection'}`, which is why the sidebar reflects the override immediately but the /entity-types page does not. Repro: login as owner → /settings/terminology → set collection.new='Add new Product Line' → Save → navigate to /entity-types → CTA still reads 'Add new Collection'. Fix: import useTerminology from @/lib/terminology in EntityTypesPage.jsx, call `const { t } = useTerminology();` inside the component body, and replace both hardcoded strings with `{t('collection.new')}`."
+}

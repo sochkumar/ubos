@@ -18,7 +18,7 @@ const KIND_ICONS = {
 
 const KIND_LABELS = {
   record: "Record",
-  entity_type: "Entity Type",
+  entity_type: "Collection",
   category: "Category",
   tag: "Tag",
   media: "File",
@@ -133,7 +133,7 @@ export function CommandPalette({ open, onOpenChange }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search records, entity types, categories, tags, files…"
+            placeholder="Search items, collections, categories, tags, files…"
             className="flex-1 h-14 px-3 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground"
             data-testid="palette-input"
           />
@@ -164,7 +164,7 @@ export function CommandPalette({ open, onOpenChange }) {
             <div className="p-8 text-center text-sm text-muted-foreground">
               Type to search across your workspace.
               <div className="mt-2 text-xs">
-                Records · Entity Types · Categories · Tags · Files
+                Items · Collections · Categories · Tags · Files
               </div>
             </div>
           )}

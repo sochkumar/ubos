@@ -20,7 +20,7 @@ const KIND_ICONS = {
 
 const KIND_LABELS = {
   record: "Record",
-  entity_type: "Entity Type",
+  entity_type: "Collection",
   category: "Category",
   tag: "Tag",
   media: "File",
@@ -199,7 +199,7 @@ export default function SearchPage() {
 
           {etFacet.length > 0 && (
             <div>
-              <div className="text-xs font-medium mb-2">Entity Type</div>
+              <div className="text-xs font-medium mb-2">Collection</div>
               <div className="space-y-1.5">
                 {etFacet.map((f) => (
                   <label

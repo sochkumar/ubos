@@ -12,7 +12,7 @@ const GROUPS = [
     title: "Navigation",
     items: [
       { keys: ["g", "d"], label: "Go to Dashboard" },
-      { keys: ["g", "r"], label: "Go to Records (current or first entity type)" },
+      { keys: ["g", "r"], label: "Go to Items (current or first collection)" },
       { keys: ["g", "s"], label: "Go to Search" },
       { keys: ["g", "m"], label: "Go to Media" },
     ],
@@ -20,7 +20,7 @@ const GROUPS = [
   {
     title: "Actions",
     items: [
-      { keys: ["n"], label: "New record (on records list)" },
+      { keys: ["n"], label: "Add new item (on items list)" },
       { keys: ["e"], label: "Focus edit on record detail" },
     ],
   },

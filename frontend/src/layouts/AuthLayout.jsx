@@ -22,12 +22,12 @@ export default function AuthLayout() {
             One workspace.<br />Any business shape.
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Define your own entity types, fields, and records — no code. Everything
+            Define your own Collections, fields, and items — no code. Everything
             you track, in a place designed for you.
           </p>
           <div className="pt-2 flex flex-wrap gap-2 text-[11px] font-mono text-muted-foreground">
             <span className="px-2 py-1 rounded bg-muted">multi-tenant</span>
-            <span className="px-2 py-1 rounded bg-muted">RBAC</span>
+            <span className="px-2 py-1 rounded bg-muted">Roles</span>
             <span className="px-2 py-1 rounded bg-muted">no-code schema</span>
           </div>
         </div>

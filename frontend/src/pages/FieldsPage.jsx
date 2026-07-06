@@ -188,9 +188,9 @@ export default function FieldsPage() {
     <>
       <PageHeader
         title={et ? `${et.name_plural} · Fields` : "Fields"}
-        subtitle="Design the schema — these fields drive the dynamic form and validation."
+        subtitle="Define what you'll fill in for each item. Add text, numbers, dates, dropdowns, files, and more."
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
           { label: "Fields" },
         ]}
@@ -355,7 +355,7 @@ export default function FieldsPage() {
                       </label>
                       <label
                         className="flex items-center gap-2 text-sm cursor-pointer"
-                        title="Sensitive fields are never exposed in public share links"
+                        title="Private fields are never shown in public share links"
                       >
                         <Switch
                           checked={form.sensitive}
@@ -364,7 +364,7 @@ export default function FieldsPage() {
                           }
                           data-testid="field-input-sensitive"
                         />
-                        Sensitive
+                        Private
                       </label>
                     </div>
                   </div>

@@ -96,7 +96,7 @@ export default function MembersPage() {
   return (
     <>
       <PageHeader
-        title="Members"
+        title="Team & Roles"
         subtitle="Who has access to this workspace, and what they can do."
         breadcrumbs={[{ label: "Settings" }, { label: "Members" }]}
         actions={

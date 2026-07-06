@@ -78,7 +78,7 @@ export default function TagsPage() {
         title={et ? `${et.name_plural} · Tags` : "Tags"}
         subtitle="Lightweight labels for records. Tags can be entity-scoped or org-wide."
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
           { label: "Tags" },
         ]}
@@ -175,9 +175,9 @@ export default function TagsPage() {
                   data-testid="tag-scope-switch"
                 />
                 <div>
-                  <div className="font-medium">Scope to {et?.name_plural || "this entity type"}</div>
+                  <div className="font-medium">Scope to {et?.name_plural || "this Collection"}</div>
                   <p className="text-[11px] text-muted-foreground">
-                    Off = tag is available org-wide across every entity type.
+                    Off = tag is available across every Collection in this workspace.
                   </p>
                 </div>
               </label>

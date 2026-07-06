@@ -66,7 +66,7 @@ export default function EntityTypesPage() {
     setCreating(true);
     try {
       await api.post("/entity-types", form);
-      toast.success(`Entity type '${form.name_singular}' created`);
+      toast.success(`${form.name_singular} added as a new Collection`);
       setOpen(false);
       resetForm();
       await load();
@@ -78,7 +78,7 @@ export default function EntityTypesPage() {
   };
 
   const remove = async (et) => {
-    if (!window.confirm(`Delete entity type "${et.name_plural}"?\nThis will soft-delete all its fields and records.`))
+    if (!window.confirm(`Delete "${et.name_plural}"?\nAll ${et.name_plural} items (and their fields) will be removed. This can't be undone.`))
       return;
     try {
       await api.delete(`/entity-types/${et.id}`);
@@ -92,20 +92,20 @@ export default function EntityTypesPage() {
   return (
     <>
       <PageHeader
-        title="Entity Types"
-        subtitle="Define the shapes of the things your business tracks."
-        breadcrumbs={[{ label: "UBOS" }, { label: "Entity Types" }]}
+        title="My Data"
+        subtitle="Every kind of thing your business tracks."
+        breadcrumbs={[{ label: "UBOS" }, { label: "My Data" }]}
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button data-testid="new-entity-type-btn">
-                <Plus className="w-4 h-4 mr-1.5" /> New entity type
+                <Plus className="w-4 h-4 mr-1.5" /> Add new Collection
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg" data-testid="entity-type-dialog">
               <form onSubmit={submit}>
                 <DialogHeader>
-                  <DialogTitle>Create entity type</DialogTitle>
+                  <DialogTitle>Add a new Collection</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -194,12 +194,12 @@ export default function EntityTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Boxes}
-            title="No entity types yet"
-            description="Create your first entity type — a shape for the things your business tracks (products, machines, contracts, clients, anything)."
+            title="No collections yet"
+            description="Add your first Collection — a shape for the things your business tracks (products, machines, contracts, clients, anything)."
             action={
               <div className="flex gap-2">
                 <Button onClick={() => setOpen(true)} data-testid="empty-new-entity-type">
-                  <Plus className="w-4 h-4 mr-1.5" /> New entity type
+                  <Plus className="w-4 h-4 mr-1.5" /> Add new Collection
                 </Button>
               </div>
             }
@@ -270,14 +270,14 @@ export default function EntityTypesPage() {
                     onClick={() => nav(`/entity-types/${et.id}/relationships`)}
                     data-testid={`rels-btn-${et.key}`}
                   >
-                    <GitBranch className="w-3.5 h-3.5 mr-1.5" /> Rels
+                    <GitBranch className="w-3.5 h-3.5 mr-1.5" /> Links
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => nav(`/entity-types/${et.id}/records`)}
                     data-testid={`records-btn-${et.key}`}
                   >
-                    <ListChecks className="w-3.5 h-3.5 mr-1.5" /> Records
+                    <ListChecks className="w-3.5 h-3.5 mr-1.5" /> Open
                   </Button>
                 </CardFooter>
               </Card>

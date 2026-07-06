@@ -95,13 +95,13 @@ export default function RelationshipsPage() {
         title={et ? `${et.name_plural} · Relationships` : "Relationships"}
         subtitle="Schema-level definitions. Record-level instances arrive in Phase 3."
         breadcrumbs={[
-          { label: "Entity Types", to: "/entity-types" },
+          { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
           { label: "Relationships" },
         ]}
         actions={
           <Button onClick={() => setOpen(true)} data-testid="new-rel-btn">
-            <Plus className="w-4 h-4 mr-1.5" /> New relationship
+            <Plus className="w-4 h-4 mr-1.5" /> Add a Link
           </Button>
         }
       />
@@ -112,8 +112,8 @@ export default function RelationshipsPage() {
           <EmptyState
             icon={GitBranch}
             title="No relationships defined"
-            description={`Define how ${et?.name_plural || "these"} connect to other entity types.`}
-            action={<Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-1.5" /> New relationship</Button>}
+            description={`Define how ${et?.name_plural || "these"} connect to other Collections.`}
+            action={<Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-1.5" /> Add a Link</Button>}
           />
         ) : (
           <div className="rounded-lg border border-border bg-white overflow-hidden">
@@ -166,17 +166,17 @@ export default function RelationshipsPage() {
         <DialogContent className="sm:max-w-lg" data-testid="new-rel-dialog">
           <form onSubmit={create}>
             <DialogHeader>
-              <DialogTitle>New relationship</DialogTitle>
+              <DialogTitle>Add a link between Collections</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div>
-                <Label>To entity type</Label>
+                <Label>To Collection</Label>
                 <Select
                   value={form.to_entity_type_id}
                   onValueChange={(v) => setForm({ ...form, to_entity_type_id: v })}
                 >
                   <SelectTrigger data-testid="rel-to-select">
-                    <SelectValue placeholder="Choose an entity type" />
+                    <SelectValue placeholder="Choose a Collection" />
                   </SelectTrigger>
                   <SelectContent>
                     {targets.map((t) => (

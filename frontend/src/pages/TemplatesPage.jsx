@@ -67,15 +67,15 @@ export default function TemplatesPage() {
   return (
     <>
       <PageHeader
-        title="Templates"
-        subtitle="One-click starter workspaces. You can extend or delete anything after applying."
-        breadcrumbs={[{ label: "Config" }, { label: "Templates" }]}
+        title="Starter Packs"
+        subtitle="Pre-built Collections you can drop into your workspace in one click. Start with a template and rename anything you like."
+        breadcrumbs={[{ label: "Workspace" }, { label: "Starter Packs" }]}
       />
       <PageBody>
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : items.length === 0 ? (
-          <EmptyState icon={Sparkles} title="No templates in library" />
+          <EmptyState icon={Sparkles} title="No starter packs available" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {items.map((t) => {
@@ -91,7 +91,7 @@ export default function TemplatesPage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <Badge variant="secondary" className="text-[10px] font-mono">
-                      {t.entity_type_count} entities
+                      {t.entity_type_count} collections
                     </Badge>
                   </div>
                   <div className="text-base font-semibold">{t.name}</div>
@@ -111,7 +111,7 @@ export default function TemplatesPage() {
                       onClick={() => { setApplyTarget(t); setPolicy("skip"); }}
                       data-testid={`apply-template-${t.key}`}
                     >
-                      Apply <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      Use this starter pack <ArrowRight className="w-3.5 h-3.5 ml-1" />
                     </Button>
                   </div>
                 </div>
@@ -192,11 +192,11 @@ export default function TemplatesPage() {
       <Dialog open={!!applyTarget} onOpenChange={(v) => !v && setApplyTarget(null)}>
         <DialogContent data-testid="apply-dialog">
           <DialogHeader>
-            <DialogTitle>Apply "{applyTarget?.name}" template</DialogTitle>
+            <DialogTitle>Use "{applyTarget?.name}"</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-4">
             <p className="text-sm text-muted-foreground">
-              On conflict with an existing entity type:
+              On conflict with an existing Collection:
             </p>
             <RadioGroup value={policy} onValueChange={setPolicy}>
               <label className="flex items-start gap-2 cursor-pointer" data-testid="policy-skip">
@@ -204,7 +204,7 @@ export default function TemplatesPage() {
                 <div>
                   <Label htmlFor="skip" className="font-medium">Skip</Label>
                   <p className="text-xs text-muted-foreground">
-                    Keep the existing entity type and don't overwrite anything.
+                    Keep the existing Collection and don't overwrite anything.
                   </p>
                 </div>
               </label>
@@ -213,7 +213,7 @@ export default function TemplatesPage() {
                 <div>
                   <Label htmlFor="rename" className="font-medium">Rename</Label>
                   <p className="text-xs text-muted-foreground">
-                    Create the entity type with a suffix like <code>_2</code>.
+                    Create the Collection with a suffix like <code>_2</code>.
                   </p>
                 </div>
               </label>
@@ -231,7 +231,7 @@ export default function TemplatesPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setApplyTarget(null)}>Cancel</Button>
             <Button onClick={apply} disabled={applying} data-testid="submit-apply">
-              {applying ? "Applying…" : "Apply"}
+              {applying ? "Adding…" : "Add to workspace"}
             </Button>
           </DialogFooter>
         </DialogContent>

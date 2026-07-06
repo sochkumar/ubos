@@ -13,7 +13,7 @@ export default function ComingSoonPage({ title, phase = "Phase 2", description }
         <EmptyState
           icon={LayoutDashboard}
           title={`${title} — Coming in ${phase}`}
-          description={description || "This surface is on the roadmap. In the meantime, you can build entity types, fields, and records under Data."}
+          description={description || "This surface is on the roadmap. In the meantime, you can build Collections, fields, and items under My Data."}
         />
       </PageBody>
     </>

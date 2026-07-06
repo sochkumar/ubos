@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
+import { TerminologyProvider } from "@/lib/terminology";
 import { RequireAuth, RequireGuest } from "@/components/RequireAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GlobalHotkeys } from "@/components/GlobalHotkeys";
@@ -25,6 +26,7 @@ import OrgSettingsPage from "@/pages/settings/OrgSettingsPage";
 import MembersPage from "@/pages/settings/MembersPage";
 import AuditLogPage from "@/pages/settings/AuditLogPage";
 import LabelPresetsPage from "@/pages/settings/LabelPresetsPage";
+import TerminologyPage from "@/pages/settings/TerminologyPage";
 import ComingSoonPage from "@/pages/ComingSoonPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import TagsPage from "@/pages/TagsPage";
@@ -96,7 +98,9 @@ function App() {
               <Route
                 element={
                   <RequireAuth>
-                    <AppLayout />
+                    <TerminologyProvider>
+                      <AppLayout />
+                    </TerminologyProvider>
                   </RequireAuth>
                 }
               >
@@ -114,6 +118,7 @@ function App() {
                 <Route path="/media" element={<Page name="Media"><MediaPage /></Page>} />
                 <Route path="/settings/organization" element={<Page name="OrgSettings"><OrgSettingsPage /></Page>} />
                 <Route path="/settings/members" element={<Page name="Members"><MembersPage /></Page>} />
+                <Route path="/settings/terminology" element={<Page name="Terminology"><TerminologyPage /></Page>} />
                 <Route path="/settings/audit-log" element={<Page name="AuditLog"><AuditLogPage /></Page>} />
                 <Route path="/settings/label-presets" element={<Page name="LabelPresets"><LabelPresetsPage /></Page>} />
                 <Route path="/settings/profile" element={<Page name="Profile"><ProfilePage /></Page>} />

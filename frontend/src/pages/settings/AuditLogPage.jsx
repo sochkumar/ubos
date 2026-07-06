@@ -64,15 +64,15 @@ export default function AuditLogPage() {
     return (
       <>
         <PageHeader
-          title="Audit log"
+          title="Activity"
           subtitle="Every important action, timestamped."
-          breadcrumbs={[{ label: "Settings" }, { label: "Audit log" }]}
+          breadcrumbs={[{ label: "Settings" }, { label: "Activity" }]}
         />
         <PageBody>
           <EmptyState
             icon={Shield}
             title="Restricted"
-            description="Audit log is available to admins and owners only."
+            description="Activity is available to admins and owners only."
           />
         </PageBody>
       </>
@@ -82,9 +82,9 @@ export default function AuditLogPage() {
   return (
     <>
       <PageHeader
-        title="Audit log"
+        title="Activity"
         subtitle={`${total} event${total === 1 ? "" : "s"} recorded.`}
-        breadcrumbs={[{ label: "Settings" }, { label: "Audit log" }]}
+        breadcrumbs={[{ label: "Settings" }, { label: "Activity" }]}
         actions={
           <Input
             placeholder="Filter…"
