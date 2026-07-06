@@ -457,4 +457,53 @@ Additional housekeeping in the same patch:
 - Bulk CSV of email addresses in the invite modal.
 
 
+## Phase 6 Sub-pass B — Backend Hardening, Docs & Docker, Security Sweep (SHIPPED Feb 2026) — LOCKED ✅
+
+**Backend hardening**
+- `@app.on_event("startup"/"shutdown")` migrated to a `lifespan(app)` context manager on `FastAPI(...)`.
+- Proxy-aware client IP helper `core/request_ip.py::get_client_ip(request)` honours `TRUST_PROXY_HOPS` from env and is wired into `audit.py` for accurate `ip` on audit rows.
+- `SecurityHeadersMiddleware` sets `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cross-Origin-Opener-Policy` on every response.
+- Canonical seed CLI: `python -m scripts.seed [--reset] [--minimal]` — idempotent, docs in README, safe to re-run.
+
+**Audit-log sweep (new events)**
+- `dashboard.layout.updated` and `dashboard.layout.reset` (per-user dashboard customization).
+- `prompt.dismissed` (POST /api/users/me/dismissed-prompts) covers all nudge dismissals.
+- `record.imported.completed` emitted from the async import runner with final `{inserted, updated, skipped, errors, processed}` counts (best-effort direct insert since the runner has no `BackgroundTasks` handle).
+- All previously required events verified: `label_preset.deleted`, `media.attached/detached/uploaded/deleted`, `view.access_revoked`, `org.updated`, `org.quota_updated`, `record.exported`, `record.imported` (execute).
+
+**Custom dashboard layout**
+- Backend: `GET/PUT /api/dashboard/layout`, `POST /api/dashboard/layout/reset`. Stored on `users.dashboard_layouts.<org_id>`. Widgets identified by `widget_key`. Unknown keys stripped; missing widgets backfilled with defaults on read so future widgets ship gracefully.
+- Frontend `DashboardPage.jsx` fully reworked with `@dnd-kit/sortable` — Customize toggle (default off), drag handles + per-widget 3-dot menu (Hide), bottom "Add widget" dropdown restores hidden widgets. Debounced 500 ms PUT. Reset button (in Customize mode only). All new interactive elements carry `data-testid` (`dashboard-customize-toggle`, `widget-menu-*`, `widget-hide-*`, `widget-drag-*`, `dashboard-add-widget-btn`, `dashboard-restore-*`, `dashboard-reset-layout`).
+
+**Docs & Docker**
+- `/app/README.md` — features, stack, repo layout, full env-var tables (backend + frontend), local + docker workflows, seed CLI, API reference pointers, testing + deployment notes.
+- `/app/backend/env.example` and `/app/frontend/env.example` cover every variable used by the runtime.
+- `/app/backend/Dockerfile` — python:3.11-slim + `poppler-utils` + Pillow libs + `libzbar0`, layer-cached deps, curl healthcheck against `/api/health`.
+- `/app/frontend/Dockerfile` — multi-stage (node:20-alpine → nginx:1.27-alpine). Built with `REACT_APP_BACKEND_URL=""` so axios uses relative `/api/*` → nginx reverse-proxies to the backend container, same-origin, no CORS.
+- `/app/frontend/nginx.conf` — SPA fallback (`try_files $uri $uri/ /index.html`), `/api/` → `backend:8001` upstream, immutable-cache on `/static/`, no-cache on `sw.js` + `index.html`, gzip + 30 MB client_max_body_size.
+- `/app/docker-compose.yml` — mongo:7 + backend + web, with named volumes `ubos_mongo_data` + `ubos_uploads`, healthcheck gating, port `8080:80` on web. YAML validated.
+- `.dockerignore` files at root, backend, frontend.
+
+**Security & performance verification (`testing_agent_v3` iteration 17)**
+- **28/28 backend security tests PASS** across 7 areas: cross-org isolation (7), public share sensitive-field masking + password gate (4), share visibility semantics (3), rate limiting — login lockout + public unlock + public read (3), dashboard layout regression from Pass B (7), audit-log sweep additions (1), N+1 latency sanity (3).
+- **No critical or minor bugs found. Zero regressions.**
+- Test file: `/app/backend/tests/test_ubos_phase6b_security.py` (`+/app/test_reports/pytest/phase6b_security.xml`).
+- Six advisory code-review notes (all non-blocking):
+  1. `_check_rate` in-memory buckets are per-worker → OK for MVP (single-worker supervisor); swap to Redis when scaling out.
+  2. Login lockout keyed on (IP, email) may lock legit users behind shared NAT → consider per-user counter with exponential backoff post-MVP.
+  3. `exposed_defs.config` on public share payloads still emits `config` verbatim for non-sensitive fields → tighten to whitelist projection (key/label/type/order/group/help_text) in a follow-up.
+  4. Invitations rate-limit counts 422-shaped POSTs → move `hits.append` after DB insert (post-MVP fairness fix).
+  5. Public unlock cookie path scoping under ingress → verify in production DNS routing.
+  6. Dashboard layout normalizer is clean; `Literal` validation on `widget_key` already 422s bad keys — good.
+
+**Pytest triage (per user directive — NOT silently patched)**
+- Full `pytest -q -n 0` on `/app/backend/tests/` yielded **40 failures / 197 passes / 17 errors** — every one categorized and flagged with test name, failing line, and hypothesis at `/app/test_reports/pytest/pass_d_triage.md`.
+- Zero of the failures are app bugs. Breakdown: (A) Phase-0-era tests written against the no-auth demo-org model (broken since Phase 1 mandated bearer); (B) Phase 5a export/import fixtures create the ET under a different org context than the acting bearer → 404; (C) Phase 5b/6a invitations + collaborators tests leak state on the shared Acme org across runs (need fixture-scoped reset); (D) Phase 2 template dry-run tests assume the org has no existing entity_types; (E) `TestRateLimit::test_public_read_rate_limit` — env constants vs current `PUBLIC_READ_RATE_LIMIT=120/minute` mismatch; (F) `TestMediaDeleteCascade` xdist worker race (already backlog-flagged in PRD line 263).
+- Recommended follow-ups documented in the triage MD; deferred until user reviews.
+
+**Env additions** (backend/.env): `TRUST_PROXY_HOPS=1`, `PUBLIC_READ_RATE_LIMIT=120/minute`, `PUBLIC_CODE_RATE_LIMIT=60/minute`.
+**Deps added** (frontend): `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`.
+
+
+
 
