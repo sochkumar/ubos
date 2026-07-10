@@ -1,0 +1,159 @@
+{
+  "key": "furnishing_store",
+  "name": "Home Furnishings",
+  "description": "Curtains, rugs, cushions, linens, and other soft goods — plus fabric swatches, customers, orders, and suppliers.",
+  "icon": "Sofa",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "furnishings",
+      "name_singular": "Furnishing",
+      "name_plural": "Furnishings",
+      "icon": "Sofa",
+      "color": "#a16207",
+      "description": "Every soft furnishing SKU you stock or make to order.",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 2},
+        {"key": "category", "label": "Category", "type": "dropdown", "required": true, "config": {"options": ["Curtains", "Blinds", "Rugs", "Carpets", "Cushions", "Bedding", "Table Linen", "Bath Linen", "Wallpaper", "Throws", "Curtain Rods"]}, "order": 3},
+        {"key": "room_type", "label": "Room type", "type": "dropdown", "config": {"options": ["Living Room", "Bedroom", "Dining", "Kitchen", "Bathroom", "Kids", "Outdoor"]}, "order": 4},
+        {"key": "material", "label": "Material", "type": "text", "help_text": "e.g. Cotton/Polyester Blend", "order": 5},
+        {"key": "dimensions", "label": "Dimensions", "type": "text", "help_text": "e.g. 244cm × 137cm", "order": 6},
+        {"key": "colour", "label": "Colour", "type": "text", "order": 7},
+        {"key": "pattern", "label": "Pattern", "type": "dropdown", "config": {"options": ["Solid", "Striped", "Floral", "Geometric", "Abstract", "Traditional", "Damask"]}, "order": 8},
+        {"key": "price", "label": "Price", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "stock_qty", "label": "Stock quantity", "type": "number", "config": {"min": 0}, "order": 10},
+        {"key": "made_to_measure", "label": "Made to measure", "type": "boolean", "order": 11},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 12},
+        {"key": "photos", "label": "Photos", "type": "image", "config": {"multi": true}, "order": 13},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 14}
+      ],
+      "categories": [
+        {"name": "Living Room"}, {"name": "Bedroom"}, {"name": "Dining"},
+        {"name": "Kitchen"}, {"name": "Bathroom"}, {"name": "Kids' Room"},
+        {"name": "Outdoor"}, {"name": "Wallpapers"}
+      ],
+      "records": [
+        {"title": "Velvet Blackout Curtain", "fields": {"name": "Velvet Blackout Curtain", "sku": "FRN-CUR-VLV-001", "category": "Curtains", "room_type": "Bedroom", "material": "100% Cotton Velvet", "dimensions": "244cm × 137cm", "colour": "Charcoal", "pattern": "Solid", "price": 189.00, "stock_qty": 24, "made_to_measure": true, "lead_time_days": 14, "description": "Triple-weave blackout lining with hand-finished velvet face. Grommet or pinch-pleat header."}},
+        {"title": "Persian Wool Rug 8x10", "fields": {"name": "Persian Wool Rug 8x10", "sku": "FRN-RUG-PRS-014", "category": "Rugs", "room_type": "Living Room", "material": "100% Hand-Knotted Wool", "dimensions": "244cm × 305cm", "colour": "Ivory & Terracotta", "pattern": "Traditional", "price": 480.00, "stock_qty": 3, "made_to_measure": false, "description": "Bidjar-style medallion motif hand-knotted in Iran."}},
+        {"title": "Mulberry Silk Cushion Cover", "fields": {"name": "Mulberry Silk Cushion Cover", "sku": "FRN-CSH-SLK-022", "category": "Cushions", "room_type": "Living Room", "material": "100% Mulberry Silk", "dimensions": "50cm × 50cm", "colour": "Blush", "pattern": "Solid", "price": 68.00, "stock_qty": 18, "made_to_measure": false, "description": "Concealed zip closure. Insert sold separately."}},
+        {"title": "Egyptian Cotton Bedding Set (King)", "fields": {"name": "Egyptian Cotton Bedding Set (King)", "sku": "FRN-BED-EGP-003", "category": "Bedding", "room_type": "Bedroom", "material": "800TC Egyptian Cotton Sateen", "dimensions": "King", "colour": "White", "pattern": "Solid", "price": 245.00, "stock_qty": 12, "made_to_measure": false, "description": "Duvet cover, fitted sheet, and two pillowcases. OEKO-TEX certified."}},
+        {"title": "Linen Napkins (Set of 6)", "fields": {"name": "Linen Napkins (Set of 6)", "sku": "FRN-TBL-LIN-009", "category": "Table Linen", "room_type": "Dining", "material": "Belgian Flax Linen", "dimensions": "45cm × 45cm", "colour": "Natural", "pattern": "Solid", "price": 54.00, "stock_qty": 30, "made_to_measure": false}},
+        {"title": "Waffle Bath Towel", "fields": {"name": "Waffle Bath Towel", "sku": "FRN-BTH-WAF-011", "category": "Bath Linen", "room_type": "Bathroom", "material": "GOTS Organic Cotton", "dimensions": "70cm × 140cm", "colour": "Sand", "pattern": "Geometric", "price": 42.00, "stock_qty": 60, "made_to_measure": false, "description": "Fast-drying honeycomb weave, gets softer with every wash."}},
+        {"title": "Damask Botanica Wallpaper", "fields": {"name": "Damask Botanica Wallpaper", "sku": "FRN-WLP-DMS-006", "category": "Wallpaper", "room_type": "Living Room", "material": "Non-woven paper", "dimensions": "10m × 52cm roll", "colour": "Deep Green", "pattern": "Damask", "price": 128.00, "stock_qty": 40, "made_to_measure": false, "lead_time_days": 5, "description": "Paste-the-wall install. Full-drop repeat 64cm."}},
+        {"title": "Faux Fur Throw", "fields": {"name": "Faux Fur Throw", "sku": "FRN-THR-FFR-018", "category": "Throws", "room_type": "Bedroom", "material": "Polyester Faux Fur", "dimensions": "130cm × 170cm", "colour": "Silver Grey", "pattern": "Solid", "price": 79.00, "stock_qty": 22, "made_to_measure": false}}
+      ]
+    },
+    {
+      "key": "fabric_swatches",
+      "name_singular": "Fabric Swatch",
+      "name_plural": "Fabric Swatches",
+      "icon": "Palette",
+      "color": "#7c3aed",
+      "fields": [
+        {"key": "code", "label": "Code", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "fabric_name", "label": "Fabric name", "type": "text", "required": true, "order": 2},
+        {"key": "colour", "label": "Colour", "type": "text", "order": 3},
+        {"key": "pattern", "label": "Pattern", "type": "dropdown", "config": {"options": ["Solid", "Striped", "Floral", "Geometric", "Abstract"]}, "order": 4},
+        {"key": "composition", "label": "Composition", "type": "text", "order": 5},
+        {"key": "width_cm", "label": "Width (cm)", "type": "number", "config": {"min": 0}, "order": 6},
+        {"key": "price_per_meter", "label": "Price / metre", "type": "currency", "config": {"min": 0}, "order": 7},
+        {"key": "supplier", "label": "Supplier", "type": "text", "order": 8},
+        {"key": "stock_meters", "label": "Stock (m)", "type": "number", "config": {"min": 0}, "order": 9},
+        {"key": "sample_photo", "label": "Sample photo", "type": "image", "order": 10},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 11}
+      ],
+      "records": [
+        {"title": "SW-VLV-CHR", "fields": {"code": "SW-VLV-CHR", "fabric_name": "Milano Velvet — Charcoal", "colour": "Charcoal", "pattern": "Solid", "composition": "100% Cotton", "width_cm": 140, "price_per_meter": 68.00, "supplier": "Casa Milano Textiles", "stock_meters": 65}},
+        {"title": "SW-LIN-NAT", "fields": {"code": "SW-LIN-NAT", "fabric_name": "Belgian Flax Linen — Natural", "colour": "Natural", "pattern": "Solid", "composition": "100% Linen", "width_cm": 150, "price_per_meter": 42.00, "supplier": "Libeco", "stock_meters": 90}},
+        {"title": "SW-BTC-FLR", "fields": {"code": "SW-BTC-FLR", "fabric_name": "Botanica Floral — Sage", "colour": "Sage", "pattern": "Floral", "composition": "55% Linen / 45% Cotton", "width_cm": 137, "price_per_meter": 82.00, "supplier": "House of Hackney", "stock_meters": 24}},
+        {"title": "SW-CHK-BLU", "fields": {"code": "SW-CHK-BLU", "fabric_name": "Provençal Check — Indigo", "colour": "Indigo", "pattern": "Geometric", "composition": "100% Cotton", "width_cm": 140, "price_per_meter": 38.00, "supplier": "Souleiado", "stock_meters": 48}},
+        {"title": "SW-VLV-ROS", "fields": {"code": "SW-VLV-ROS", "fabric_name": "Milano Velvet — Rose", "colour": "Rose", "pattern": "Solid", "composition": "100% Cotton", "width_cm": 140, "price_per_meter": 68.00, "supplier": "Casa Milano Textiles", "stock_meters": 32}},
+        {"title": "SW-JAC-ABS", "fields": {"code": "SW-JAC-ABS", "fabric_name": "Kandinsky Jacquard — Multi", "colour": "Multi", "pattern": "Abstract", "composition": "70% Cotton / 30% Viscose", "width_cm": 145, "price_per_meter": 95.00, "supplier": "Zoffany", "stock_meters": 18}}
+      ]
+    },
+    {
+      "key": "customers",
+      "name_singular": "Customer",
+      "name_plural": "Customers",
+      "icon": "Users",
+      "color": "#0f766e",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "email", "label": "Email", "type": "email", "order": 2},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 3},
+        {"key": "address", "label": "Address", "type": "longtext", "order": 4},
+        {"key": "building_type", "label": "Building type", "type": "dropdown", "config": {"options": ["Apartment", "Villa", "Office", "Hotel", "Restaurant", "Other"]}, "order": 5},
+        {"key": "project_reference", "label": "Project reference", "type": "text", "order": 6},
+        {"key": "preferred_style", "label": "Preferred style", "type": "dropdown", "config": {"options": ["Modern", "Traditional", "Contemporary", "Minimalist", "Eclectic", "Coastal"]}, "order": 7},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 8}
+      ],
+      "records": [
+        {"title": "Harper & Wells Interiors", "fields": {"name": "Harper & Wells Interiors", "email": "orders@harperwells.co", "phone": "+1 212-555-0177", "address": "612 Broadway, Suite 402, New York, NY 10012", "building_type": "Other", "project_reference": "The Warwick Residences", "preferred_style": "Contemporary", "notes": "Trade account — 25% designer discount."}},
+        {"title": "Nadia Khoury", "fields": {"name": "Nadia Khoury", "email": "nadia.k@example.com", "phone": "+1 646-555-0221", "address": "88 Leonard St, Apt 12A, New York, NY 10013", "building_type": "Apartment", "preferred_style": "Minimalist"}},
+        {"title": "Casa del Mar Boutique Hotel", "fields": {"name": "Casa del Mar Boutique Hotel", "email": "procurement@casadelmar.com", "phone": "+52 998 555 0140", "address": "Playa Norte, Isla Mujeres, Quintana Roo, Mexico", "building_type": "Hotel", "project_reference": "Suite refresh 2026", "preferred_style": "Coastal", "notes": "Order in tranches by floor. 90-day payment terms."}},
+        {"title": "Oliver Grant", "fields": {"name": "Oliver Grant", "email": "o.grant@example.com", "phone": "+1 415-555-0288", "address": "220 Sea Cliff Ave, San Francisco, CA 94121", "building_type": "Villa", "preferred_style": "Traditional", "notes": "Full home outfit — living, dining, three bedrooms."}},
+        {"title": "Studio Ito", "fields": {"name": "Studio Ito", "email": "hello@studioito.jp", "phone": "+81 3 5555 0166", "building_type": "Office", "preferred_style": "Modern", "notes": "Architecture studio — small-batch orders, wants Japanese-made fabrics preferred."}}
+      ]
+    },
+    {
+      "key": "orders",
+      "name_singular": "Order",
+      "name_plural": "Orders",
+      "icon": "ShoppingBag",
+      "color": "#c2410c",
+      "fields": [
+        {"key": "order_number", "label": "Order #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "customer_name", "label": "Customer", "type": "text", "required": true, "order": 2},
+        {"key": "order_date", "label": "Order date", "type": "date", "order": 3},
+        {"key": "delivery_address", "label": "Delivery address", "type": "longtext", "order": 4},
+        {"key": "installation_required", "label": "Installation required", "type": "boolean", "order": 5},
+        {"key": "scheduled_delivery", "label": "Scheduled delivery", "type": "date", "order": 6},
+        {"key": "installation_date", "label": "Installation date/time", "type": "datetime", "order": 7},
+        {"key": "total", "label": "Total", "type": "currency", "config": {"min": 0}, "order": 8},
+        {"key": "deposit", "label": "Deposit", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Quoted", "Confirmed", "In Production", "Ready", "Out for Delivery", "Installed", "Completed", "Cancelled"]}, "order": 10},
+        {"key": "items_summary", "label": "Items", "type": "longtext", "order": 11},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 12}
+      ],
+      "records": [
+        {"title": "FRN-ORD-1201", "fields": {"order_number": "FRN-ORD-1201", "customer_name": "Harper & Wells Interiors", "order_date": "2026-03-18", "delivery_address": "The Warwick Residences, Penthouse B, 220 W 55th St, New York, NY 10019", "installation_required": true, "scheduled_delivery": "2026-04-22", "installation_date": "2026-04-24T09:00:00Z", "total": 8420.00, "deposit": 3000.00, "status": "In Production", "items_summary": "12× Milano Velvet blackout curtains (made to measure), 6× Persian wool rugs (custom sizes), 24× silk cushion covers."}},
+        {"title": "FRN-ORD-1202", "fields": {"order_number": "FRN-ORD-1202", "customer_name": "Nadia Khoury", "order_date": "2026-03-27", "delivery_address": "88 Leonard St, Apt 12A, New York, NY 10013", "installation_required": false, "scheduled_delivery": "2026-04-08", "total": 620.00, "deposit": 620.00, "status": "Ready", "items_summary": "1× Egyptian cotton bedding set, 2× waffle bath towels, 1× faux fur throw."}},
+        {"title": "FRN-ORD-1203", "fields": {"order_number": "FRN-ORD-1203", "customer_name": "Casa del Mar Boutique Hotel", "order_date": "2026-02-14", "installation_required": true, "scheduled_delivery": "2026-05-15", "installation_date": "2026-05-18T09:00:00Z", "total": 24200.00, "deposit": 8000.00, "status": "Confirmed", "items_summary": "40× outdoor cushions, 20× rattan-blend rugs, 60× beach-weave towels for the north-wing suite refresh."}},
+        {"title": "FRN-ORD-1204", "fields": {"order_number": "FRN-ORD-1204", "customer_name": "Oliver Grant", "order_date": "2026-03-30", "delivery_address": "220 Sea Cliff Ave, San Francisco, CA 94121", "installation_required": true, "scheduled_delivery": "2026-05-05", "total": 12750.00, "deposit": 4000.00, "status": "Quoted", "items_summary": "Full-house drapery, area rugs for four rooms, bedding for master and two guest suites."}}
+      ]
+    },
+    {
+      "key": "suppliers",
+      "name_singular": "Supplier",
+      "name_plural": "Suppliers",
+      "icon": "Truck",
+      "color": "#475569",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "contact_person", "label": "Contact person", "type": "text", "order": 2},
+        {"key": "email", "label": "Email", "type": "email", "order": 3},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 4},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["Fabric Mill", "Ready-Made Curtains", "Rugs & Carpets", "Bedding & Bath", "Wallpaper", "Installation Services"]}, "order": 5},
+        {"key": "country", "label": "Country", "type": "text", "order": 6},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "min_order_qty", "label": "Minimum order", "type": "text", "order": 8},
+        {"key": "payment_terms", "label": "Payment terms", "type": "text", "order": 9},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 10}
+      ],
+      "records": [
+        {"title": "Casa Milano Textiles", "fields": {"name": "Casa Milano Textiles", "contact_person": "Elena Ferrari", "email": "e.ferrari@casamilano.it", "phone": "+39 02 555 0143", "category": "Fabric Mill", "country": "Italy", "lead_time_days": 21, "min_order_qty": "20m per SKU", "payment_terms": "30% deposit, balance on shipment"}},
+        {"title": "Jaipur Rugs Collective", "fields": {"name": "Jaipur Rugs Collective", "contact_person": "Rohan Agarwal", "email": "orders@jaipurrugs.in", "phone": "+91 141 555 0122", "category": "Rugs & Carpets", "country": "India", "lead_time_days": 45, "min_order_qty": "3 pieces custom", "payment_terms": "50% deposit"}},
+        {"title": "Frette Home", "fields": {"name": "Frette Home", "contact_person": "Wholesale Desk", "email": "wholesale@frette.com", "phone": "+39 02 555 0189", "category": "Bedding & Bath", "country": "Italy", "lead_time_days": 14, "min_order_qty": "€2000", "payment_terms": "Net 30"}},
+        {"title": "Hillcrest Install Co", "fields": {"name": "Hillcrest Install Co", "contact_person": "Marcus Delaney", "email": "marcus@hillcrestinstall.com", "phone": "+1 415-555-0311", "category": "Installation Services", "country": "United States", "lead_time_days": 7, "payment_terms": "Per job invoice", "notes": "Preferred SF Bay Area installer — drapery, wallpaper, and rug pads."}}
+      ]
+    }
+  ],
+  "relationships": [],
+  "tags": [
+    {"name": "made-to-measure", "color": "#7c3aed"},
+    {"name": "clearance", "color": "#dc2626"},
+    {"name": "new-arrival", "color": "#0d9488"},
+    {"name": "trade-account", "color": "#c2410c"}
+  ]
+}

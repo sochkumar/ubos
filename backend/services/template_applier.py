@@ -27,10 +27,12 @@ from typing import Any
 
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from db import tenant_filter
-from models import EntityType, FieldDef
+from models import EntityType, FieldDef, Record
 from services.categories import create_category
+from validator import FieldValidator, ValidationErrors
 
 LIBRARY_DIR = Path(__file__).parent.parent / "modules" / "templates" / "library"
 
@@ -216,6 +218,89 @@ async def _seed_relationships(db, *, org_id: str, rels: list[dict],
         inserted.append(("relationship_definitions", rid))
 
 
+async def _next_record_number(db, org_id: str, et_id: str) -> str:
+    """Atomically increment the entity type's counter and format REC-NNNNNN."""
+    doc = await db.entity_types.find_one_and_update(
+        tenant_filter(org_id, {"_id": et_id}),
+        {"$inc": {"record_counter": 1}, "$set": {"updated_at": _now()}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return f"REC-{int(doc.get('record_counter', 1)):06d}"
+
+
+def _derive_record_title(field_defs: list[dict], values: dict) -> str | None:
+    """Mirror routes/data.py::_derive_title so templates hydrate consistently."""
+    for ftype in ("text", "email", "url", "phone", "longtext"):
+        for fd in field_defs:
+            if fd["type"] == ftype:
+                v = values.get(fd["key"])
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+    return None
+
+
+async def _seed_records(db, *, org_id: str, et_id: str, records: list[dict],
+                        inserted: list[tuple[str, str]]) -> None:
+    """Seed sample records for a starter pack.
+
+    Each entry is a dict with optional `title`, optional `description`, and a
+    `fields` sub-dict keyed by field.key. Values are pushed through
+    FieldValidator, so any type/dropdown/range violation in the pack JSON
+    surfaces as HTTPException 422 during apply (loud fail = good — templates
+    ship broken data at their peril).
+
+    Idempotency: skip if a record with the same title already exists under
+    (org, entity_type). Templates use unique, human-readable titles so this
+    is stable across re-applies.
+    """
+    if not records:
+        return
+    field_defs = await db.field_definitions.find(tenant_filter(org_id, {
+        "entity_type_id": et_id,
+    })).to_list(1000)
+    validator = FieldValidator(db, org_id, et_id)
+    for spec in records:
+        raw_fields = spec.get("fields") or {}
+        title_hint = spec.get("title")
+
+        dedupe_query = {"entity_type_id": et_id, "deleted_at": None}
+        if title_hint:
+            dedupe_query["title"] = title_hint
+        else:
+            unique_fd = next((fd for fd in field_defs if fd.get("unique")), None)
+            if unique_fd and unique_fd["key"] in raw_fields:
+                dedupe_query[f"fields.{unique_fd['key']}"] = raw_fields[unique_fd["key"]]
+        if await db.records.find_one(tenant_filter(org_id, dedupe_query)):
+            continue
+
+        try:
+            coerced, search_text = await validator.validate(field_defs, raw_fields)
+        except ValidationErrors as e:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "template_record_invalid",
+                    "entity_type_id": et_id,
+                    "title": title_hint,
+                    "field_errors": e.errors,
+                },
+            ) from e
+
+        record_number = await _next_record_number(db, org_id, et_id)
+        title = title_hint or _derive_record_title(field_defs, coerced) or record_number
+        full_search = f"{title} {spec.get('description') or ''} {search_text}".strip()
+
+        rec = Record(
+            org_id=org_id, entity_type_id=et_id,
+            title=title, description=spec.get("description"),
+            fields=coerced,
+            record_number=record_number, search_text=full_search,
+        )
+        doc = rec.model_dump(by_alias=True)
+        await db.records.insert_one(doc)
+        inserted.append(("records", doc["_id"]))
+
+
 async def apply_template(
     db: AsyncIOMotorDatabase,
     *,
@@ -256,11 +341,25 @@ async def apply_template(
             await _seed_categories(db, org_id=org_id, et_id=et_doc["_id"],
                                     nodes=et_spec.get("categories") or [], inserted=inserted)
 
+        # Relationships + tags before sample records so relations exist by the
+        # time you view a seeded row (records don't reference them here yet,
+        # but the ordering matches how a real user would build a workspace).
         await _seed_relationships(db, org_id=org_id,
                                    rels=spec.get("relationships") or [],
                                    et_by_key=et_by_key, inserted=inserted)
         await _seed_tags(db, org_id=org_id, tags=spec.get("tags") or [],
                           et_by_key=et_by_key, inserted=inserted)
+
+        # Sample records (optional per entity_type). Validated through
+        # FieldValidator — bad pack data → HTTP 422 with field paths.
+        for et_spec in spec.get("entity_types") or []:
+            et_id = et_by_key.get(et_spec["key"])
+            if not et_id:
+                continue
+            await _seed_records(
+                db, org_id=org_id, et_id=et_id,
+                records=et_spec.get("records") or [], inserted=inserted,
+            )
 
     except HTTPException:
         # rollback everything we inserted but preserve the intended status code

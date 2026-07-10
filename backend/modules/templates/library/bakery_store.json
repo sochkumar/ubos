@@ -1,0 +1,158 @@
+{
+  "key": "bakery_store",
+  "name": "Bakery Store",
+  "description": "Menu items, ingredients, orders, customers, and suppliers for a bakery or patisserie.",
+  "icon": "Croissant",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "menu_items",
+      "name_singular": "Menu Item",
+      "name_plural": "Menu Items",
+      "icon": "Cookie",
+      "color": "#c2410c",
+      "description": "Everything you sell at the counter or online.",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 2},
+        {"key": "price", "label": "Price", "type": "currency", "required": true, "config": {"min": 0}, "order": 3},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["Bread", "Pastry", "Cake", "Cookie", "Sandwich", "Beverage", "Seasonal"]}, "order": 4},
+        {"key": "size", "label": "Size", "type": "dropdown", "config": {"options": ["Small", "Regular", "Large"]}, "order": 5},
+        {"key": "available_today", "label": "Available today", "type": "boolean", "order": 6},
+        {"key": "calories", "label": "Calories", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "allergens", "label": "Allergens", "type": "multi_select", "config": {"options": ["Gluten", "Dairy", "Nuts", "Eggs", "Soy", "Sesame"]}, "order": 8},
+        {"key": "photos", "label": "Photos", "type": "image", "config": {"multi": true}, "order": 9},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 10}
+      ],
+      "categories": [
+        {"name": "Bread"}, {"name": "Pastries"}, {"name": "Cakes & Tarts"},
+        {"name": "Cookies"}, {"name": "Sandwiches"}, {"name": "Beverages"},
+        {"name": "Seasonal Specials"}
+      ],
+      "records": [
+        {"title": "Butter Croissant", "fields": {"name": "Butter Croissant", "sku": "BKY-CROI-BTR", "price": 3.75, "category": "Pastry", "size": "Regular", "available_today": true, "calories": 260, "allergens": ["Gluten", "Dairy", "Eggs"], "description": "Classic laminated butter croissant baked fresh every morning."}},
+        {"title": "Country Sourdough Loaf", "fields": {"name": "Country Sourdough Loaf", "sku": "BKY-BRD-SOUR", "price": 8.50, "category": "Bread", "size": "Large", "available_today": true, "calories": 1300, "allergens": ["Gluten"], "description": "48-hour cold-fermented sourdough with a crackling crust."}},
+        {"title": "Dark Chocolate Ganache Cake", "fields": {"name": "Dark Chocolate Ganache Cake", "sku": "BKY-CAKE-GNCHE", "price": 42.00, "category": "Cake", "size": "Large", "available_today": true, "calories": 3200, "allergens": ["Gluten", "Dairy", "Eggs"], "description": "6-inch three-layer chocolate cake with 70% dark ganache."}},
+        {"title": "Wild Blueberry Muffin", "fields": {"name": "Wild Blueberry Muffin", "sku": "BKY-MUF-BB", "price": 3.25, "category": "Pastry", "size": "Regular", "available_today": true, "calories": 340, "allergens": ["Gluten", "Dairy", "Eggs"], "description": "Bursting with wild Maine blueberries and a demerara top."}},
+        {"title": "Chicken Pesto Sandwich", "fields": {"name": "Chicken Pesto Sandwich", "sku": "BKY-SAN-CHKN", "price": 11.50, "category": "Sandwich", "size": "Regular", "available_today": true, "calories": 620, "allergens": ["Gluten", "Dairy", "Nuts"], "description": "Grilled chicken, basil pesto, sun-dried tomato, mozzarella on ciabatta."}},
+        {"title": "Cappuccino", "fields": {"name": "Cappuccino", "sku": "BKY-BEV-CAP", "price": 4.25, "category": "Beverage", "size": "Regular", "available_today": true, "calories": 90, "allergens": ["Dairy"], "description": "Double espresso topped with steamed and foamed whole milk."}},
+        {"title": "Brown Butter Chocolate Chip Cookie", "fields": {"name": "Brown Butter Chocolate Chip Cookie", "sku": "BKY-COO-CCC", "price": 3.00, "category": "Cookie", "size": "Regular", "available_today": true, "calories": 310, "allergens": ["Gluten", "Dairy", "Eggs"], "description": "Nutty brown-butter dough with dark and milk chocolate chunks."}},
+        {"title": "Spiced Pumpkin Pie", "fields": {"name": "Spiced Pumpkin Pie", "sku": "BKY-PIE-PUM", "price": 24.00, "category": "Seasonal", "size": "Large", "available_today": false, "calories": 2400, "allergens": ["Gluten", "Dairy", "Eggs"], "description": "Autumn seasonal — cinnamon, ginger, clove, on a flaky butter crust."}}
+      ]
+    },
+    {
+      "key": "ingredients",
+      "name_singular": "Ingredient",
+      "name_plural": "Ingredients",
+      "icon": "Wheat",
+      "color": "#a16207",
+      "description": "Raw materials with stock, cost, and expiry tracking.",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "unit", "label": "Unit", "type": "dropdown", "required": true, "config": {"options": ["g", "kg", "L", "mL", "piece", "dozen"]}, "order": 2},
+        {"key": "current_stock", "label": "Current stock", "type": "number", "config": {"min": 0}, "order": 3},
+        {"key": "min_stock_alert", "label": "Min stock alert", "type": "number", "config": {"min": 0}, "order": 4},
+        {"key": "cost_per_unit", "label": "Cost per unit", "type": "currency", "config": {"min": 0}, "order": 5},
+        {"key": "supplier_name", "label": "Supplier", "type": "text", "order": 6},
+        {"key": "expiry_date", "label": "Expiry date", "type": "date", "order": 7},
+        {"key": "storage_location", "label": "Storage location", "type": "dropdown", "config": {"options": ["Dry Store", "Fridge", "Freezer", "Ambient"]}, "order": 8},
+        {"key": "organic", "label": "Organic", "type": "boolean", "order": 9},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 10}
+      ],
+      "records": [
+        {"title": "Type 55 French Flour", "fields": {"name": "Type 55 French Flour", "unit": "kg", "current_stock": 85, "min_stock_alert": 20, "cost_per_unit": 1.90, "supplier_name": "Grand Moulin de Paris", "expiry_date": "2026-08-15", "storage_location": "Dry Store", "organic": false, "notes": "Preferred flour for croissants and baguettes."}},
+        {"title": "European-Style Butter", "fields": {"name": "European-Style Butter", "unit": "kg", "current_stock": 24, "min_stock_alert": 8, "cost_per_unit": 12.50, "supplier_name": "Vermont Creamery", "expiry_date": "2026-04-30", "storage_location": "Fridge", "organic": false, "notes": "82% butterfat — essential for lamination."}},
+        {"title": "Free-Range Eggs", "fields": {"name": "Free-Range Eggs", "unit": "dozen", "current_stock": 18, "min_stock_alert": 6, "cost_per_unit": 6.80, "supplier_name": "Meadowlark Farms", "expiry_date": "2026-04-12", "storage_location": "Fridge", "organic": true, "notes": "Grade AA large."}},
+        {"title": "Cane Sugar", "fields": {"name": "Cane Sugar", "unit": "kg", "current_stock": 60, "min_stock_alert": 15, "cost_per_unit": 1.20, "supplier_name": "Domino Foodservice", "expiry_date": "2027-01-01", "storage_location": "Dry Store", "organic": false}},
+        {"title": "70% Dark Chocolate Callets", "fields": {"name": "70% Dark Chocolate Callets", "unit": "kg", "current_stock": 12, "min_stock_alert": 5, "cost_per_unit": 24.00, "supplier_name": "Valrhona", "expiry_date": "2026-11-30", "storage_location": "Ambient", "organic": false, "notes": "For ganache, mousse, and enrobing."}},
+        {"title": "Organic Whole Milk", "fields": {"name": "Organic Whole Milk", "unit": "L", "current_stock": 40, "min_stock_alert": 12, "cost_per_unit": 2.10, "supplier_name": "Hillside Dairy Co-op", "expiry_date": "2026-04-10", "storage_location": "Fridge", "organic": true}},
+        {"title": "Fresh Instant Yeast", "fields": {"name": "Fresh Instant Yeast", "unit": "g", "current_stock": 1800, "min_stock_alert": 500, "cost_per_unit": 0.02, "supplier_name": "SAF-Instant", "expiry_date": "2026-06-20", "storage_location": "Fridge", "organic": false}},
+        {"title": "Wild Blueberries (Frozen)", "fields": {"name": "Wild Blueberries (Frozen)", "unit": "kg", "current_stock": 15, "min_stock_alert": 5, "cost_per_unit": 9.75, "supplier_name": "North Shore Berry Co", "expiry_date": "2026-12-01", "storage_location": "Freezer", "organic": true}}
+      ]
+    },
+    {
+      "key": "orders",
+      "name_singular": "Order",
+      "name_plural": "Orders",
+      "icon": "ShoppingBag",
+      "color": "#0f766e",
+      "description": "Pickup, delivery, and dine-in orders from customers.",
+      "fields": [
+        {"key": "order_number", "label": "Order #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "customer_name", "label": "Customer name", "type": "text", "required": true, "order": 2},
+        {"key": "customer_phone", "label": "Phone", "type": "phone", "order": 3},
+        {"key": "customer_email", "label": "Email", "type": "email", "order": 4},
+        {"key": "order_date", "label": "Order date", "type": "date", "order": 5},
+        {"key": "pickup_date", "label": "Pickup date/time", "type": "datetime", "order": 6},
+        {"key": "delivery_method", "label": "Delivery method", "type": "dropdown", "config": {"options": ["Pickup", "Delivery", "Dine-in"]}, "order": 7},
+        {"key": "total", "label": "Total", "type": "currency", "config": {"min": 0}, "order": 8},
+        {"key": "deposit_paid", "label": "Deposit paid", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Pending", "Confirmed", "In Production", "Ready", "Completed", "Cancelled"]}, "order": 10},
+        {"key": "items_summary", "label": "Items", "type": "longtext", "order": 11},
+        {"key": "special_instructions", "label": "Special instructions", "type": "longtext", "order": 12},
+        {"key": "photos", "label": "Reference photos", "type": "image", "config": {"multi": true}, "order": 13}
+      ],
+      "records": [
+        {"title": "ORD-1042", "fields": {"order_number": "ORD-1042", "customer_name": "Emma Larson", "customer_phone": "+1 415-555-0182", "customer_email": "emma.l@example.com", "order_date": "2026-04-01", "pickup_date": "2026-04-06T10:00:00Z", "delivery_method": "Pickup", "total": 145.00, "deposit_paid": 50.00, "status": "Confirmed", "items_summary": "1× Chocolate Ganache Cake (6-inch), 12× Butter Croissants", "special_instructions": "Please write 'Happy Birthday Léa' in white on top."}},
+        {"title": "ORD-1043", "fields": {"order_number": "ORD-1043", "customer_name": "Marcus Chen", "customer_phone": "+1 415-555-0210", "customer_email": "mchen@example.com", "order_date": "2026-04-02", "pickup_date": "2026-04-03T08:30:00Z", "delivery_method": "Delivery", "total": 68.50, "deposit_paid": 68.50, "status": "In Production", "items_summary": "6× Sandwiches (assorted), 2× Sourdough Loaves, 6× Cappuccinos", "special_instructions": "Corporate breakfast for 6 people. Deliver to 340 Market St., Suite 900."}},
+        {"title": "ORD-1044", "fields": {"order_number": "ORD-1044", "customer_name": "Priya Rao", "customer_phone": "+1 415-555-0119", "customer_email": "priya.rao@example.com", "order_date": "2026-04-02", "pickup_date": "2026-04-02T16:00:00Z", "delivery_method": "Pickup", "total": 22.50, "status": "Ready", "items_summary": "6× Wild Blueberry Muffins, 2× Cappuccinos"}},
+        {"title": "ORD-1045", "fields": {"order_number": "ORD-1045", "customer_name": "Jonah Weinstein", "customer_email": "jonah.w@example.com", "order_date": "2026-04-03", "pickup_date": "2026-04-14T14:00:00Z", "delivery_method": "Pickup", "total": 220.00, "deposit_paid": 100.00, "status": "Pending", "items_summary": "1× Wedding tasting flight (6 mini-cakes) + consultation", "special_instructions": "Bride and groom will attend the tasting."}}
+      ]
+    },
+    {
+      "key": "customers",
+      "name_singular": "Customer",
+      "name_plural": "Customers",
+      "icon": "Users",
+      "color": "#7c3aed",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 2},
+        {"key": "email", "label": "Email", "type": "email", "order": 3},
+        {"key": "birthday", "label": "Birthday", "type": "date", "order": 4},
+        {"key": "address", "label": "Address", "type": "longtext", "order": 5},
+        {"key": "preferences", "label": "Dietary preferences", "type": "multi_select", "config": {"options": ["Vegan", "Gluten Free", "Nut Free", "Halal", "Kosher"]}, "order": 6},
+        {"key": "loyalty_points", "label": "Loyalty points", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "total_spent", "label": "Total spent", "type": "currency", "config": {"min": 0}, "order": 8},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 9}
+      ],
+      "records": [
+        {"title": "Emma Larson", "fields": {"name": "Emma Larson", "phone": "+1 415-555-0182", "email": "emma.l@example.com", "birthday": "1988-07-14", "address": "1420 Divisadero St, San Francisco, CA 94115", "preferences": [], "loyalty_points": 340, "total_spent": 1245.50, "notes": "Regular Sunday breakfast; loves the country loaf."}},
+        {"title": "Marcus Chen", "fields": {"name": "Marcus Chen", "phone": "+1 415-555-0210", "email": "mchen@example.com", "birthday": "1992-03-02", "address": "340 Market St, Suite 900, San Francisco, CA 94111", "preferences": [], "loyalty_points": 890, "total_spent": 4210.00, "notes": "Corporate account — weekly office breakfast."}},
+        {"title": "Priya Rao", "fields": {"name": "Priya Rao", "phone": "+1 415-555-0119", "email": "priya.rao@example.com", "birthday": "1995-11-20", "address": "88 Bush St, San Francisco, CA 94104", "preferences": ["Nut Free"], "loyalty_points": 120, "total_spent": 385.75}},
+        {"title": "Jonah Weinstein", "fields": {"name": "Jonah Weinstein", "email": "jonah.w@example.com", "birthday": "1985-05-28", "preferences": ["Kosher"], "loyalty_points": 0, "total_spent": 0, "notes": "Wedding cake consultation booked for April 14."}},
+        {"title": "Amara Osei", "fields": {"name": "Amara Osei", "phone": "+1 415-555-0198", "email": "a.osei@example.com", "birthday": "1990-09-04", "preferences": ["Vegan", "Gluten Free"], "loyalty_points": 210, "total_spent": 612.30, "notes": "Prefers our vegan seasonal specials."}}
+      ]
+    },
+    {
+      "key": "suppliers",
+      "name_singular": "Supplier",
+      "name_plural": "Suppliers",
+      "icon": "Truck",
+      "color": "#475569",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "contact_person", "label": "Contact person", "type": "text", "order": 2},
+        {"key": "email", "label": "Email", "type": "email", "order": 3},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 4},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["Flour & Grains", "Dairy", "Chocolate", "Fruits", "Packaging", "Equipment", "Other"]}, "order": 5},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 6},
+        {"key": "payment_terms", "label": "Payment terms", "type": "text", "order": 7},
+        {"key": "rating", "label": "Rating", "type": "dropdown", "config": {"options": ["A", "B", "C"]}, "order": 8},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 9}
+      ],
+      "records": [
+        {"title": "Grand Moulin de Paris", "fields": {"name": "Grand Moulin de Paris", "contact_person": "Julien Béranger", "email": "orders@grandmoulin.fr", "phone": "+33 1 45 22 10 33", "category": "Flour & Grains", "lead_time_days": 14, "payment_terms": "Net 30", "rating": "A", "notes": "Type 55 and Type 65 imports. MOQ 100kg."}},
+        {"title": "Vermont Creamery", "fields": {"name": "Vermont Creamery", "contact_person": "Sarah Boudreau", "email": "sales@vermontcreamery.com", "phone": "+1 802-479-9371", "category": "Dairy", "lead_time_days": 5, "payment_terms": "Net 15", "rating": "A"}},
+        {"title": "Valrhona USA", "fields": {"name": "Valrhona USA", "contact_person": "Denise Kraft", "email": "denise.k@valrhona-selection.com", "phone": "+1 718-522-7001", "category": "Chocolate", "lead_time_days": 7, "payment_terms": "Prepaid on first order", "rating": "A", "notes": "Guanaja 70% and Jivara 40% callets."}},
+        {"title": "Golden Sheaf Packaging", "fields": {"name": "Golden Sheaf Packaging", "contact_person": "Riley O'Connor", "email": "riley@goldensheaf.com", "phone": "+1 510-555-0233", "category": "Packaging", "lead_time_days": 10, "payment_terms": "Net 30", "rating": "B", "notes": "Kraft boxes, glassine bags, wax paper."}}
+      ]
+    }
+  ],
+  "relationships": [],
+  "tags": [
+    {"name": "seasonal", "color": "#c2410c"},
+    {"name": "bestseller", "color": "#f59e0b"},
+    {"name": "vegan", "color": "#16a34a"}
+  ]
+}

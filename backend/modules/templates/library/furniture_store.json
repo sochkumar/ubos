@@ -1,0 +1,189 @@
+{
+  "key": "furniture_store",
+  "name": "Furniture Store",
+  "description": "Furniture, rooms, customers, orders, deliveries, and suppliers — plus a Furniture→Room link.",
+  "icon": "Armchair",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "furniture",
+      "name_singular": "Furniture",
+      "name_plural": "Furniture",
+      "icon": "Armchair",
+      "color": "#7c3aed",
+      "description": "Every piece of furniture you stock or make to order.",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 2},
+        {"key": "category", "label": "Category", "type": "dropdown", "required": true, "config": {"options": ["Sofa", "Armchair", "Dining Table", "Dining Chair", "Bed", "Wardrobe", "Desk", "Bookshelf", "Coffee Table", "Sideboard", "TV Unit", "Outdoor"]}, "order": 3},
+        {"key": "material", "label": "Material", "type": "dropdown", "config": {"options": ["Solid Wood", "Engineered Wood", "Metal", "Upholstered", "Glass", "Mixed"]}, "order": 4},
+        {"key": "wood_type", "label": "Wood type", "type": "text", "help_text": "e.g. Teak, Oak, Walnut", "order": 5},
+        {"key": "dimensions_cm", "label": "Dimensions (cm)", "type": "text", "help_text": "W × D × H", "order": 6},
+        {"key": "weight_kg", "label": "Weight (kg)", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "assembly_required", "label": "Assembly required", "type": "boolean", "order": 8},
+        {"key": "warranty_months", "label": "Warranty (months)", "type": "number", "config": {"min": 0}, "order": 9},
+        {"key": "price", "label": "Price", "type": "currency", "required": true, "config": {"min": 0}, "order": 10},
+        {"key": "in_stock_qty", "label": "In stock", "type": "number", "config": {"min": 0}, "order": 11},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 12},
+        {"key": "photos", "label": "Photos", "type": "image", "config": {"multi": true}, "order": 13},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 14}
+      ],
+      "categories": [
+        {"name": "Living Room"}, {"name": "Bedroom"}, {"name": "Dining Room"},
+        {"name": "Home Office"}, {"name": "Kids' Room"}, {"name": "Outdoor"},
+        {"name": "Storage"}
+      ],
+      "records": [
+        {"title": "Carlton 3-Seater Leather Sofa", "fields": {"name": "Carlton 3-Seater Leather Sofa", "sku": "FUR-SOF-CRL-001", "category": "Sofa", "material": "Upholstered", "dimensions_cm": "220 × 95 × 88", "weight_kg": 85, "assembly_required": false, "warranty_months": 60, "price": 2450.00, "in_stock_qty": 3, "lead_time_days": 10, "description": "Top-grain Italian leather, kiln-dried hardwood frame, feather-wrapped foam seats."}},
+        {"title": "Roswell Oak Dining Table", "fields": {"name": "Roswell Oak Dining Table", "sku": "FUR-DTB-RWL-004", "category": "Dining Table", "material": "Solid Wood", "wood_type": "European Oak", "dimensions_cm": "220 × 100 × 76", "weight_kg": 68, "assembly_required": true, "warranty_months": 60, "price": 1690.00, "in_stock_qty": 4, "lead_time_days": 5, "description": "Seats 8 comfortably. Extension leaves optional."}},
+        {"title": "Nordic Queen Bed Frame", "fields": {"name": "Nordic Queen Bed Frame", "sku": "FUR-BED-NRD-007", "category": "Bed", "material": "Solid Wood", "wood_type": "Ash", "dimensions_cm": "165 × 215 × 95", "weight_kg": 55, "assembly_required": true, "warranty_months": 60, "price": 1180.00, "in_stock_qty": 6, "lead_time_days": 7, "description": "Low-profile Scandinavian silhouette with slatted base. Mattress not included."}},
+        {"title": "Halden Executive Desk", "fields": {"name": "Halden Executive Desk", "sku": "FUR-DSK-HLD-002", "category": "Desk", "material": "Solid Wood", "wood_type": "American Walnut", "dimensions_cm": "180 × 80 × 76", "weight_kg": 62, "assembly_required": true, "warranty_months": 36, "price": 1420.00, "in_stock_qty": 2, "lead_time_days": 5, "description": "Two soft-close drawers, integrated cable channel."}},
+        {"title": "Sonora 4-Door Wardrobe", "fields": {"name": "Sonora 4-Door Wardrobe", "sku": "FUR-WRD-SNR-011", "category": "Wardrobe", "material": "Engineered Wood", "dimensions_cm": "200 × 60 × 220", "weight_kg": 130, "assembly_required": true, "warranty_months": 24, "price": 1990.00, "in_stock_qty": 3, "lead_time_days": 14, "description": "Push-open doors, adjustable interior shelving, integrated LED strip."}},
+        {"title": "Bristol Walnut Coffee Table", "fields": {"name": "Bristol Walnut Coffee Table", "sku": "FUR-COF-BRS-013", "category": "Coffee Table", "material": "Solid Wood", "wood_type": "Walnut", "dimensions_cm": "130 × 75 × 42", "weight_kg": 32, "assembly_required": false, "warranty_months": 24, "price": 780.00, "in_stock_qty": 5, "lead_time_days": 3}},
+        {"title": "Larsen 5-Tier Bookshelf", "fields": {"name": "Larsen 5-Tier Bookshelf", "sku": "FUR-BKS-LRS-015", "category": "Bookshelf", "material": "Solid Wood", "wood_type": "Pine", "dimensions_cm": "90 × 32 × 200", "weight_kg": 38, "assembly_required": true, "warranty_months": 24, "price": 520.00, "in_stock_qty": 8, "lead_time_days": 3}},
+        {"title": "Mira TV Unit 180cm", "fields": {"name": "Mira TV Unit 180cm", "sku": "FUR-TVU-MRA-006", "category": "TV Unit", "material": "Engineered Wood", "dimensions_cm": "180 × 40 × 45", "weight_kg": 42, "assembly_required": true, "warranty_months": 24, "price": 690.00, "in_stock_qty": 4, "lead_time_days": 4, "description": "Two drawers, two open shelves, cable-management cutout at rear."}},
+        {"title": "Bayside Teak Outdoor Bench", "fields": {"name": "Bayside Teak Outdoor Bench", "sku": "FUR-OUT-BAY-017", "category": "Outdoor", "material": "Solid Wood", "wood_type": "Grade-A Teak", "dimensions_cm": "150 × 55 × 88", "weight_kg": 34, "assembly_required": true, "warranty_months": 36, "price": 890.00, "in_stock_qty": 6, "lead_time_days": 5, "description": "FSC-certified teak. Weathers to a silver-grey patina."}},
+        {"title": "Milo Kids' Study Table", "fields": {"name": "Milo Kids' Study Table", "sku": "FUR-KID-MLO-019", "category": "Desk", "material": "Engineered Wood", "dimensions_cm": "100 × 55 × 74", "weight_kg": 22, "assembly_required": true, "warranty_months": 24, "price": 320.00, "in_stock_qty": 10, "lead_time_days": 2, "description": "Height-adjustable, rounded edges, includes a matching stool."}}
+      ]
+    },
+    {
+      "key": "rooms",
+      "name_singular": "Room",
+      "name_plural": "Rooms",
+      "icon": "Home",
+      "color": "#0d9488",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "room_type", "label": "Room type", "type": "dropdown", "config": {"options": ["Living", "Bedroom", "Dining", "Office", "Kitchen", "Kids", "Outdoor"]}, "order": 2},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 3},
+        {"key": "photos", "label": "Photos", "type": "image", "config": {"multi": true}, "order": 4}
+      ],
+      "records": [
+        {"title": "Living Room", "fields": {"name": "Living Room", "room_type": "Living", "description": "Main showroom vignette. Warm neutral palette, walnut accents."}},
+        {"title": "Master Bedroom", "fields": {"name": "Master Bedroom", "room_type": "Bedroom", "description": "Queen-bed setup with Nordic light-wood pieces."}},
+        {"title": "Kids' Bedroom", "fields": {"name": "Kids' Bedroom", "room_type": "Kids", "description": "Bright, playful — study table + single bed + storage."}},
+        {"title": "Dining Room", "fields": {"name": "Dining Room", "room_type": "Dining", "description": "8-seater dining vignette with pendant lighting."}},
+        {"title": "Home Office", "fields": {"name": "Home Office", "room_type": "Office", "description": "Executive desk + bookshelf + task chair combo."}},
+        {"title": "Patio", "fields": {"name": "Patio", "room_type": "Outdoor", "description": "Teak outdoor bench + coffee table + planters."}}
+      ]
+    },
+    {
+      "key": "customers",
+      "name_singular": "Customer",
+      "name_plural": "Customers",
+      "icon": "Users",
+      "color": "#a16207",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "email", "label": "Email", "type": "email", "order": 2},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 3},
+        {"key": "delivery_address", "label": "Delivery address", "type": "longtext", "order": 4},
+        {"key": "building_type", "label": "Building type", "type": "dropdown", "config": {"options": ["Apartment", "House", "Villa", "Office", "Hotel", "Retail", "Other"]}, "order": 5},
+        {"key": "preferred_style", "label": "Preferred style", "type": "dropdown", "config": {"options": ["Modern", "Traditional", "Contemporary", "Scandinavian", "Industrial", "Mid-Century", "Rustic"]}, "order": 6},
+        {"key": "lifetime_purchases", "label": "Lifetime purchases", "type": "currency", "config": {"min": 0}, "order": 7},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 8}
+      ],
+      "records": [
+        {"title": "Meredith Palmer", "fields": {"name": "Meredith Palmer", "email": "meredith.p@example.com", "phone": "+1 617-555-0182", "delivery_address": "42 Beacon St, Boston, MA 02108", "building_type": "House", "preferred_style": "Traditional", "lifetime_purchases": 12400.00}},
+        {"title": "Rajiv Menon", "fields": {"name": "Rajiv Menon", "email": "r.menon@example.com", "phone": "+1 617-555-0234", "delivery_address": "180 Hanover St, Apt 6, Boston, MA 02113", "building_type": "Apartment", "preferred_style": "Scandinavian", "lifetime_purchases": 4890.00, "notes": "Small-space fits — prefers modular pieces."}},
+        {"title": "Wilhelmina Zhao", "fields": {"name": "Wilhelmina Zhao", "email": "w.zhao@example.com", "phone": "+1 617-555-0175", "delivery_address": "88 Chestnut Hill Ave, Newton, MA 02467", "building_type": "Villa", "preferred_style": "Contemporary", "lifetime_purchases": 28600.00, "notes": "Repeat client — completed dining and living in 2025."}},
+        {"title": "Bright Coworks Ltd", "fields": {"name": "Bright Coworks Ltd", "email": "office@brightcoworks.com", "phone": "+1 617-555-0301", "delivery_address": "500 Boylston St, Floor 12, Boston, MA 02116", "building_type": "Office", "preferred_style": "Industrial", "lifetime_purchases": 18200.00, "notes": "Corporate account. Furnishing an entire new floor."}},
+        {"title": "Ophelia Rossi", "fields": {"name": "Ophelia Rossi", "email": "ophelia.r@example.com", "phone": "+1 617-555-0148", "delivery_address": "12 Marlborough St, Boston, MA 02116", "building_type": "Apartment", "preferred_style": "Mid-Century", "lifetime_purchases": 2340.00}}
+      ]
+    },
+    {
+      "key": "orders",
+      "name_singular": "Order",
+      "name_plural": "Orders",
+      "icon": "ShoppingBag",
+      "color": "#c2410c",
+      "fields": [
+        {"key": "order_number", "label": "Order #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "customer_name", "label": "Customer", "type": "text", "required": true, "order": 2},
+        {"key": "order_date", "label": "Order date", "type": "date", "order": 3},
+        {"key": "delivery_address", "label": "Delivery address", "type": "longtext", "order": 4},
+        {"key": "scheduled_delivery", "label": "Scheduled delivery", "type": "date", "order": 5},
+        {"key": "assembly_required", "label": "Assembly required", "type": "boolean", "order": 6},
+        {"key": "assembly_scheduled", "label": "Assembly scheduled", "type": "date", "order": 7},
+        {"key": "total", "label": "Total", "type": "currency", "config": {"min": 0}, "order": 8},
+        {"key": "deposit", "label": "Deposit", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "balance_due", "label": "Balance due", "type": "currency", "config": {"min": 0}, "order": 10},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Quoted", "Confirmed", "In Production", "In Warehouse", "Out for Delivery", "Delivered", "Assembled", "Completed", "Cancelled", "Returned"]}, "order": 11},
+        {"key": "items_summary", "label": "Items", "type": "longtext", "order": 12},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 13}
+      ],
+      "records": [
+        {"title": "FUR-ORD-3301", "fields": {"order_number": "FUR-ORD-3301", "customer_name": "Meredith Palmer", "order_date": "2026-03-22", "delivery_address": "42 Beacon St, Boston, MA 02108", "scheduled_delivery": "2026-04-12", "assembly_required": true, "assembly_scheduled": "2026-04-13", "total": 4130.00, "deposit": 1500.00, "balance_due": 2630.00, "status": "In Warehouse", "items_summary": "1× Carlton 3-Seater Sofa, 1× Bristol Walnut Coffee Table."}},
+        {"title": "FUR-ORD-3302", "fields": {"order_number": "FUR-ORD-3302", "customer_name": "Wilhelmina Zhao", "order_date": "2026-03-28", "delivery_address": "88 Chestnut Hill Ave, Newton, MA 02467", "scheduled_delivery": "2026-04-20", "assembly_required": true, "assembly_scheduled": "2026-04-21", "total": 7180.00, "deposit": 2500.00, "balance_due": 4680.00, "status": "Confirmed", "items_summary": "1× Roswell Oak Dining Table, 8× dining chairs (separate SKU), 1× Halden Executive Desk."}},
+        {"title": "FUR-ORD-3303", "fields": {"order_number": "FUR-ORD-3303", "customer_name": "Bright Coworks Ltd", "order_date": "2026-02-11", "delivery_address": "500 Boylston St, Floor 12, Boston, MA 02116", "scheduled_delivery": "2026-05-08", "assembly_required": true, "assembly_scheduled": "2026-05-09", "total": 12800.00, "deposit": 5000.00, "balance_due": 7800.00, "status": "In Production", "items_summary": "8× Halden desks, 6× Larsen bookshelves, 2× Mira TV units for meeting rooms."}},
+        {"title": "FUR-ORD-3304", "fields": {"order_number": "FUR-ORD-3304", "customer_name": "Rajiv Menon", "order_date": "2026-04-01", "delivery_address": "180 Hanover St, Apt 6, Boston, MA 02113", "scheduled_delivery": "2026-04-15", "assembly_required": true, "assembly_scheduled": "2026-04-15", "total": 1500.00, "deposit": 1500.00, "balance_due": 0, "status": "Quoted", "items_summary": "1× Milo Kids' Study Table + Larsen bookshelf for the second bedroom."}}
+      ]
+    },
+    {
+      "key": "deliveries",
+      "name_singular": "Delivery",
+      "name_plural": "Deliveries",
+      "icon": "Truck",
+      "color": "#0369a1",
+      "fields": [
+        {"key": "delivery_number", "label": "Delivery #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "order_number", "label": "Order #", "type": "text", "order": 2},
+        {"key": "scheduled_date", "label": "Scheduled date", "type": "date", "order": 3},
+        {"key": "scheduled_time_window", "label": "Time window", "type": "dropdown", "config": {"options": ["9AM-12PM", "12PM-3PM", "3PM-6PM", "6PM-9PM"]}, "order": 4},
+        {"key": "delivery_address", "label": "Delivery address", "type": "longtext", "order": 5},
+        {"key": "contact_person", "label": "Contact person", "type": "text", "order": 6},
+        {"key": "contact_phone", "label": "Contact phone", "type": "phone", "order": 7},
+        {"key": "driver_name", "label": "Driver", "type": "text", "order": 8},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Scheduled", "In Transit", "Delivered", "Failed", "Rescheduled"]}, "order": 9},
+        {"key": "needs_assembly", "label": "Needs assembly", "type": "boolean", "order": 10},
+        {"key": "delivery_notes", "label": "Delivery notes", "type": "longtext", "order": 11},
+        {"key": "signature_photo", "label": "Signature / proof", "type": "image", "order": 12}
+      ],
+      "records": [
+        {"title": "DLV-8801", "fields": {"delivery_number": "DLV-8801", "order_number": "FUR-ORD-3301", "scheduled_date": "2026-04-12", "scheduled_time_window": "9AM-12PM", "delivery_address": "42 Beacon St, Boston, MA 02108", "contact_person": "Meredith Palmer", "contact_phone": "+1 617-555-0182", "driver_name": "Elias Whitcomb", "status": "Scheduled", "needs_assembly": true, "delivery_notes": "3rd floor walk-up — book the freight elevator on the day of."}},
+        {"title": "DLV-8802", "fields": {"delivery_number": "DLV-8802", "order_number": "FUR-ORD-3302", "scheduled_date": "2026-04-20", "scheduled_time_window": "12PM-3PM", "delivery_address": "88 Chestnut Hill Ave, Newton, MA 02467", "contact_person": "Wilhelmina Zhao", "contact_phone": "+1 617-555-0175", "driver_name": "Jamila Foster", "status": "Scheduled", "needs_assembly": true, "delivery_notes": "Rear service entrance. Assembly team follows next morning."}},
+        {"title": "DLV-8803", "fields": {"delivery_number": "DLV-8803", "order_number": "FUR-ORD-3304", "scheduled_date": "2026-04-15", "scheduled_time_window": "3PM-6PM", "delivery_address": "180 Hanover St, Apt 6, Boston, MA 02113", "contact_person": "Rajiv Menon", "contact_phone": "+1 617-555-0234", "driver_name": "Elias Whitcomb", "status": "Scheduled", "needs_assembly": true}}
+      ]
+    },
+    {
+      "key": "suppliers",
+      "name_singular": "Supplier",
+      "name_plural": "Suppliers",
+      "icon": "Factory",
+      "color": "#475569",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "contact_person", "label": "Contact person", "type": "text", "order": 2},
+        {"key": "email", "label": "Email", "type": "email", "order": 3},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 4},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["Manufacturer", "Wholesaler", "Importer", "Craftsman", "Assembly Services", "Logistics"]}, "order": 5},
+        {"key": "country", "label": "Country", "type": "text", "order": 6},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "min_order_value", "label": "Minimum order value", "type": "currency", "config": {"min": 0}, "order": 8},
+        {"key": "payment_terms", "label": "Payment terms", "type": "text", "order": 9},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 10}
+      ],
+      "records": [
+        {"title": "Nordic Timber Co", "fields": {"name": "Nordic Timber Co", "contact_person": "Sven Halvorsen", "email": "sven@nordictimber.no", "phone": "+47 22 555 0122", "category": "Manufacturer", "country": "Norway", "lead_time_days": 30, "min_order_value": 4000.00, "payment_terms": "50% deposit, 50% pre-shipment", "notes": "Ash, oak, and pine ranges. FSC-certified."}},
+        {"title": "Kerala Craft Works", "fields": {"name": "Kerala Craft Works", "contact_person": "Anjali Nair", "email": "orders@keralacraft.in", "phone": "+91 484 555 0140", "category": "Craftsman", "country": "India", "lead_time_days": 45, "min_order_value": 3000.00, "payment_terms": "30% deposit", "notes": "Hand-carved teak and rosewood. Custom sizing available."}},
+        {"title": "Milano Upholstery", "fields": {"name": "Milano Upholstery", "contact_person": "Giovanna Rossi", "email": "g.rossi@milanoupholstery.it", "phone": "+39 02 555 0177", "category": "Manufacturer", "country": "Italy", "lead_time_days": 21, "min_order_value": 5000.00, "payment_terms": "Net 30", "notes": "Full sofas, chairs, and bespoke upholstery. Fabric-choice program integrated."}},
+        {"title": "Whitcomb Logistics", "fields": {"name": "Whitcomb Logistics", "contact_person": "Elias Whitcomb", "email": "elias@whitcomblogistics.com", "phone": "+1 617-555-0088", "category": "Logistics", "country": "United States", "lead_time_days": 2, "payment_terms": "Per delivery invoice", "notes": "In-house delivery + assembly partner. 7-day scheduling window."}}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_key": "furniture", "to_key": "rooms",
+      "key": "placed_in",
+      "from_label": "Placed in",
+      "to_label": "Contains",
+      "cardinality": "one_to_many"
+    }
+  ],
+  "tags": [
+    {"name": "bestseller", "color": "#f59e0b"},
+    {"name": "clearance", "color": "#dc2626"},
+    {"name": "new-arrival", "color": "#0d9488"},
+    {"name": "made-to-order", "color": "#7c3aed"}
+  ]
+}

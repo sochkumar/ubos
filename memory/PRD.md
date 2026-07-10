@@ -651,5 +651,29 @@ Watchdog-timeout blocked e1_tester's browser automation. A static scan surfaced 
 - Components: `BulkToolbar`, `FilterBar`, `RecordPicker`, `ViewsBar`, `ImportWizard`, `InviteModal`, `GlobalHotkeys`, `ShareAndPrintPanel`, `ViewShareDialog`, `PrintLabelsDialog`, `RelationshipsPanel`
 
 
+## Phase 7 Sub-pass A — Industry Starter Packs + Demo User (Feb 2026)
+
+Shipped 4 industry-specific starter packs and 1 fresh-onboarding demo user. Data-only work — no endpoint changes, no frontend UI changes.
+
+### Applier extension (additive — no route change)
+`services/template_applier.py` gained an optional `records: [...]` array on each entity_type spec. Records flow through `FieldValidator` on apply, so bad pack data surfaces as HTTP 422 with field-path errors (rollback removes anything already inserted). Dedupe by (org, entity_type, title) — safe to re-apply. Uses `_next_record_number` for canonical REC-NNNNNN allocation and `_derive_record_title` mirroring `routes/data.py::_derive_title` for consistency. Skipping records when the array is omitted keeps existing templates (catalog, crm_lite, etc.) untouched.
+
+### 4 new starter packs
+
+| Pack | ETs | Fields | Categories | Records | Relationships | Tags |
+|---|---:|---:|---:|---:|---:|---:|
+| **bakery_store** | 5 | 51 | 7 | 29 | – | 3 |
+| **jewellery_store** | 5 | 58 | 8 | 22 | – | 4 |
+| **furnishing_store** | 5 | 55 | 8 | 27 | – | 4 |
+| **furniture_store** | 6 | 61 | 7 | 32 | 1 (Furniture→Room) | 4 |
+
+Each pack ships domain-realistic sample data — real supplier names ("Nordic Timber Co", "Antwerp Diamond House", "Grand Moulin de Paris"), realistic currency ranges (bakery $2-$50, jewellery $200-$25k, furnishing $30-$500, furniture $100-$3000), and product mixes that a bakery/jeweller/furnisher/furniture owner would recognize as their day-one workspace. All 4 verified end-to-end via `POST /api/templates/<pack>/apply` — every entity_type, field, category, tag, sample record, and (for furniture) relationship inserts successfully.
+
+### Demo user seed
+`scripts/seed.py` now creates a standalone `demo@ubos.test / DemoPass!123` (name: "Demo Owner") with **NO memberships and NO org**. On first login they land on the onboarding wizard exactly like a real new sign-up — create their own org, pick a starter pack, and go. Verified: `POST /api/auth/login` returns `access_token` + `user.organizations = []`. `/app/memory/test_credentials.md` updated with the new credential row.
+
+**`GET /api/templates` now returns 9 templates** (5 existing + 4 new).
+
+
 
 

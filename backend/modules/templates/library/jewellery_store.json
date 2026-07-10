@@ -1,0 +1,157 @@
+{
+  "key": "jewellery_store",
+  "name": "Jewellery Store",
+  "description": "Pieces, custom orders, repairs, customers, and suppliers for a jewellery boutique.",
+  "icon": "Gem",
+  "cover_image": null,
+  "entity_types": [
+    {
+      "key": "jewellery_pieces",
+      "name_singular": "Jewellery Piece",
+      "name_plural": "Jewellery Pieces",
+      "icon": "Gem",
+      "color": "#a16207",
+      "description": "Every piece in your display case, safe, or online catalogue.",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "sku", "label": "SKU", "type": "text", "required": true, "unique": true, "order": 2},
+        {"key": "category", "label": "Category", "type": "dropdown", "required": true, "config": {"options": ["Ring", "Necklace", "Earrings", "Bracelet", "Pendant", "Watch", "Chain", "Anklet"]}, "order": 3},
+        {"key": "price", "label": "Price", "type": "currency", "required": true, "config": {"min": 0}, "order": 4},
+        {"key": "material", "label": "Material", "type": "dropdown", "config": {"options": ["Gold", "Silver", "Platinum", "Rose Gold", "Diamond", "Pearl", "Gemstone", "Mixed"]}, "order": 5},
+        {"key": "metal_purity", "label": "Metal purity", "type": "text", "help_text": "e.g. 22K, 925 Silver, PT950", "order": 6},
+        {"key": "weight_grams", "label": "Weight (g)", "type": "number", "config": {"min": 0}, "order": 7},
+        {"key": "stone_type", "label": "Stone type", "type": "text", "order": 8},
+        {"key": "stone_carat", "label": "Stone carat", "type": "number", "config": {"min": 0}, "order": 9},
+        {"key": "stone_count", "label": "Stone count", "type": "number", "config": {"min": 0}, "order": 10},
+        {"key": "size", "label": "Size", "type": "text", "help_text": "e.g. US 7, 18 inch", "order": 11},
+        {"key": "gender", "label": "Gender", "type": "dropdown", "config": {"options": ["Women", "Men", "Unisex"]}, "order": 12},
+        {"key": "certified", "label": "Certified", "type": "boolean", "order": 13},
+        {"key": "certificate_number", "label": "Certificate #", "type": "text", "order": 14},
+        {"key": "in_stock_qty", "label": "In stock", "type": "number", "config": {"min": 0}, "order": 15},
+        {"key": "photos", "label": "Photos", "type": "image", "config": {"multi": true}, "order": 16},
+        {"key": "description", "label": "Description", "type": "longtext", "order": 17}
+      ],
+      "categories": [
+        {"name": "Rings"}, {"name": "Necklaces"}, {"name": "Earrings"},
+        {"name": "Bracelets"}, {"name": "Pendants"}, {"name": "Watches"},
+        {"name": "Bridal Collection"}, {"name": "Men's Collection"}
+      ],
+      "records": [
+        {"title": "1.20ct Diamond Solitaire Ring", "fields": {"name": "1.20ct Diamond Solitaire Ring", "sku": "RG-DIA-SOL-001", "category": "Ring", "price": 8450.00, "material": "Diamond", "metal_purity": "18K White Gold", "weight_grams": 4.2, "stone_type": "Round Brilliant Diamond", "stone_carat": 1.20, "stone_count": 1, "size": "US 6.5", "gender": "Women", "certified": true, "certificate_number": "GIA-2418723640", "in_stock_qty": 1, "description": "GIA-certified round brilliant, F color, VS1 clarity, in a classic six-prong Tiffany setting."}},
+        {"title": "Freshwater Pearl Necklace", "fields": {"name": "Freshwater Pearl Necklace", "sku": "NC-PRL-FW-014", "category": "Necklace", "price": 685.00, "material": "Pearl", "metal_purity": "14K Yellow Gold clasp", "weight_grams": 22.0, "stone_type": "Freshwater Pearl", "stone_count": 42, "size": "18 inch", "gender": "Women", "certified": false, "in_stock_qty": 3, "description": "Hand-knotted white 7-8mm freshwater pearls with a secure gold clasp."}},
+        {"title": "22K Yellow Gold Chain", "fields": {"name": "22K Yellow Gold Chain", "sku": "CH-GLD-22K-020", "category": "Chain", "price": 2960.00, "material": "Gold", "metal_purity": "22K", "weight_grams": 18.5, "size": "20 inch", "gender": "Unisex", "certified": true, "certificate_number": "BIS-916-2024-3311", "in_stock_qty": 2, "description": "Traditional link chain in hallmarked 22K yellow gold."}},
+        {"title": "Emerald Drop Earrings", "fields": {"name": "Emerald Drop Earrings", "sku": "ER-EMD-DRP-007", "category": "Earrings", "price": 2150.00, "material": "Gemstone", "metal_purity": "18K White Gold", "weight_grams": 5.8, "stone_type": "Colombian Emerald", "stone_carat": 1.85, "stone_count": 2, "gender": "Women", "certified": true, "certificate_number": "GRS-2024-88117", "in_stock_qty": 1, "description": "Pair of pear-cut emeralds set in diamond-halo drops."}},
+        {"title": "Men's Comfort-Fit Wedding Band", "fields": {"name": "Men's Comfort-Fit Wedding Band", "sku": "RG-BND-MEN-005", "category": "Ring", "price": 1180.00, "material": "Platinum", "metal_purity": "PT950", "weight_grams": 9.5, "size": "US 10", "gender": "Men", "certified": true, "in_stock_qty": 2, "description": "6mm brushed platinum band with a comfort-fit interior."}},
+        {"title": "Sapphire Tennis Bracelet", "fields": {"name": "Sapphire Tennis Bracelet", "sku": "BR-SAP-TN-002", "category": "Bracelet", "price": 4275.00, "material": "Gemstone", "metal_purity": "18K White Gold", "weight_grams": 12.4, "stone_type": "Blue Sapphire", "stone_carat": 5.60, "stone_count": 24, "size": "7 inch", "gender": "Women", "certified": true, "certificate_number": "GRS-2024-91245", "in_stock_qty": 1, "description": "Alternating round sapphires and pavé diamonds in a claw setting."}},
+        {"title": "Automatic Gold Dress Watch", "fields": {"name": "Automatic Gold Dress Watch", "sku": "WT-AUT-GLD-011", "category": "Watch", "price": 12800.00, "material": "Gold", "metal_purity": "18K Yellow Gold", "weight_grams": 82.0, "gender": "Men", "certified": false, "in_stock_qty": 1, "description": "Swiss automatic movement, sapphire crystal, alligator strap."}},
+        {"title": "Rose Gold Heart Pendant", "fields": {"name": "Rose Gold Heart Pendant", "sku": "PN-RSG-HRT-018", "category": "Pendant", "price": 495.00, "material": "Rose Gold", "metal_purity": "14K Rose Gold", "weight_grams": 3.2, "stone_type": "Pavé Diamonds", "stone_carat": 0.15, "stone_count": 14, "gender": "Women", "certified": false, "in_stock_qty": 4, "description": "Delicate open-heart pendant with a pavé diamond edge — bestseller for anniversaries."}}
+      ]
+    },
+    {
+      "key": "customers",
+      "name_singular": "Customer",
+      "name_plural": "Customers",
+      "icon": "Users",
+      "color": "#7c3aed",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "order": 1},
+        {"key": "email", "label": "Email", "type": "email", "order": 2},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 3},
+        {"key": "address", "label": "Address", "type": "longtext", "order": 4},
+        {"key": "birthday", "label": "Birthday", "type": "date", "order": 5},
+        {"key": "anniversary", "label": "Anniversary", "type": "date", "order": 6},
+        {"key": "preferred_metal", "label": "Preferred metal", "type": "dropdown", "config": {"options": ["Gold", "Silver", "Platinum", "Rose Gold", "Any"]}, "order": 7},
+        {"key": "ring_size", "label": "Ring size", "type": "text", "order": 8},
+        {"key": "lifetime_purchases", "label": "Lifetime purchases", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "loyalty_tier", "label": "Loyalty tier", "type": "dropdown", "config": {"options": ["Silver", "Gold", "Platinum", "None"]}, "order": 10},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 11}
+      ],
+      "records": [
+        {"title": "Isabella Moretti", "fields": {"name": "Isabella Moretti", "email": "isabella.m@example.com", "phone": "+1 212-555-0187", "address": "220 Central Park South, Apt 14B, New York, NY 10019", "birthday": "1984-06-11", "anniversary": "2019-09-21", "preferred_metal": "Platinum", "ring_size": "US 6", "lifetime_purchases": 22800.00, "loyalty_tier": "Platinum", "notes": "Prefers modern minimalist settings. Husband buys most anniversary pieces."}},
+        {"title": "David Nakamura", "fields": {"name": "David Nakamura", "email": "dnakamura@example.com", "phone": "+1 212-555-0244", "address": "58 Wooster St, New York, NY 10012", "birthday": "1978-02-19", "anniversary": "2005-05-14", "preferred_metal": "Gold", "ring_size": "US 10", "lifetime_purchases": 8940.00, "loyalty_tier": "Gold"}},
+        {"title": "Fatima Al-Rashid", "fields": {"name": "Fatima Al-Rashid", "email": "fatima.ar@example.com", "phone": "+971 50 555 0132", "birthday": "1991-12-03", "preferred_metal": "Gold", "ring_size": "US 5.5", "lifetime_purchases": 46300.00, "loyalty_tier": "Platinum", "notes": "Frequent commissions. Traveling client — bill to Dubai address on file."}},
+        {"title": "Chloé Bernard", "fields": {"name": "Chloé Bernard", "email": "chloe.b@example.com", "phone": "+33 6 12 34 56 78", "birthday": "1996-08-24", "preferred_metal": "Rose Gold", "ring_size": "US 6.5", "lifetime_purchases": 1420.00, "loyalty_tier": "Silver", "notes": "First-time customer via referral from Isabella Moretti."}},
+        {"title": "Adaora Okafor", "fields": {"name": "Adaora Okafor", "email": "a.okafor@example.com", "phone": "+1 646-555-0301", "address": "1230 Fifth Ave, New York, NY 10029", "birthday": "1988-04-15", "anniversary": "2014-11-08", "preferred_metal": "Any", "lifetime_purchases": 5680.00, "loyalty_tier": "Gold"}}
+      ]
+    },
+    {
+      "key": "repairs",
+      "name_singular": "Repair Ticket",
+      "name_plural": "Repairs & Services",
+      "icon": "Wrench",
+      "color": "#0f766e",
+      "fields": [
+        {"key": "ticket_number", "label": "Ticket #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "customer_name", "label": "Customer", "type": "text", "required": true, "order": 2},
+        {"key": "item_description", "label": "Item description", "type": "longtext", "order": 3},
+        {"key": "item_photos", "label": "Item photos", "type": "image", "config": {"multi": true}, "order": 4},
+        {"key": "received_date", "label": "Received", "type": "date", "order": 5},
+        {"key": "estimated_completion", "label": "Est. completion", "type": "date", "order": 6},
+        {"key": "service_type", "label": "Service", "type": "dropdown", "config": {"options": ["Cleaning", "Polishing", "Resizing", "Stone Replacement", "Chain Repair", "Setting Repair", "Rhodium Plating", "Engraving", "Other"]}, "order": 7},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Received", "In Progress", "Awaiting Parts", "Ready for Pickup", "Delivered", "Cancelled"]}, "order": 8},
+        {"key": "quoted_cost", "label": "Quoted cost", "type": "currency", "config": {"min": 0}, "order": 9},
+        {"key": "final_cost", "label": "Final cost", "type": "currency", "config": {"min": 0}, "order": 10},
+        {"key": "technician", "label": "Technician", "type": "text", "order": 11},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 12}
+      ],
+      "records": [
+        {"title": "RT-2201", "fields": {"ticket_number": "RT-2201", "customer_name": "Isabella Moretti", "item_description": "Platinum engagement ring — center stone loosened. Prong retip and full polish requested.", "received_date": "2026-03-28", "estimated_completion": "2026-04-08", "service_type": "Setting Repair", "status": "In Progress", "quoted_cost": 285.00, "technician": "Miguel Rosa"}},
+        {"title": "RT-2202", "fields": {"ticket_number": "RT-2202", "customer_name": "David Nakamura", "item_description": "22K gold chain — clasp broken, needs replacement. Also full ultrasonic clean.", "received_date": "2026-03-30", "estimated_completion": "2026-04-03", "service_type": "Chain Repair", "status": "Awaiting Parts", "quoted_cost": 145.00, "technician": "Anna Weiss", "notes": "Waiting for 22K spring-ring clasp from Grand Bazaar supplier."}},
+        {"title": "RT-2203", "fields": {"ticket_number": "RT-2203", "customer_name": "Adaora Okafor", "item_description": "White gold band — resize from US 7 to US 6.5. Rhodium plating included.", "received_date": "2026-04-01", "estimated_completion": "2026-04-05", "service_type": "Resizing", "status": "Received", "quoted_cost": 95.00, "technician": "Miguel Rosa"}}
+      ]
+    },
+    {
+      "key": "custom_orders",
+      "name_singular": "Custom Order",
+      "name_plural": "Custom Orders",
+      "icon": "Sparkles",
+      "color": "#a855f7",
+      "fields": [
+        {"key": "order_number", "label": "Order #", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "customer_name", "label": "Customer", "type": "text", "required": true, "order": 2},
+        {"key": "design_brief", "label": "Design brief", "type": "longtext", "order": 3},
+        {"key": "reference_images", "label": "Reference images", "type": "image", "config": {"multi": true}, "order": 4},
+        {"key": "quoted_price", "label": "Quoted price", "type": "currency", "config": {"min": 0}, "order": 5},
+        {"key": "deposit_amount", "label": "Deposit", "type": "currency", "config": {"min": 0}, "order": 6},
+        {"key": "estimated_delivery", "label": "Estimated delivery", "type": "date", "order": 7},
+        {"key": "status", "label": "Status", "type": "dropdown", "config": {"options": ["Consultation", "Design Approved", "In Production", "Casting", "Setting", "Polishing", "QC", "Ready", "Delivered"]}, "order": 8},
+        {"key": "sketch", "label": "Sketch / CAD", "type": "image", "config": {"multi": true}, "order": 9},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 10}
+      ],
+      "records": [
+        {"title": "CO-0114", "fields": {"order_number": "CO-0114", "customer_name": "Fatima Al-Rashid", "design_brief": "Bespoke choker: 18K yellow gold, articulated Byzantine link, 15\" length, matching detachable pendant with 2ct emerald center.", "quoted_price": 18500.00, "deposit_amount": 6000.00, "estimated_delivery": "2026-05-30", "status": "Casting", "notes": "Emerald sourced from Muzo. Customer approved CAD on March 22."}},
+        {"title": "CO-0115", "fields": {"order_number": "CO-0115", "customer_name": "Isabella Moretti", "design_brief": "Anniversary eternity band matching existing solitaire. Platinum, 12× 0.10ct round brilliants, F/VS.", "quoted_price": 5850.00, "deposit_amount": 2000.00, "estimated_delivery": "2026-04-24", "status": "Setting"}}
+      ]
+    },
+    {
+      "key": "suppliers",
+      "name_singular": "Supplier",
+      "name_plural": "Suppliers",
+      "icon": "Truck",
+      "color": "#475569",
+      "fields": [
+        {"key": "name", "label": "Name", "type": "text", "required": true, "unique": true, "order": 1},
+        {"key": "contact_person", "label": "Contact person", "type": "text", "order": 2},
+        {"key": "email", "label": "Email", "type": "email", "order": 3},
+        {"key": "phone", "label": "Phone", "type": "phone", "order": 4},
+        {"key": "category", "label": "Category", "type": "dropdown", "config": {"options": ["Gold Merchant", "Silver Merchant", "Diamond Wholesaler", "Gemstone Dealer", "Findings", "Casting", "Certification Lab"]}, "order": 5},
+        {"key": "lead_time_days", "label": "Lead time (days)", "type": "number", "config": {"min": 0}, "order": 6},
+        {"key": "payment_terms", "label": "Payment terms", "type": "text", "order": 7},
+        {"key": "notes", "label": "Notes", "type": "longtext", "order": 8}
+      ],
+      "records": [
+        {"title": "Antwerp Diamond House", "fields": {"name": "Antwerp Diamond House", "contact_person": "Bram De Vos", "email": "bram@antwerpdh.be", "phone": "+32 3 233 41 22", "category": "Diamond Wholesaler", "lead_time_days": 7, "payment_terms": "Wire in advance", "notes": "GIA-certified rounds and fancy shapes. Reliable for VS+ stones."}},
+        {"title": "Rajasthan Gems Ltd", "fields": {"name": "Rajasthan Gems Ltd", "contact_person": "Vikram Sethi", "email": "vikram@rajgems.in", "phone": "+91 141 401 2233", "category": "Gemstone Dealer", "lead_time_days": 14, "payment_terms": "Net 45", "notes": "Sapphires, emeralds, rubies. Ask for certified parcels only."}},
+        {"title": "Precision Casting Co", "fields": {"name": "Precision Casting Co", "contact_person": "Yolanda Peña", "email": "yolanda@precisioncast.com", "phone": "+1 213-555-0912", "category": "Casting", "lead_time_days": 5, "payment_terms": "Net 15", "notes": "Lost-wax casting for platinum, gold, and silver. Excellent CAD-to-cast turnaround."}},
+        {"title": "GIA New York", "fields": {"name": "GIA New York", "contact_person": "Client Services", "email": "clientservice@gia.edu", "phone": "+1 212-751-2500", "category": "Certification Lab", "lead_time_days": 10, "payment_terms": "Prepaid per report"}}
+      ]
+    }
+  ],
+  "relationships": [],
+  "tags": [
+    {"name": "bridal", "color": "#f43f5e"},
+    {"name": "bestseller", "color": "#f59e0b"},
+    {"name": "certified", "color": "#0d9488"},
+    {"name": "custom", "color": "#a855f7"}
+  ]
+}

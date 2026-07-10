@@ -36,6 +36,12 @@ CANONICAL_USERS = [
     {"email": "editor@ubos.test", "password": "EditorPass!123", "name": "Editor Test", "role": "editor"},
     {"email": "viewer@ubos.test", "password": "ViewerPass!123", "name": "Viewer Test", "role": "viewer"},
 ]
+# Standalone demo user — NO org, NO memberships. On first login they land on
+# the onboarding wizard exactly like a fresh sign-up, then create their own
+# org and pick a starter pack. Used for demos + product walkthroughs.
+DEMO_USER = {
+    "email": "demo@ubos.test", "password": "DemoPass!123", "name": "Demo Owner",
+}
 ORG_NAME = "Acme Furniture"
 ORG_SLUG = "acme-furniture"
 
@@ -47,7 +53,7 @@ def _now() -> str:
 async def _reset_non_canonical(db):
     """Purge everything not tied to the canonical org + users. Same policy the
     housekeeping script uses at the end of test runs."""
-    canonical_emails = {u["email"] for u in CANONICAL_USERS}
+    canonical_emails = {u["email"] for u in CANONICAL_USERS} | {DEMO_USER["email"]}
     users = await db.users.find({"email": {"$nin": list(canonical_emails)}}).to_list(2000)
     delete_user_ids = [u["_id"] for u in users]
     acme = await db.organizations.find_one({"slug": ORG_SLUG})
@@ -119,6 +125,11 @@ async def run_seed(*, reset: bool = False, minimal: bool = False) -> dict:
     for u in CANONICAL_USERS:
         doc = await _upsert_user(db, u)
         users[u["email"]] = doc
+
+    # Standalone demo user — created but intentionally left with no membership
+    # so they land on the onboarding wizard exactly like a new sign-up.
+    demo = await _upsert_user(db, DEMO_USER)
+    users[DEMO_USER["email"]] = demo
 
     owner = users["owner@ubos.test"]
     org = await _ensure_org(db, owner)
