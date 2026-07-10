@@ -233,9 +233,11 @@ export default function EntityTypesPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <CardTitle className="truncate">{et.name_plural}</CardTitle>
-                      <CardDescription className="font-mono text-xs">
-                        {et.key}
-                      </CardDescription>
+                      {et.description ? (
+                        <CardDescription className="line-clamp-2 text-xs">
+                          {et.description}
+                        </CardDescription>
+                      ) : null}
                     </div>
                     <Button
                       variant="ghost"
