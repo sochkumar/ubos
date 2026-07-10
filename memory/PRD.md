@@ -701,3 +701,92 @@ Grep proofs archived at:
 
 
 
+
+
+## Phase 8 — Browsing & Multi-tasking (Feb 2026)
+
+Two net-new features. **No existing locked code touched** except at these
+explicit wire-up points: `App.js` (route registration + TabsProvider wrap),
+`AppLayout.jsx` (sidebar entry + TabBar mount + tab hotkeys),
+`GlobalHotkeys.jsx` (help modal entries), `terminology.js` (nav.browse key),
+`server.py` + `db.py` (route registration + index).
+
+### Feature A — Universal "All Items" browse
+
+**Backend** — `/app/backend/routes/browse.py`:
+- `GET /api/records/browse` — cross-collection feed, org-scoped, RBAC on
+  `records.read`. Query params: `q`, `entity_type_ids` (csv),
+  `category_ids` (csv, descendant-inclusive across all collections),
+  `tag_ids` (csv), `updated_since` (ISO), `sort` (updated_at:desc default),
+  `limit` (max 200), `cursor` (opaque base64 skip token).
+- Response bundles: `results` (with `entity_type` summary, `category_paths`,
+  `tags`, `primary_image_url` resolved from first image field), `next_cursor`,
+  `facets.{entity_types,categories,tags}` (counts under current filter),
+  `total_estimate`, `took_ms`, and — crucially — `entity_type_field_defs`
+  keyed by et_id so the client can render adaptive layouts without an
+  extra roundtrip.
+- New Mongo indexes: `(org_id, updated_at:-1)`, `(org_id, category_ids)`,
+  `(org_id, tag_ids)` for global sort/filter.
+- Route registered BEFORE `data_router` (path collision with `/records/{id}`).
+
+**Browse-scope views**:
+- `GET /api/browse/views` / `POST /api/browse/views` — same doc as regular
+  Views but with `entity_type_id = null`. Existing `PATCH/DELETE /api/views/:id`
+  works unchanged. Reuses `is_shared` semantics (owner/admin only for shared).
+
+**Frontend** — `/app/frontend/src/pages/BrowsePage.jsx`:
+- Route `/browse`, sidebar entry "All Items" under Workspace group.
+- Five layouts: Table / Gallery / Grid / Card / List. Table columns are the
+  shared cross-collection set (Title / Collection badge / Category / Tags /
+  Updated). Gallery + Card use `pickAdaptiveFields()` — image field →
+  required fields (by `order`) → remaining, filtered to a display-friendly
+  type priority (text > number > currency > dropdown > date). First 3-4
+  chosen per collection.
+- URL-hydrated filter state (`?q=&et=&cat=&tag=&layout=&sort=`) so tabs and
+  refresh preserve state.
+- Save-as-view via `BrowseViewsBar` dropdown (shared views for owners/admins).
+
+Performance: **7ms** on the seeded dataset (29 records × 5 collections) —
+well under the 300ms target.
+
+### Feature B — Multi-tab workspace
+
+**Design decisions locked with user**:
+- **URL-only tabs, no keep-alive** — switching a tab = `navigate(tab.path)`;
+  React Router mounts fresh. No parallel outlets, no display:none hacks.
+- **field_defs bundled** in browse response (see above).
+- **`useTabTitle(title, icon)` hook** — page-level opt-in; default titles
+  come from a route→title map that fires synchronously so tabs are never
+  visibly empty. Loading placeholder ("Loading…" + Loader2) fires when
+  the route doesn't match the map and the page hasn't hydrated yet.
+- **Sidebar collection click = replace current tab** (Chrome-native).
+  Ctrl/Cmd/middle-click = new tab.
+
+**Files added**:
+- `/app/frontend/src/lib/tabs.jsx` — `TabsProvider`, `useTabs`, `useTabTitle`,
+  and a document-level click / auxclick / contextmenu interceptor that:
+    - preventDefault on Ctrl/Cmd/middle-click of internal anchors →
+      `openTab(href, {switchTo:false})`
+    - preventDefault on right-click of internal anchors → shows a floating
+      2-item context menu ("Open in new tab" / "Open in new tab and switch")
+    - respects `[data-no-app-tab="true"]` on anchors so public/download links
+      opt out.
+  Also hosts session persistence (sessionStorage keys `ubos.tabs.v1` and
+  `ubos.tabs.closed.v1`), tab reorder, close-and-remember (last 5), and
+  MAX_TABS enforcement (20, with toast on overflow).
+- `/app/frontend/src/components/TabBar.jsx` — visual bar using
+  `@dnd-kit/sortable` for drag-reorder. Renders Lucide icon per tab, close
+  button on hover, `+` at the tail (disabled at MAX_TABS).
+
+**Keyboard shortcuts** wired in `AppLayout.jsx` via existing `useHotkeys`:
+- `⌘/Ctrl + T` → new tab (opens `/dashboard`)
+- `⌘/Ctrl + W` → close current tab (blocked when 1 tab left)
+- `⌘/Ctrl + Shift + T` → reopen last closed
+- `⌘/Ctrl + Tab` / `⌘/Ctrl + Shift + Tab` → next / prev tab
+  (browsers may intercept — best-effort)
+- `⌘/Ctrl + 1..9` → jump to Nth tab
+Help modal (`GlobalHotkeys.jsx`) updated with a new "Tabs" section.
+
+### Non-goals honored
+- Sub-pass B (onboarding wizard, coach marks, help center, per-pack
+  terminology presets) — DEFERRED. Not touched.

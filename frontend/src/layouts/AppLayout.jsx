@@ -5,7 +5,7 @@ import {
   Search, ChevronDown, ChevronsUpDown, LogOut, Plus, Check,
   User as UserIcon, Building2, ImageIcon, Gift, Wrench, Layout,
   Link as LinkIcon, Bell, Sparkles, Tag as TagIcon, FolderTree,
-  ArrowLeftRight, Type,
+  ArrowLeftRight, Type, Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +21,9 @@ import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 import { CommandPalette, useCommandPalette } from "@/components/CommandPalette";
 import { InstallAppMenuItem } from "@/components/InstallAppMenuItem";
+import { TabBar } from "@/components/TabBar";
+import { useTabs } from "@/lib/tabs";
+import { useHotkeys } from "@/hooks/useHotkeys";
 import { Keyboard, Printer } from "lucide-react";
 
 // Sidebar nav groups — labels are resolved live via t() inside the render.
@@ -32,6 +35,7 @@ const NAV_GROUPS = [
     items: [
       { key: "nav.dashboard", to: "/dashboard",    fallback: "Home",           icon: Home,      testid: "nav-dashboard" },
       { key: "nav.data",      to: "/entity-types", fallback: "My Data",        icon: Boxes,     testid: "nav-my-data",   hasChildren: true },
+      { key: "nav.browse",    to: "/browse",       fallback: "All Items",      icon: Compass,   testid: "nav-all-items" },
       { key: "nav.media",     to: "/media",        fallback: "Files",          icon: ImageIcon, testid: "nav-files" },
       { key: "nav.templates", to: "/templates",    fallback: "Starter Packs",  icon: Gift,      testid: "nav-starter-packs" },
       { key: "nav.search",    to: "/search",       fallback: "Search",         icon: Search,    testid: "nav-search" },
@@ -66,6 +70,29 @@ export default function AppLayout() {
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useCommandPalette();
   const [collections, setCollections] = useState([]);
+
+  // ── Multi-tab hotkeys (Phase 8) ──
+  const {
+    tabs, activeIndex, openTab, closeTab, activateTab, reopenLastClosed,
+    nextTab, prevTab, jumpTo,
+  } = useTabs();
+  useHotkeys("mod+t", () => openTab("/dashboard", { switchTo: true }));
+  useHotkeys("mod+w", () => {
+    const active = tabs[activeIndex];
+    if (active && tabs.length > 1) closeTab(active.id);
+  }, [tabs, activeIndex]);
+  useHotkeys("mod+shift+t", () => reopenLastClosed());
+  useHotkeys("mod+tab",       () => nextTab(), [nextTab]);
+  useHotkeys("mod+shift+tab", () => prevTab(), [prevTab]);
+  useHotkeys("mod+1", () => jumpTo(1));
+  useHotkeys("mod+2", () => jumpTo(2));
+  useHotkeys("mod+3", () => jumpTo(3));
+  useHotkeys("mod+4", () => jumpTo(4));
+  useHotkeys("mod+5", () => jumpTo(5));
+  useHotkeys("mod+6", () => jumpTo(6));
+  useHotkeys("mod+7", () => jumpTo(7));
+  useHotkeys("mod+8", () => jumpTo(8));
+  useHotkeys("mod+9", () => jumpTo(9));
 
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
 
@@ -426,6 +453,7 @@ export default function AppLayout() {
         </div>
 
         {/* Content */}
+        <TabBar />
         <main className="flex-1 min-w-0 overflow-auto" data-testid="app-content">
           <Outlet />
         </main>

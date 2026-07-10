@@ -138,6 +138,10 @@ async def ensure_indexes() -> None:
     await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("category_ids", 1)])
     await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("tag_ids", 1)])
     await db.records.create_index([("org_id", 1), ("entity_type_id", 1), ("updated_at", -1)])
+    # Phase 8: universal browse — sort by updated_at across ALL entity types
+    await db.records.create_index([("org_id", 1), ("updated_at", -1)], name="browse_updated_at")
+    await db.records.create_index([("org_id", 1), ("category_ids", 1)], name="browse_category_ids")
+    await db.records.create_index([("org_id", 1), ("tag_ids", 1)], name="browse_tag_ids")
 
     # Phase 3: Views, activity, versions
     await db.views.create_index([("org_id", 1), ("entity_type_id", 1)])

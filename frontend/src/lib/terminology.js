@@ -89,6 +89,7 @@ export const DEFAULT_TERMS = {
   "nav.settings": "Settings",
   "nav.dashboard": "Home",
   "nav.search": "Search",
+  "nav.browse": "All Items",
   "nav.media": "Files",
   "nav.templates": "Starter Packs",
 
@@ -248,7 +249,7 @@ export const TERM_GROUPS = [
     hint: "Sidebar section names.",
     keys: [
       "nav.dashboard", "nav.data", "nav.setup", "nav.settings",
-      "nav.search", "nav.media", "nav.templates", "nav.workspace",
+      "nav.search", "nav.media", "nav.templates", "nav.workspace", "nav.browse",
     ],
   },
   {

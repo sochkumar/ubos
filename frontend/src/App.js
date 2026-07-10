@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { TerminologyProvider } from "@/lib/terminology";
+import { TabsProvider } from "@/lib/tabs";
 import { RequireAuth, RequireGuest } from "@/components/RequireAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GlobalHotkeys } from "@/components/GlobalHotkeys";
@@ -38,6 +39,7 @@ import PublicViewPage from "@/pages/PublicViewPage";
 import PublicViewRecordPage from "@/pages/PublicViewRecordPage";
 import DashboardPage from "@/pages/DashboardPage";
 import SearchPage from "@/pages/SearchPage";
+import BrowsePage from "@/pages/BrowsePage";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 
 /** Small wrapper — per-page ErrorBoundary so a broken page keeps sidebar/topbar. */
@@ -99,7 +101,9 @@ function App() {
                 element={
                   <RequireAuth>
                     <TerminologyProvider>
-                      <AppLayout />
+                      <TabsProvider>
+                        <AppLayout />
+                      </TabsProvider>
                     </TerminologyProvider>
                   </RequireAuth>
                 }
@@ -107,6 +111,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Page name="Dashboard"><DashboardPage /></Page>} />
                 <Route path="/search" element={<Page name="Search"><SearchPage /></Page>} />
+                <Route path="/browse" element={<Page name="Browse"><BrowsePage /></Page>} />
                 <Route path="/entity-types" element={<Page name="EntityTypes"><EntityTypesPage /></Page>} />
                 <Route path="/entity-types/:id/fields" element={<Page name="Fields"><FieldsPage /></Page>} />
                 <Route path="/entity-types/:id/records" element={<Page name="Records"><RecordsPage /></Page>} />

@@ -40,6 +40,7 @@ from routes.invitations import router as invitations_router
 from routes.view_shares import router as view_shares_router
 from routes.label_presets import router as label_presets_router
 from routes.dashboard_layout import router as dashboard_layout_router
+from routes.browse import router as browse_router
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -130,6 +131,7 @@ async def health():
 api.include_router(auth_router)
 api.include_router(oauth_router)
 api.include_router(orgs_router)
+api.include_router(browse_router)
 api.include_router(data_router)
 api.include_router(categories_router)
 api.include_router(tags_router)

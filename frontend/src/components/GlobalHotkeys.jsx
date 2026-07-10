@@ -12,9 +12,21 @@ const GROUPS = [
     title: "Navigation",
     items: [
       { keys: ["g", "d"], label: "Go to Dashboard" },
+      { keys: ["g", "b"], label: "Go to All Items (browse)" },
       { keys: ["g", "r"], label: "Go to Items (current or first collection)" },
       { keys: ["g", "s"], label: "Go to Search" },
       { keys: ["g", "m"], label: "Go to Media" },
+    ],
+  },
+  {
+    title: "Tabs",
+    items: [
+      { keys: [`${HOTKEY_META}`, "T"], label: "New tab (opens Dashboard)" },
+      { keys: [`${HOTKEY_META}`, "W"], label: "Close current tab" },
+      { keys: [`${HOTKEY_META}`, "Shift", "T"], label: "Reopen last closed tab" },
+      { keys: [`${HOTKEY_META}`, "Tab"], label: "Next tab" },
+      { keys: [`${HOTKEY_META}`, "Shift", "Tab"], label: "Previous tab" },
+      { keys: [`${HOTKEY_META}`, "1‥9"], label: "Jump to Nth tab" },
     ],
   },
   {
@@ -56,6 +68,7 @@ export function GlobalHotkeys() {
   useHotkeys("mod+/", () => setOpen(true));
   useHotkeys("?", () => setOpen(true));
   useHotkeys("g d", () => nav("/dashboard"));
+  useHotkeys("g b", () => nav("/browse"));
   useHotkeys("g s", () => nav("/search"));
   useHotkeys("g m", () => nav("/media"));
   useHotkeys("g r", async () => {
