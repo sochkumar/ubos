@@ -43,7 +43,7 @@ const URL_TO_KIND = {
   tag: "tag",
 };
 const KIND_TO_URL = {
-  record: "records",
+  record: "items",
   entity_type: "entity_types",
   category: "categories",
   tag: "tags",

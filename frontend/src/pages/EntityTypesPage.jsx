@@ -79,7 +79,7 @@ export default function EntityTypesPage() {
     setCreating(true);
     try {
       await api.post("/entity-types", form);
-      toast.success(`${form.name_singular} added as a new Collection`);
+      toast.success(t("collection.created_toast", { name: form.name_singular }));
       setOpen(false);
       resetForm();
       await load();
@@ -95,7 +95,7 @@ export default function EntityTypesPage() {
       return;
     try {
       await api.delete(`/entity-types/${et.id}`);
-      toast.success("Deleted");
+      toast.success(t("collection.deleted_toast", { collectionName: et.name_singular || et.name_plural }));
       await load();
     } catch (err) {
       toast.error(extractErrorMessage(err));

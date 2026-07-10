@@ -42,6 +42,7 @@ import {
 import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
 import { slugifyKey as slugify } from "@/lib/slugify";
+import { useTerminology } from "@/lib/terminology";
 
 const FIELD_TYPES = [
   { value: "text", group: "Basic" },
@@ -78,6 +79,7 @@ const emptyForm = () => ({
 export default function FieldsPage() {
   const { id: etId } = useParams();
   const nav = useNavigate();
+  const { t } = useTerminology();
   const [et, setEt] = useState(null);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -165,7 +167,7 @@ export default function FieldsPage() {
     if (!window.confirm(`Delete field "${f.label}"?\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/fields/${f.id}`);
-      toast.success("Field deleted");
+      toast.success(t("field.deleted_toast", { fieldName: f.label }));
       await load();
     } catch (err) {
       toast.error(extractErrorMessage(err));

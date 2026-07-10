@@ -86,7 +86,7 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
       {/* Categories */}
       <Dialog open={catOpen} onOpenChange={setCatOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Assign categories to {selectedIds.length} records</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Assign categories to {selectedIds.length} items</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <Label className="text-sm">Mode</Label>
@@ -114,7 +114,7 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
       {/* Tags */}
       <Dialog open={tagOpen} onOpenChange={setTagOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Assign tags to {selectedIds.length} records</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Assign tags to {selectedIds.length} items</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <Label className="text-sm">Mode</Label>
@@ -142,7 +142,7 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
       {/* Edit field */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Bulk edit field on {selectedIds.length} records</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Bulk edit field on {selectedIds.length} items</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {editableFields.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -182,7 +182,7 @@ export function BulkToolbar({ etId, selectedIds, onDone, onClear, fields }) {
       {/* Delete */}
       <Dialog open={delOpen} onOpenChange={setDelOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Delete {selectedIds.length} records?</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Delete {selectedIds.length} items?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
             This soft-deletes the records and updates category / tag usage counts. Records may be recoverable in the future via version history.
           </p>

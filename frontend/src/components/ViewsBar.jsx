@@ -117,7 +117,7 @@ export function ViewsBar({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="h-8 gap-1.5" data-testid="views-picker">
             <Bookmark className="w-3.5 h-3.5" />
-            <span className="max-w-[160px] truncate">{active ? active.name : "All records"}</span>
+            <span className="max-w-[160px] truncate">{active ? active.name : "All items"}</span>
             {active?.is_shared && <Share2 className="w-3 h-3 opacity-60" />}
           </Button>
         </PopoverTrigger>

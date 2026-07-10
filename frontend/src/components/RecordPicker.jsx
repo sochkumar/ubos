@@ -21,7 +21,7 @@ import { api } from "@/lib/api";
  */
 export function RecordPicker({
   open, onOpenChange, entityTypeId, excludeIds = [], multiple = true,
-  title = "Pick records", onPick,
+  title = "Pick items", onPick,
 }) {
   const [q, setQ] = useState("");
   const [items, setItems] = useState([]);

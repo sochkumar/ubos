@@ -169,7 +169,7 @@ export default function CategoriesPage() {
           <EmptyState
             icon={FolderTree}
             title="No categories yet"
-            description="Create a category tree to group records — e.g. Furniture > Chairs > Ergonomic."
+            description="Create a category tree to group items — e.g. Furniture > Chairs > Ergonomic."
             action={<Button onClick={() => openAdd(null)}><Plus className="w-4 h-4 mr-1.5" /> New root category</Button>}
           />
         ) : (

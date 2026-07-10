@@ -245,7 +245,7 @@ function SortPopover({ fields, sort, onChange }) {
       </PopoverTrigger>
       <PopoverContent className="w-[380px] p-3 space-y-2" align="start">
         {tmp.length === 0 && (
-          <p className="text-xs text-muted-foreground py-2">No sort — records default to newest first.</p>
+          <p className="text-xs text-muted-foreground py-2">No sort — items default to newest first.</p>
         )}
         {tmp.map((s, i) => (
           <div key={i} className="flex items-center gap-1.5">

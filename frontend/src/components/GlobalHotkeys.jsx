@@ -21,7 +21,7 @@ const GROUPS = [
     title: "Actions",
     items: [
       { keys: ["n"], label: "Add new item (on items list)" },
-      { keys: ["e"], label: "Focus edit on record detail" },
+      { keys: ["e"], label: "Focus edit on item detail" },
     ],
   },
   {

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
+import { useTerminology, t as tPure } from "@/lib/terminology";
 import { PageBody, PageHeader, EmptyState } from "@/components/PageChrome";
 import { MediaUploadZone } from "@/components/MediaUploadZone";
 import { StorageQuotaBar, humanBytes } from "@/components/StorageQuotaBar";
@@ -43,7 +44,7 @@ function MediaDrawer({ mediaId, onClose, onDeleted }) {
     setDeleting(true);
     try {
       await api.delete(`/media/${mediaId}`, { params: cascade ? { cascade: true } : {} });
-      toast.success("Deleted");
+      toast.success(tPure("media.deleted_toast"));
       onDeleted && onDeleted(mediaId);
     } catch (e) {
       const d = e?.response?.data?.detail;
@@ -200,9 +201,9 @@ export default function MediaPage() {
   return (
     <>
       <PageHeader
-        title="Media"
+        title="Files"
         subtitle={`${total} file${total === 1 ? "" : "s"} in this workspace`}
-        breadcrumbs={[{ label: "Media" }]}
+        breadcrumbs={[{ label: "Files" }]}
         actions={<div className="w-56"><StorageQuotaBar data={storage} compact /></div>}
       />
       <PageBody className="space-y-4">
@@ -246,8 +247,8 @@ export default function MediaPage() {
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : items.length === 0 ? (
-          <EmptyState icon={FolderKanban} title="No media yet"
-            description="Upload files, images, and documents. They'll show up here and become referenceable from any record." />
+          <EmptyState icon={FolderKanban} title="No files yet"
+            description="Upload files, images, and documents. They'll show up here and become referenceable from any item." />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {items.map((m) => {

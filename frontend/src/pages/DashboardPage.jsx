@@ -47,11 +47,11 @@ function relTime(iso) {
 }
 
 const ACTION_VERBS = {
-  "record.created": "created record",
-  "record.updated": "updated record",
-  "record.deleted": "deleted record",
-  "records.bulk_deleted": "bulk-deleted records",
-  "records.bulk_updated": "bulk-updated records",
+  "record.created": "added an item",
+  "record.updated": "updated an item",
+  "record.deleted": "deleted an item",
+  "records.bulk_deleted": "bulk-deleted items",
+  "records.bulk_updated": "bulk-updated items",
   "share.created": "created a share link",
   "share.updated": "updated a share link",
   "share.revoked": "revoked a share link",

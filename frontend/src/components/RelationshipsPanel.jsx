@@ -55,7 +55,7 @@ export function RelationshipsPanel({ record, onChanged }) {
       }
     }
     if (ok) toast.success(`Linked ${ok} record${ok === 1 ? "" : "s"}`);
-    if (!ok && err) toast.error("No records were linked");
+    if (!ok && err) toast.error("No items were linked");
     load();
     onChanged && onChanged();
   };

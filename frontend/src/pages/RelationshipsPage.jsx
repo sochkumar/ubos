@@ -93,7 +93,7 @@ export default function RelationshipsPage() {
     <>
       <PageHeader
         title={et ? `${et.name_plural} · Relationships` : "Relationships"}
-        subtitle="Schema-level definitions. Record-level instances arrive in Phase 3."
+        subtitle="Schema-level definitions of how items in one collection connect to items in another."
         breadcrumbs={[
           { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },

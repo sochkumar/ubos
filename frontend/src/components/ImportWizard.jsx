@@ -320,7 +320,7 @@ export function ImportWizard({ open, onOpenChange, entityTypeId, fields, onImpor
                         <SelectItem value="__ignore__" className="text-muted-foreground italic">
                           Ignore this column
                         </SelectItem>
-                        <SelectItem value="title">Title (record-level)</SelectItem>
+                        <SelectItem value="title">Title (item-level)</SelectItem>
                         <SelectItem value="tags">Tags (comma-separated)</SelectItem>
                         {printableFields.map((f) => (
                           <SelectItem key={f.key} value={f.key}>
@@ -342,7 +342,7 @@ export function ImportWizard({ open, onOpenChange, entityTypeId, fields, onImpor
           <div className="py-4 space-y-4" data-testid="wizard-step-options">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-sm">Match records by</Label>
+                <Label className="text-sm">Match items by</Label>
                 <Select value={matchBy || "__none__"} onValueChange={(v) => setMatchBy(v === "__none__" ? "" : v)}>
                   <SelectTrigger data-testid="wizard-matchby"><SelectValue /></SelectTrigger>
                   <SelectContent>

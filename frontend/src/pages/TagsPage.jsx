@@ -76,7 +76,7 @@ export default function TagsPage() {
     <>
       <PageHeader
         title={et ? `${et.name_plural} · Tags` : "Tags"}
-        subtitle="Lightweight labels for records. Tags can be entity-scoped or org-wide."
+        subtitle="Lightweight labels for items. Tags can be scoped to one collection or shared across the workspace."
         breadcrumbs={[
           { label: "My Data", to: "/entity-types" },
           { label: et?.name_plural || "…" },
@@ -96,7 +96,7 @@ export default function TagsPage() {
           <EmptyState
             icon={TagIcon}
             title={q ? "No tags match" : "No tags yet"}
-            description={q ? "Try a different filter." : "Create your first tag to start labeling records."}
+            description={q ? "Try a different filter." : "Create your first tag to start labeling items."}
             action={!q && <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-1.5" /> New tag</Button>}
           />
         ) : (

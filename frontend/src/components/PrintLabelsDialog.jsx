@@ -248,7 +248,7 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
           {/* Preview stats */}
           <div className="col-span-2 rounded-md bg-muted/40 p-3 text-xs">
             <div className="flex flex-wrap gap-4">
-              <div><span className="text-muted-foreground">Records:</span> <b>{recordIds?.length || 0}</b></div>
+              <div><span className="text-muted-foreground">Items:</span> <b>{recordIds?.length || 0}</b></div>
               <div><span className="text-muted-foreground">Copies each:</span> <b>{copies}</b></div>
               <div><span className="text-muted-foreground">Total labels:</span> <b>{totalLabels}</b></div>
               <div><span className="text-muted-foreground">Labels/page:</span> <b>{perPage}</b></div>

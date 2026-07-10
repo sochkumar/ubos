@@ -310,7 +310,7 @@ export default function RecordsPage() {
                 <Input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search records…"
+                  placeholder={`Search ${(et?.name_plural || "items").toLowerCase()}…`}
                   className="h-8 text-sm"
                   data-testid="records-search"
                 />
@@ -367,8 +367,8 @@ export default function RecordsPage() {
             ) : items.length === 0 ? (
               <EmptyState
                 icon={ListChecks}
-                title={filters.length || filterCat || filterTags.length || q ? "No records match" : "No records yet"}
-                description={filters.length || filterCat || filterTags.length || q ? "Try relaxing the filters or clearing search." : `Create the first ${et?.name_singular || "record"}.`}
+                title={filters.length || filterCat || filterTags.length || q ? `No ${(et?.name_plural || "items").toLowerCase()} match` : `No ${(et?.name_plural || "items").toLowerCase()} yet`}
+                description={filters.length || filterCat || filterTags.length || q ? "Try relaxing the filters or clearing search." : `Create the first ${et?.name_singular || "item"}.`}
                 action={!(filters.length || filterCat || filterTags.length || q) && <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1.5" /> Add new {et?.name_singular || "item"}</Button>}
               />
             ) : (

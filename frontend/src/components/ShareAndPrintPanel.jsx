@@ -361,7 +361,7 @@ function CreateShareDialog({ open, onOpenChange, record, fields, onCreated }) {
             {restrict && (
               <div className="mt-2 rounded-md border border-border p-2 bg-muted/20">
                 <div className="text-[11px] font-mono uppercase text-muted-foreground mb-1">
-                  Fields to expose <span className="normal-case font-sans">(empty = title/record # only)</span>
+                  Fields to expose <span className="normal-case font-sans">(empty = title/item # only)</span>
                 </div>
                 {nonSensitive.length === 0 ? (
                   <div className="text-xs text-muted-foreground">No exposable fields on this entity.</div>

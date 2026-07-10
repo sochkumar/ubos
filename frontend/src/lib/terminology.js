@@ -44,6 +44,11 @@ export const DEFAULT_TERMS = {
   "record.created_toast": "{collectionName} added",
   "record.updated_toast": "{collectionName} saved",
 
+  "collection.created_toast": "{name} added as a new Collection",
+  "collection.deleted_toast": "Collection deleted",
+  "media.deleted_toast": "File deleted",
+  "field.deleted_toast": "{fieldName} deleted",
+
   "field.singular": "Field",
   "field.plural": "Fields",
   "field.help": "A piece of info you track for each item",
@@ -225,15 +230,17 @@ export const TERM_GROUPS = [
     hint: "The core building blocks of your workspace.",
     keys: [
       "collection.singular", "collection.plural", "collection.new", "collection.help",
+      "collection.created_toast", "collection.deleted_toast",
       "record.singular", "record.plural", "record.new", "record.help",
       "record.delete_confirm", "record.deleted_toast",
       "record.created_toast", "record.updated_toast",
-      "field.singular", "field.plural", "field.help",
+      "field.singular", "field.plural", "field.help", "field.deleted_toast",
       "category.singular", "category.plural",
       "tag.singular", "tag.plural",
       "link.singular", "link.plural", "link.help",
       "view.singular", "view.plural",
       "sensitive_field", "sensitive_field.help",
+      "media.deleted_toast",
     ],
   },
   {

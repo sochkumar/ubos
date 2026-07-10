@@ -17,7 +17,7 @@ import { useAuth } from "@/lib/auth";
 
 const ROLE_OPTIONS = [
   { value: "admin", label: "Admin — manage settings, members, everything" },
-  { value: "editor", label: "Editor — create and edit records" },
+  { value: "editor", label: "Editor — create and edit items" },
   { value: "viewer", label: "Viewer — read-only" },
 ];
 

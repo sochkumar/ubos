@@ -601,6 +601,55 @@ Four new terminology keys added to `DEFAULT_TERMS`: `record.delete_confirm`, `re
 
 **Verification** — All fixes end-to-end screenshot-verified: delete-confirm captured via `window.confirm` override reads `Delete Product "Regression Test Chair"?\n\nThis action cannot be undone.`; public share page header shows "SHARED ITEM"; `/settings/terminology` renders 6 groups including "Data operations"; `/entity-types` shows the "All your collections." subtitle; template descriptions no longer contain "entity type"; JSON files remain valid.
 
+### Sub-pass A — Static-scan sweep 3 (Feb 2026)
+
+Watchdog-timeout blocked e1_tester's browser automation. A static scan surfaced 5 more hardcoded strings that bypassed `t()` plus 14 adjacent user-visible leaks that were folded into the same pass. All fixed and unit-verified.
+
+**4 new terminology keys added** (all in the Structural group so admins can override):
+- `collection.created_toast` → `"{name} added as a new Collection"` (interpolates `{name}`).
+- `collection.deleted_toast` → `"Collection deleted"`.
+- `media.deleted_toast` → `"File deleted"`.
+- `field.deleted_toast` → `"{fieldName} deleted"` (interpolates `{fieldName}`).
+
+**Toasts wired through `t()`**:
+- `EntityTypesPage.jsx:82` — `t("collection.created_toast", {name: form.name_singular})` → "Product added as a new Collection".
+- `EntityTypesPage.jsx:98` — `t("collection.deleted_toast", {collectionName: et.name_singular || et.name_plural})`.
+- `FieldsPage.jsx:168` — `t("field.deleted_toast", {fieldName: f.label})` → "SKU deleted".
+- `MediaPage.jsx:46` — `tPure("media.deleted_toast")` → "File deleted" (drawer is outside a hook scope, so we call the pure `t()` export).
+
+**Activity feed verb copy** (`DashboardPage.jsx` `ACTION_VERBS`): `record.*` → "added/updated/deleted an item"; `records.bulk_*` → "bulk-deleted/updated items".
+
+**14 adjacent user-visible leaks caught by the broader sweep** (all now say "item(s)" or the collection's `name_plural`, or use `t("record.*")`):
+- `RelationshipsPanel.jsx:58` — "No records were linked" → "No items were linked".
+- `ShareAndPrintPanel.jsx:364` and `ViewShareDialog.jsx:285` — "title/record #" → "title/item #".
+- `GlobalHotkeys.jsx:24` — "Focus edit on record detail" → "…item detail".
+- `InviteModal.jsx:20` — "Editor — create and edit records" → "…items".
+- `ImportWizard.jsx:323/345` — "Title (record-level)" / "Match records by" → "item-level" / "Match items by".
+- `PrintLabelsDialog.jsx:251` — "Records: N" → "Items: N".
+- `BulkToolbar.jsx` — all four dialog titles ("Assign categories to N records" / "Assign tags to N records" / "Bulk edit field on N records" / "Delete N records?") → "items".
+- `FilterBar.jsx:248` — "records default to newest first" → "items".
+- `RecordPicker.jsx:24` — `title = "Pick records"` default → "Pick items".
+- `ViewsBar.jsx:120` — "All records" → "All items".
+- `PublicViewPage.jsx:169/178` — "N records" / "No records match this view" → "items".
+- `TagsPage.jsx:79/99` — "labels for records" / "labeling records" → "items", plus explicit "scoped to one collection or shared across the workspace" copy.
+- `CategoriesPage.jsx:172` — "group records" → "group items".
+- `MediaPage.jsx:203/117/126/133/250` — page title "Media" → "Files"; "attached to N record(s)" → "N item(s)"; "record" fallback → "Untitled"; "Not attached to any record" → "…item"; empty state "No media yet" → "No files yet".
+- `RecordsPage.jsx:313/370` — placeholder "Search records…" and empty-state titles now interpolate the collection's `name_plural` (or fall back to "items"): "Search products…" / "No products yet" / "Create the first product."
+- `RelationshipsPage.jsx:96` — dropped stale Phase-3 note; subtitle now "Schema-level definitions of how items in one collection connect to items in another."
+- `SearchPage.jsx:46` — kind map `record: "records"` → `record: "items"`.
+
+**Unit-verified via a headless script** (no Jest boot needed): `t("record.created_toast", {collectionName:"Product"})` returns exactly `"Product added"`. All 8 assertions on the four record-scoped keys + the four new keys pass.
+
+**Final grep audit — zero user-visible leaks remaining**:
+- Requested `toast\.(success|error|info)\(['"\`]([A-Z][a-z]+ )?(record|records|entity)` → **zero matches**.
+- Free-text `record`/`records` in JSX text or string literals → only 3 hits, all in `data-testid`/`testId` attribute values (safe — not rendered).
+- Free-text `entity type` → only 1 hit, in a JSDoc comment in `RecordPicker.jsx` (not user-visible).
+
+**Files modified** in this sweep (23 total):
+- `terminology.js` (4 keys)
+- Pages: `EntityTypesPage`, `FieldsPage`, `MediaPage`, `DashboardPage`, `RecordsPage`, `RelationshipsPage`, `CategoriesPage`, `SearchPage`, `PublicViewPage`, `TagsPage`
+- Components: `BulkToolbar`, `FilterBar`, `RecordPicker`, `ViewsBar`, `ImportWizard`, `InviteModal`, `GlobalHotkeys`, `ShareAndPrintPanel`, `ViewShareDialog`, `PrintLabelsDialog`, `RelationshipsPanel`
+
 
 
 

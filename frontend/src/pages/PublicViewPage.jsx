@@ -166,7 +166,7 @@ export default function PublicViewPage() {
             <p className="mt-2 text-sm text-muted-foreground max-w-prose">{view.description}</p>
           )}
           <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-            <span data-testid="public-view-total">{pagination.total.toLocaleString()} records</span>
+            <span data-testid="public-view-total">{pagination.total.toLocaleString()} items</span>
             <span>·</span>
             <span className="font-mono uppercase">{view.layout}</span>
           </div>
@@ -175,7 +175,7 @@ export default function PublicViewPage() {
         {records.length === 0 ? (
           <div className="rounded-lg border border-border bg-white p-8 text-center" data-testid="public-view-empty">
             <FileText className="w-8 h-8 mx-auto text-muted-foreground/60 mb-2" />
-            <div className="text-sm text-muted-foreground">No records match this view.</div>
+            <div className="text-sm text-muted-foreground">No items match this view.</div>
           </div>
         ) : view.layout === "gallery" || view.layout === "grid" ? (
           <GalleryLayout records={records} cols={cols} token={token} onOpen={(r) => nav(`/v/${token}/r/${r.id}`)} />
