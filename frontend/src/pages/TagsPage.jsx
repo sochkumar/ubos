@@ -60,7 +60,7 @@ export default function TagsPage() {
   };
 
   const remove = async (t) => {
-    if (!window.confirm(`Delete tag "${t.name}"? It will be removed from ${t.usage_count} record(s).`)) return;
+    if (!window.confirm(`Delete tag "${t.name}"?\nIt will be removed from ${t.usage_count} item(s). This action cannot be undone.`)) return;
     try {
       await api.delete(`/tags/${t.id}`);
       toast.success("Tag deleted");

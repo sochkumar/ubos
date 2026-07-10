@@ -203,7 +203,7 @@ export default function PublicRecordPage() {
             <Building2 className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Shared record</div>
+            <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Shared item</div>
             <div className="text-sm font-medium truncate" data-testid="public-org-name">{org?.name || "—"}</div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -223,7 +223,7 @@ export default function PublicRecordPage() {
               {record.record_number}
             </div>
             <h1 className="text-3xl font-semibold mt-1 tracking-tight" data-testid="public-record-title">
-              {record.title || "Untitled record"}
+              {record.title || "Untitled"}
             </h1>
             {record.description && (
               <p className="mt-3 text-sm text-muted-foreground max-w-prose whitespace-pre-wrap">
@@ -411,7 +411,7 @@ function PasswordGate({ token, onSubmit, password, setPassword, busy, error }) {
         </div>
         <h1 className="text-lg font-semibold text-center">Password required</h1>
         <p className="mt-1 text-sm text-muted-foreground text-center">
-          This link is protected. Enter the password to view the record.
+          This link is protected. Enter the password to view the item.
         </p>
         <div className="mt-6 space-y-2">
           <label className="text-xs font-mono uppercase text-muted-foreground" htmlFor="unlock-pw">
@@ -463,7 +463,7 @@ function ErrorScreen({ err }) {
     : isGone
       ? "Link no longer available"
       : isNotFound
-        ? "Record not found"
+        ? "Not found"
         : "Something went wrong";
 
   const message = isAuth
@@ -471,7 +471,7 @@ function ErrorScreen({ err }) {
     : isGone
       ? "This link has been revoked, has expired, or the workspace is closed."
       : isNotFound
-        ? "The record behind this link has been removed."
+        ? "The item behind this link has been removed."
         : (err.message || "This link is unavailable.");
 
   return (

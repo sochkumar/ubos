@@ -578,6 +578,29 @@ All acceptance criteria met. Ready for MVP declaration on completion of user's T
 - Sidebar collection sub-tree only refreshes on window focus + org switch. Same-tab create currently requires a nav+return to appear — acceptable for Sub-pass A, but a global "collections-changed" event bus would be tidier.
 - Deep-merge on `settings.terminology` is one level deep — frontend sends the full replacement dict (correct contract today); document if any future caller needs partial merge.
 
+### Sub-pass A — Post-verification fixes (Feb 2026)
+
+After the initial ship, e1_tester flagged 5 jargon leaks that bypassed `t()` and one missing terminology group. All 5 fixed and internally verified:
+
+**FIX 1** — Wired through `t()`:
+- **a. Record delete confirm** — `Delete <collectionName> "<title>"?` + explicit `"This action cannot be undone."` line, keyed on `record.delete_confirm` (interpolates `{collectionName}` and `{title}`). Falls back to `record_number` when title is empty.
+- **b. Delete success toast** — `t("record.deleted_toast", {collectionName})` → e.g. "Product deleted".
+- **c. Create success toast** — `t("record.created_toast", {collectionName})` → e.g. "Product added". `record.updated_toast` → "Product saved" also wired.
+- **d. Dashboard "Collections" widget count** — was `"45 record"` (broken grammar), now `"45 items"` — plural handled + generic terminology used for cross-collection aggregate.
+- **e. Public share page** — `Shared item` label (was "Shared record"), `Untitled` fallback (was "Untitled record"), `Not found` / `Not available` empty states, "view the item" copy, "The item behind this link has been removed."
+
+Four new terminology keys added to `DEFAULT_TERMS`: `record.delete_confirm`, `record.deleted_toast`, `record.created_toast`, `record.updated_toast`. All are `{collectionName}`/`{title}`-interpolated by an updated `t()` that now supports named-placeholder substitution generically (`{token}` → `ctx.token`). All four appear in the Structural group of `TERM_GROUPS` and are editable from `/settings/terminology`.
+
+**FIX 2** — Copy edits on 5 built-in template JSON descriptions (`assets`, `catalog`, `crm_lite`, `demo_basic`, `inventory_lite`) — replaced "entity type(s)" with "collection(s)". Schema unchanged. JSON validity verified.
+
+**FIX 3** — `/entity-types` header kept as **My Data** with a new muted subtitle "All your {collection.plural}." (defaults "All your collections.") — both terms visible, customization lands on the subtitle.
+
+**FIX 4** — Restored missing "Data operations" group on `/settings/terminology` (was accidentally overwritten during the initial edit). `TERM_GROUPS` is now 6 groups: Structural / Navigation / Verbs / Sharing & roles / Data operations / Settings.
+
+**FIX 5** — Destructive confirmations audited across the codebase. Added "This action cannot be undone" phrasing to: view delete, tag delete, media delete (single + bulk cascade), link/relationship delete, field delete. Attachments detach copy softened to "Remove {filename} from this item's attachments?" (soft action, no destructive line). Share revoke keeps the softer "Revoke this public link? The URL will stop working immediately." wording (soft, reversible). Record delete inherits the new `record.delete_confirm` + explicit "This action cannot be undone." line.
+
+**Verification** — All fixes end-to-end screenshot-verified: delete-confirm captured via `window.confirm` override reads `Delete Product "Regression Test Chair"?\n\nThis action cannot be undone.`; public share page header shows "SHARED ITEM"; `/settings/terminology` renders 6 groups including "Data operations"; `/entity-types` shows the "All your collections." subtitle; template descriptions no longer contain "entity type"; JSON files remain valid.
+
 
 
 

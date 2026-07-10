@@ -48,7 +48,7 @@ function MediaDrawer({ mediaId, onClose, onDeleted }) {
     } catch (e) {
       const d = e?.response?.data?.detail;
       if (d?.code === "media_in_use" && !cascade) {
-        if (window.confirm(`This media is attached to ${d.attached_to?.length || 0} record(s). Detach and delete anyway?`)) {
+        if (window.confirm(`This file is attached to ${d.attached_to?.length || 0} item(s). Detach and delete anyway?\n\nThis action cannot be undone.`)) {
           return del(true);
         }
       } else toast.error(extractErrorMessage(e));
@@ -185,7 +185,7 @@ export default function MediaPage() {
   const clearSel = () => setSelected(new Set());
 
   const bulkDelete = async () => {
-    if (!window.confirm(`Delete ${selected.size} media file(s)? Attached files will be detached first.`)) return;
+    if (!window.confirm(`Delete ${selected.size} file(s)?\nAttached files will be detached first. This action cannot be undone.`)) return;
     let ok = 0, fail = 0;
     for (const id of selected) {
       try {

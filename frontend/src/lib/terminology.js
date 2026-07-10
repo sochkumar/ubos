@@ -39,6 +39,10 @@ export const DEFAULT_TERMS = {
   "record.plural": "Items",
   "record.new": "Add new",             // suffix with collectionName at render
   "record.help": "A single thing you're tracking",
+  "record.delete_confirm": "Delete {collectionName} \"{title}\"?",
+  "record.deleted_toast": "{collectionName} deleted",
+  "record.created_toast": "{collectionName} added",
+  "record.updated_toast": "{collectionName} saved",
 
   "field.singular": "Field",
   "field.plural": "Fields",
@@ -117,6 +121,16 @@ export function t(key, ctx = {}, overrides = {}) {
     if (key === "record.plural") return cp || `${cn}s`;
     if (key === "record.new") return `Add new ${cn}`;
   }
+
+  // Named-placeholder interpolation. Any `{token}` in the resolved string is
+  // replaced with `ctx.token`. Tokens that aren't in ctx are left as-is so
+  // untranslated keys degrade visibly rather than silently.
+  if (typeof raw === "string" && raw.indexOf("{") !== -1) {
+    return raw.replace(/\{(\w+)\}/g, (m, k) =>
+      ctx[k] !== undefined && ctx[k] !== null ? String(ctx[k]) : m,
+    );
+  }
+
   return raw;
 }
 
@@ -212,6 +226,8 @@ export const TERM_GROUPS = [
     keys: [
       "collection.singular", "collection.plural", "collection.new", "collection.help",
       "record.singular", "record.plural", "record.new", "record.help",
+      "record.delete_confirm", "record.deleted_toast",
+      "record.created_toast", "record.updated_toast",
       "field.singular", "field.plural", "field.help",
       "category.singular", "category.plural",
       "tag.singular", "tag.plural",
@@ -244,6 +260,11 @@ export const TERM_GROUPS = [
       "share.public", "share.password", "share.org_only",
       "role.owner", "role.admin", "role.editor", "role.viewer",
     ],
+  },
+  {
+    label: "Data operations",
+    hint: "Historical activity, imports, exports.",
+    keys: ["audit", "import", "export"],
   },
   {
     label: "Settings",

@@ -26,6 +26,7 @@ import { ImportWizard } from "@/components/ImportWizard";
 import { AfterImportNudge } from "@/components/AfterImportNudge";
 import { InviteModal } from "@/components/InviteModal";
 import { useAuth } from "@/lib/auth";
+import { useTerminology } from "@/lib/terminology";
 
 const LAYOUT_ICONS = {
   table: Table2, gallery: LayoutGrid, grid: Boxes, card: Rows3, list: ListIcon,
@@ -47,6 +48,7 @@ export default function RecordsPage() {
   const { id: etId } = useParams();
   const nav = useNavigate();
   const { activeRole } = useAuth();
+  const { t } = useTerminology();
   const canShare = ["owner", "admin"].includes(activeRole);
 
   const [et, setEt] = useState(null);
@@ -190,13 +192,14 @@ export default function RecordsPage() {
       clean[f.key] = v;
     });
     const body = { fields: clean, category_ids: recCats, tag_ids: recTags };
+    const collectionName = et?.name_singular || t("record.singular");
     try {
       if (editing) {
         await api.patch(`/records/${editing.id}`, body);
-        toast.success("Record updated");
+        toast.success(t("record.updated_toast", { collectionName }));
       } else {
         await api.post(`/entity-types/${etId}/records`, body);
-        toast.success("Record created");
+        toast.success(t("record.created_toast", { collectionName }));
       }
       setOpen(false);
       loadRecords();
@@ -208,10 +211,13 @@ export default function RecordsPage() {
   };
 
   const removeRec = async (rec) => {
-    if (!window.confirm(`Delete record ${rec.record_number}?`)) return;
+    const collectionName = et?.name_singular || t("record.singular");
+    const title = (rec.title || "").trim() || rec.record_number;
+    const confirm = t("record.delete_confirm", { collectionName, title });
+    if (!window.confirm(`${confirm}\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/records/${rec.id}`);
-      toast.success("Record deleted");
+      toast.success(t("record.deleted_toast", { collectionName }));
       loadRecords();
     } catch (err) { toast.error(extractErrorMessage(err)); }
   };

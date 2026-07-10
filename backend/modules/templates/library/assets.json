@@ -1,7 +1,7 @@
 {
   "key": "assets",
   "name": "Assets",
-  "description": "Track fixed assets and their maintenance history.",
+  "description": "A fixed-assets collection with categories and maintenance history baked in.",
   "icon": "Cog",
   "cover_image": null,
   "entity_types": [

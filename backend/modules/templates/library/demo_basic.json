@@ -1,7 +1,7 @@
 {
   "key": "demo_basic",
   "name": "Demo (Products + Machines)",
-  "description": "Original Phase-0 demo — Products with categories + a Machines entity type.",
+  "description": "Original Phase-0 demo — a Products collection with categories, plus a Machines collection.",
   "icon": "Sparkles",
   "cover_image": null,
   "entity_types": [

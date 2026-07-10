@@ -106,7 +106,7 @@ export default function EntityTypesPage() {
     <>
       <PageHeader
         title="My Data"
-        subtitle="Every kind of thing your business tracks."
+        subtitle={`All your ${(t("collection.plural") || "Collections").toLowerCase()}.`}
         breadcrumbs={[{ label: "UBOS" }, { label: "My Data" }]}
         actions={
           <Dialog open={open} onOpenChange={setOpen}>

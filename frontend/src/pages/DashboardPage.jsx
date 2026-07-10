@@ -453,7 +453,7 @@ function SortableWidget({ slot, customizing, onHide, action, children }) {
 /* ────── Widget 1: Recent Records body ────── */
 function RecentRecordsBody({ records, onOpen }) {
   if (records.length === 0) {
-    return <EmptyState title="No records yet" cta="Create your first record" to="/entity-types" />;
+    return <EmptyState title="No items yet" cta="Add your first Collection" to="/entity-types" />;
   }
   return (
     <ul className="divide-y divide-border" data-testid="widget-recent-records-list">
@@ -635,7 +635,7 @@ function EntityTypesBody({ entityTypes, onOpen, onNew }) {
             </div>
           </div>
           <div className="text-[11px] text-muted-foreground pl-8">
-            <b className="text-foreground">{e.record_count}</b> record{e.record_count === 1 ? "" : "s"}
+            <b className="text-foreground">{e.record_count}</b> item{e.record_count === 1 ? "" : "s"}
           </div>
         </button>
       ))}

@@ -85,7 +85,7 @@ export function ViewsBar({
   };
 
   const remove = async (v) => {
-    if (!window.confirm(`Delete view "${v.name}"?`)) return;
+    if (!window.confirm(`Delete view "${v.name}"?\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/views/${v.id}`);
       toast.success("View deleted");

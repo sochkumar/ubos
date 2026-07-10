@@ -76,7 +76,7 @@ export default function RelationshipsPage() {
   };
 
   const remove = async (r) => {
-    if (!window.confirm(`Delete relationship "${r.from_label}"?`)) return;
+    if (!window.confirm(`Delete link "${r.from_label}"?\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/relationships/definitions/${r.id}`);
       toast.success("Relationship deleted");

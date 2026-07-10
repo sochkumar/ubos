@@ -58,7 +58,7 @@ export function AttachmentsPanel({ record }) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [record?.id]);
 
   const remove = async (m) => {
-    if (!window.confirm(`Remove ${m.filename} from this record's attachments?`)) return;
+    if (!window.confirm(`Remove ${m.filename} from this item's attachments?`)) return;
     try {
       await api.post(`/media/${m.id}/detach`, {
         record_id: record.id, role: "attachment",

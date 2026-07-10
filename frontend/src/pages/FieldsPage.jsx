@@ -162,7 +162,7 @@ export default function FieldsPage() {
   };
 
   const remove = async (f) => {
-    if (!window.confirm(`Delete field "${f.label}"?`)) return;
+    if (!window.confirm(`Delete field "${f.label}"?\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/fields/${f.id}`);
       toast.success("Field deleted");

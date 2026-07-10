@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
 import { DynamicField } from "@/components/DynamicField";
+import { useTerminology } from "@/lib/terminology";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { TagCombobox } from "@/components/TagCombobox";
 import { formatCellValue } from "@/components/RecordLayouts";
@@ -164,6 +165,7 @@ function VersionDiffDialog({ record, version, fieldsByKey, onClose, onRestore })
 export default function RecordDetailPage() {
   const { id: rid } = useParams();
   const nav = useNavigate();
+  const { t } = useTerminology();
   const [rec, setRec] = useState(null);
   const [et, setEt] = useState(null);
   const [fields, setFields] = useState([]);
@@ -251,7 +253,8 @@ export default function RecordDetailPage() {
     try {
       const r = await api.patch(`/records/${rid}`, { fields: clean, category_ids: recCats, tag_ids: recTags });
       setRec(r.data);
-      toast.success("Record updated");
+      const collectionName = et?.name_singular || t("record.singular");
+      toast.success(t("record.updated_toast", { collectionName }));
       setEditOpen(false);
       loadActivity(); loadVersions();
     } catch (err) {
@@ -282,10 +285,13 @@ export default function RecordDetailPage() {
   };
 
   const deleteRec = async () => {
-    if (!window.confirm(`Delete record ${rec.record_number}?`)) return;
+    const collectionName = et?.name_singular || t("record.singular");
+    const title = (rec.title || "").trim() || rec.record_number;
+    const confirm = t("record.delete_confirm", { collectionName, title });
+    if (!window.confirm(`${confirm}\n\nThis action cannot be undone.`)) return;
     try {
       await api.delete(`/records/${rid}`);
-      toast.success("Deleted");
+      toast.success(t("record.deleted_toast", { collectionName }));
       nav(`/entity-types/${rec.entity_type_id}/records`);
     } catch (e) { toast.error(extractErrorMessage(e)); }
   };

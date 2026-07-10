@@ -1,7 +1,7 @@
 {
   "key": "crm_lite",
   "name": "CRM-lite",
-  "description": "Lightweight contact + company book with a Contact→Company relationship.",
+  "description": "Lightweight contact + company book — two collections linked by Contact→Company.",
   "icon": "Users",
   "cover_image": null,
   "entity_types": [

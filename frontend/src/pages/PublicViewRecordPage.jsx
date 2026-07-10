@@ -52,7 +52,7 @@ export default function PublicViewRecordPage() {
             loading: false, data: null,
             error: {
               status: status || 0, code,
-              message: typeof detail === "string" ? detail : (detail?.detail || "This record is unavailable."),
+              message: typeof detail === "string" ? detail : (detail?.detail || "This item is unavailable."),
             },
           });
         }
@@ -76,7 +76,7 @@ export default function PublicViewRecordPage() {
           <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
             <AlertCircle className="w-6 h-6 text-muted-foreground" />
           </div>
-          <div className="text-lg font-semibold">Record not available</div>
+          <div className="text-lg font-semibold">Not available</div>
           <div className="text-sm text-muted-foreground mt-1">{state.error.message}</div>
           <Link to={`/v/${token}`} className="mt-4 inline-block text-sm text-primary hover:underline">
             ← Back to view
@@ -108,7 +108,7 @@ export default function PublicViewRecordPage() {
         <div>
           <div className="text-xs font-mono text-primary uppercase" data-testid="public-view-rec-number">{record.record_number}</div>
           <h1 className="text-3xl font-semibold mt-1 tracking-tight" data-testid="public-view-rec-title">
-            {record.title || "Untitled record"}
+            {record.title || "Untitled"}
           </h1>
         </div>
 

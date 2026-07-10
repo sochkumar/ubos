@@ -1,7 +1,7 @@
 {
   "key": "catalog",
   "name": "Catalog",
-  "description": "Digital product catalog with categories, pricing, and stock status.",
+  "description": "A digital product catalog collection with categories, pricing, and stock status.",
   "icon": "Package",
   "cover_image": null,
   "entity_types": [

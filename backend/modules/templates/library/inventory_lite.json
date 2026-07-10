@@ -1,7 +1,7 @@
 {
   "key": "inventory_lite",
   "name": "Inventory-lite",
-  "description": "Track stock items and where they live. Includes an Items→Locations relationship.",
+  "description": "Track stock items and where they live. Two collections linked by Items→Locations.",
   "icon": "Boxes",
   "cover_image": null,
   "entity_types": [
