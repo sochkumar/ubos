@@ -1,0 +1,17 @@
+=== AFTER-FIX GREP (2026-07-10T11:49:24Z) ===
+
+--- Jargon strings across pages/components/layouts ---
+pages/settings/LabelPresetsPage.jsx:102:                      <Plus className="w-4 h-4 mr-1.5" /> Create your first preset
+pages/TagsPage.jsx:99:            description={q ? "Try a different filter." : "Create your first tag to start labeling items."}
+components/RecordPicker.jsx:16: *  - entityTypeId — entity type to pick from
+
+--- Raw slug leak in AppLayout footer ---
+
+--- Hardcoded 'Add a new Collection' / confirm strings ---
+pages/TagsPage.jsx:63:    if (!window.confirm(`Delete tag "${t.name}"?\nIt will be removed from ${t.usage_count} item(s). This action cannot be undone.`)) return;
+pages/EntityTypesPage.jsx:94:    if (!window.confirm(`Delete "${et.name_plural}"?\nAll ${et.name_plural} and their fields will be removed. This can't be undone.`))
+
+--- Verify sidebar section headers (should be Workspace/Setup/Settings) ---
+31:    label: "Workspace",
+41:    label: "Setup",
+47:    label: "Settings",

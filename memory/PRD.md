@@ -674,6 +674,30 @@ Each pack ships domain-realistic sample data — real supplier names ("Nordic Ti
 
 **`GET /api/templates` now returns 9 templates** (5 existing + 4 new).
 
+### Sub-pass A — Stale-build fix & final jargon sweep (Feb 2026)
+
+User reported preview was serving old bundle after terminology edits. Applied
+the belt-and-suspenders sequence:
+`rm -rf frontend/build node_modules/.cache && yarn build && supervisorctl restart frontend`
+Verified fresh compile (yarn build succeeded in 25s, dev-server recompiled with only warnings).
+
+Fixed the last user-visible jargon leaks flagged in-session:
+- `EntityTypesPage` empty state → now `"No {plural} yet — Add your first {singular} to start tracking the things your business cares about."`, both halves resolved via `t()`.
+- `EntityTypesPage` create dialog title → uses `t("collection.new")` instead of the hard-coded "Add a new Collection".
+- `EntityTypesPage` delete confirm no longer says "items (and their fields)" — cleaner phrasing.
+- `AppLayout` bottom-sidebar footer no longer shows the raw `org: <slug>` chip; workspace name only, matching the topbar switcher.
+- Sidebar section headers verified as **Workspace / Setup / Settings**.
+
+Demo user DB reset: `bakery-shop` org and all its scoped docs
+(entity_types, fields, records, categories, tags, audit_logs, roles, memberships)
+purged. `users.default_org_id` cleared, refresh tokens revoked. Verified via
+`POST /api/auth/login` → `GET /api/orgs` returns `[]`.
+
+Grep proofs archived at:
+- `/app/test_reports/phase7_subpassA_before.txt`
+- `/app/test_reports/phase7_subpassA_after.txt`
+
+
 
 
 

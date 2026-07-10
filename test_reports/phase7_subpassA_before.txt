@@ -1,0 +1,17 @@
+=== BEFORE-FIX GREP (2026-07-10T11:46:23Z) ===
+
+--- Jargon strings across pages/components/layouts ---
+pages/settings/LabelPresetsPage.jsx:102:                      <Plus className="w-4 h-4 mr-1.5" /> Create your first preset
+pages/TagsPage.jsx:99:            description={q ? "Try a different filter." : "Create your first tag to start labeling items."}
+pages/EntityTypesPage.jsx:211:            description="Add your first Collection — a shape for the things your business tracks (products, machines, contracts, clients, anything)."
+components/RecordPicker.jsx:16: *  - entityTypeId — entity type to pick from
+
+--- Raw slug leak in AppLayout footer ---
+258:            <span className="truncate" title={activeOrg?.slug}>
+259:              org: {activeOrg?.slug || "—"}
+
+--- Hardcoded 'Add a new Collection' / confirm strings ---
+pages/TagsPage.jsx:63:    if (!window.confirm(`Delete tag "${t.name}"?\nIt will be removed from ${t.usage_count} item(s). This action cannot be undone.`)) return;
+pages/CategoriesPage.jsx:241:            <DialogTitle>Delete "{confirmDel?.name}"?</DialogTitle>
+pages/EntityTypesPage.jsx:94:    if (!window.confirm(`Delete "${et.name_plural}"?\nAll ${et.name_plural} items (and their fields) will be removed. This can't be undone.`))
+pages/EntityTypesPage.jsx:121:                  <DialogTitle>Add a new Collection</DialogTitle>

@@ -91,7 +91,7 @@ export default function EntityTypesPage() {
   };
 
   const remove = async (et) => {
-    if (!window.confirm(`Delete "${et.name_plural}"?\nAll ${et.name_plural} items (and their fields) will be removed. This can't be undone.`))
+    if (!window.confirm(`Delete "${et.name_plural}"?\nAll ${et.name_plural} and their fields will be removed. This can't be undone.`))
       return;
     try {
       await api.delete(`/entity-types/${et.id}`);
@@ -118,7 +118,7 @@ export default function EntityTypesPage() {
             <DialogContent className="sm:max-w-lg" data-testid="entity-type-dialog">
               <form onSubmit={submit}>
                 <DialogHeader>
-                  <DialogTitle>Add a new Collection</DialogTitle>
+                  <DialogTitle>{newCollectionLabel}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -207,8 +207,8 @@ export default function EntityTypesPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Boxes}
-            title="No collections yet"
-            description="Add your first Collection — a shape for the things your business tracks (products, machines, contracts, clients, anything)."
+            title={`No ${(t("collection.plural") || "Collections").toLowerCase()} yet`}
+            description={`Add your first ${t("collection.singular") || "Collection"} to start tracking the things your business cares about.`}
             action={
               <div className="flex gap-2">
                 <Button onClick={() => setOpen(true)} data-testid="empty-new-entity-type">

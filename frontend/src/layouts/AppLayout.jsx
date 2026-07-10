@@ -255,8 +255,8 @@ export default function AppLayout() {
             {seeding ? "Loading…" : "Load sample data"}
           </Button>
           <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground font-mono px-1">
-            <span className="truncate" title={activeOrg?.slug}>
-              org: {activeOrg?.slug || "—"}
+            <span className="truncate" title={activeOrg?.name}>
+              {activeOrg?.name || ""}
             </span>
             <span className="text-primary">{activeRole || ""}</span>
           </div>
