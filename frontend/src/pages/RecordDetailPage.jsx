@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
 import { DynamicField } from "@/components/DynamicField";
 import { useTerminology } from "@/lib/terminology";
+import { useTabTitle } from "@/lib/tabs";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { TagCombobox } from "@/components/TagCombobox";
 import { formatCellValue } from "@/components/RecordLayouts";
@@ -189,6 +190,8 @@ export default function RecordDetailPage() {
   const [recCats, setRecCats] = useState([]);
   const [recTags, setRecTags] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  useTabTitle(rec?.title || null, "package");
 
   const load = async () => {
     try {

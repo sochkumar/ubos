@@ -385,7 +385,38 @@ async def apply_template(
             for coll in {c for c, _ in inserted}
         },
         "entity_type_ids": list(et_by_key.values()),
+        "terminology_applied": await _merge_terminology(db, org_id=org_id, spec=spec),
     }
+
+
+async def _merge_terminology(
+    db: AsyncIOMotorDatabase, *, org_id: str, spec: dict,
+) -> dict:
+    """Deep-merge template.terminology into `organizations.settings.terminology`.
+
+    Contract: existing user-set overrides WIN on collision. Template presets
+    only fill in keys the user hasn't customised — so re-applying a template
+    never clobbers user edits.
+    Returns the merged terminology block (or {} if the template ships none).
+    """
+    term = spec.get("terminology") or {}
+    if not isinstance(term, dict) or not term:
+        return {}
+    org = await db.organizations.find_one({"_id": org_id, "deleted_at": None})
+    if not org:
+        return {}
+    existing = ((org.get("settings") or {}).get("terminology")) or {}
+    merged = dict(term)
+    for k, v in existing.items():
+        if v not in (None, ""):
+            merged[k] = v  # user's value wins
+    settings = org.get("settings") or {}
+    settings["terminology"] = merged
+    await db.organizations.update_one(
+        {"_id": org_id},
+        {"$set": {"settings": settings, "updated_at": _now()}},
+    )
+    return merged
 
 
 def _count_nodes(nodes: list[dict]) -> int:

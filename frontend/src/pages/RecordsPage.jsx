@@ -14,6 +14,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
+import { useAutoTour } from "@/lib/tourManager";
+import { useTabTitle } from "@/lib/tabs";
 import { DynamicField } from "@/components/DynamicField";
 import { CategoryPicker, CategoryFilter } from "@/components/CategoryPicker";
 import { TagCombobox } from "@/components/TagCombobox";
@@ -50,6 +52,9 @@ export default function RecordsPage() {
   const { activeRole } = useAuth();
   const { t } = useTerminology();
   const canShare = ["owner", "admin"].includes(activeRole);
+
+  useAutoTour("collection");
+  useTabTitle(et?.name_plural || null, "boxes");
 
   const [et, setEt] = useState(null);
   const [fields, setFields] = useState([]);

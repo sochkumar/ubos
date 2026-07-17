@@ -790,3 +790,96 @@ Help modal (`GlobalHotkeys.jsx`) updated with a new "Tabs" section.
 ### Non-goals honored
 - Sub-pass B (onboarding wizard, coach marks, help center, per-pack
   terminology presets) — DEFERRED. Not touched.
+
+
+## Phase 7 Sub-pass B — Onboarding + Coach Marks + Help + De-branding (Feb 2026)
+
+### 1. 3-step business-type onboarding wizard
+- `/app/frontend/src/pages/OnboardingPage.jsx` — completely rewritten.
+  Step 1: 9-card business-type picker (Bakery / Jewellery / Furniture /
+  Furnishings / Catalog / Inventory / Assets / CRM / Something else).
+  Step 2: Workspace name (auto-suggested from picked type, e.g. "My Bakery")
+  + URL slug + preview of starter collections. Step 3: Review + one-button
+  "Create my workspace". On confirm: `POST /orgs` → `POST /templates/{key}/apply`
+  → `refreshMe` → `navigate("/dashboard")` with success toast.
+- `/app/frontend/src/lib/industryPresets.js` — single source of truth for
+  the 9 presets (template_key, emoji, label, tagline, suggested_name,
+  collections list, terminology overlay).
+
+### 2. Industry terminology presets inside starter packs
+- Each of `bakery_store.json`, `jewellery_store.json`, `furniture_store.json`,
+  `furnishing_store.json` now ships a top-level `terminology` block that
+  overlays the friendly domain vocabulary onto `org.settings.terminology`.
+  Bakery → Menu Section / Menu Item, Jewellery/Furniture → Category / Piece,
+  Furnishings → Range / Item.
+- `services/template_applier.py::_merge_terminology()` — server-side deep-merge
+  of the block onto the org doc. Contract: user's existing overrides WIN on
+  collision so re-applying a template never clobbers customisations. Returned
+  from `POST /templates/{key}/apply` as `terminology_applied`.
+- `settings/TerminologyPage.jsx` — new "Apply industry preset" dropdown
+  (owner/admin only) with 4 industry presets + reset-to-defaults. Preview
+  updates the draft locally; user still has to hit Save to persist.
+
+### 3. Coach marks (shepherd.js)
+- `yarn add shepherd.js@15.2.2` (loaded via dynamic `import()` for code-split).
+- `/app/frontend/src/lib/tours.js` — 3 tours (Dashboard 4 steps, Collection 5
+  steps, Browse 4 steps). Each step binds to a `data-testid` selector so
+  page components need no special hooks.
+- `/app/frontend/src/lib/tourManager.js` — `useAutoTour(key)` hook auto-starts
+  on mount if the user hasn't completed the tour; `startTour(key)` for manual
+  invocation; completions persisted via `PATCH /auth/me/preferences` with
+  `completed_tours[]`.
+- New backend endpoint: `PATCH /api/auth/me/preferences` (auth-required,
+  whitelisted keys: `completed_tours`, `dismissed_tips`, `theme`). Dedupes +
+  caps at 200 entries.
+- Wired into `DashboardPage`, `RecordsPage`, `BrowsePage`.
+- Profile-menu "Take a tour of this page" entry re-triggers the right tour.
+
+### 4. Help center at `/help`
+- Public route (no auth) — added to `App.js` above the auth guard.
+- `/app/frontend/src/pages/HelpPage.jsx` — searchable glossary (12 terms) +
+  6 how-to articles (create collection / import / share catalog / print
+  labels / invite team / rename terminology).
+- Deep-linkable: `?term=<slug>` and `?how=<slug>` open the reader directly.
+- Profile-menu "Help center" entry links to it.
+
+### 5. Polish
+- Removed "phase 1" chip from `AppLayout.jsx` (→ "Business OS") and
+  "phase 1 · auth + orgs" chip from `AuthLayout.jsx` (→ "Universal Business
+  Operating System").
+- `useTabTitle(...)` wired on 8 detail pages: `RecordDetailPage`,
+  `EntityTypesPage`, `FieldsPage`, `CategoriesPage`, `TagsPage`, `MediaPage`,
+  `SearchPage`, `RecordsPage`. Tabs like "Chair 42" and "Products · Fields"
+  now show dynamic titles instead of the fallback route label.
+
+### 6. Emergent de-branding
+- `/app/frontend/public/index.html` — removed the emergent-main.js script tag,
+  the "Made with Emergent" badge anchor, and the posthog analytics init block.
+- New `/app/frontend/public/icons/favicon.svg` — 4-square grid on teal,
+  no Emergent mark. Favicon link swapped in `index.html`.
+- Grep verification archived at `/app/test_reports/phase7_subB_emergent_grep.txt`.
+
+### Verification
+- `pytest tests/test_ubos_phase8_browse.py` → **15/15 passing** (regression
+  after adding `field_defs_by_et` empty-list seed for collections with zero
+  field defs).
+- Screenshots captured: wizard step 1 (9 business types), wizard step 3
+  (bakery preset preview showing "Menu Section" / "Menu Item" terminology),
+  /help page with glossary + 6 how-tos, grep proof for zero Emergent branding.
+- Backend endpoint smoke: `POST /orgs` → `POST /templates/bakery_store/apply`
+  returns `terminology_applied` block, `GET /orgs/:id` confirms
+  `settings.terminology` was set.
+- `PATCH /auth/me/preferences` verified via curl (persists `completed_tours[]`).
+
+### Non-goals honored
+- Did NOT touch existing Phase 8 code except the browse `field_defs_by_et`
+  seed (one-line non-behavioral improvement).
+- Did NOT run e1_tester UI pass (per user's "trust-based, keep it lean"
+  instruction). Screenshots + pytest cover the verification bar.
+
+### Known pre-existing issues (unchanged, out of scope)
+- `test_ubos_phase0.py` / `test_ubos_phase5a_hotfix.py` / `test_ubos_phase3a.py`
+  still use pre-auth `X-Org-Id` header pattern and are broken since Phase 5.
+- Between-test contamination — several older test files create test
+  entity_types on Acme without cleanup, polluting the seed. Cleaning by
+  hand between test runs is needed; not addressed here.

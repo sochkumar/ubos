@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCcw, RotateCcw, Save, Undo2, Eye } from "lucide-react";
+import { RefreshCcw, RotateCcw, Save, Undo2, Eye, Sparkles, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   DEFAULT_TERMS, TERM_GROUPS, useTerminology, t as tPure,
 } from "@/lib/terminology";
+import { INDUSTRY_PRESETS } from "@/lib/industryPresets";
 import { useAuth } from "@/lib/auth";
 import { extractErrorMessage } from "@/lib/errors";
 
@@ -99,6 +104,44 @@ export default function TerminologyPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {canEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="terminology-preset-trigger">
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  Apply industry preset
+                  <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[280px]">
+                <DropdownMenuLabel className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Overwrite with a preset
+                </DropdownMenuLabel>
+                {INDUSTRY_PRESETS.filter((p) => Object.keys(p.terminology || {}).length > 0).map((p) => (
+                  <DropdownMenuItem
+                    key={p.key}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      const next = { ...draft, ...p.terminology };
+                      setDraft(next);
+                      toast.info(`Preview applied: ${p.label}. Click Save to persist.`);
+                    }}
+                    data-testid={`terminology-preset-${p.key}`}
+                  >
+                    <span className="mr-2">{p.emoji}</span>
+                    <span className="flex-1">{p.label}</span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); setDraft({}); toast.info("Preview reset. Click Save to persist."); }}
+                  data-testid="terminology-preset-reset"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-2" /> Reset to defaults (preview)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline" size="sm"
             onClick={resetAll}

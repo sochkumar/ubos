@@ -4,6 +4,14 @@
   "description": "Curtains, rugs, cushions, linens, and other soft goods — plus fabric swatches, customers, orders, and suppliers.",
   "icon": "Sofa",
   "cover_image": null,
+  "terminology": {
+    "collection.singular": "Range",
+    "collection.plural":   "Ranges",
+    "collection.new":      "Add new Range",
+    "record.singular":     "Item",
+    "record.plural":       "Items",
+    "record.new":          "Add new Item"
+  },
   "entity_types": [
     {
       "key": "furnishings",

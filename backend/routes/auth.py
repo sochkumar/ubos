@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import BaseModel
 
 from audit import audit
 from auth_deps import get_current_user
@@ -244,6 +245,42 @@ async def me(user: dict = Depends(get_current_user)):
         "organizations": orgs,
         "default_org_id": user.get("default_org_id"),
     }
+
+
+class PreferencesUpdate(BaseModel):
+    """Partial patch on the user's `preferences` sub-doc.
+    Only whitelisted keys are honored — anything else is silently dropped.
+    """
+    completed_tours: list[str] | None = None
+    dismissed_tips: list[str] | None = None
+    theme: str | None = None
+
+
+@router.patch("/me/preferences")
+async def patch_my_preferences(
+    payload: PreferencesUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """Merge a small preferences dict onto users.preferences. Used by the
+    coach-mark system to record which tours the user has completed/dismissed
+    so we don't re-show them on future logins.
+    """
+    db = get_db()
+    prefs = dict(user.get("preferences") or {})
+    data = payload.model_dump(exclude_none=True)
+    for k, v in data.items():
+        if k in ("completed_tours", "dismissed_tips") and isinstance(v, list):
+            # Union of previous + new, deduped, capped at 200 entries
+            existing = list(prefs.get(k) or [])
+            merged = list(dict.fromkeys(existing + v))[:200]
+            prefs[k] = merged
+        else:
+            prefs[k] = v
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"preferences": prefs, "updated_at": _iso(_now_dt())}},
+    )
+    return {"preferences": prefs}
 
 
 # ─────────────────────── forgot / reset ───────────────────────

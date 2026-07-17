@@ -24,7 +24,7 @@ import { InstallAppMenuItem } from "@/components/InstallAppMenuItem";
 import { TabBar } from "@/components/TabBar";
 import { useTabs } from "@/lib/tabs";
 import { useHotkeys } from "@/hooks/useHotkeys";
-import { Keyboard, Printer } from "lucide-react";
+import { Keyboard, Printer, BookOpen } from "lucide-react";
 
 // Sidebar nav groups — labels are resolved live via t() inside the render.
 // Each item declares its stable `key` (used for testid + t() lookup) alongside
@@ -180,8 +180,8 @@ export default function AppLayout() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-tight">UBOS</div>
-              <div className="text-[11px] text-muted-foreground font-mono">
-                phase 1
+              <div className="text-[11px] text-muted-foreground">
+                Business OS
               </div>
             </div>
           </Link>
@@ -437,6 +437,26 @@ export default function AppLayout() {
                   data-testid="menu-shortcuts"
                 >
                   <Keyboard className="w-4 h-4 mr-2" /> Keyboard shortcuts
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => nav("/help")}
+                  data-testid="menu-help"
+                >
+                  <BookOpen className="w-4 h-4 mr-2" /> Help center
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={async (e) => {
+                    e.preventDefault();
+                    const { startTour } = await import("@/lib/tourManager");
+                    const path = location.pathname;
+                    let key = "dashboard";
+                    if (path.startsWith("/browse")) key = "browse";
+                    else if (path.includes("/records") || path.includes("/fields")) key = "collection";
+                    startTour(key);
+                  }}
+                  data-testid="menu-tour"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" /> Take a tour of this page
                 </DropdownMenuItem>
                 <InstallAppMenuItem />
                 <DropdownMenuSeparator />

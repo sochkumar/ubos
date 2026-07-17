@@ -4,6 +4,14 @@
   "description": "Menu items, ingredients, orders, customers, and suppliers for a bakery or patisserie.",
   "icon": "Croissant",
   "cover_image": null,
+  "terminology": {
+    "collection.singular": "Menu Section",
+    "collection.plural":   "Menu Sections",
+    "collection.new":      "Add new Menu Section",
+    "record.singular":     "Menu Item",
+    "record.plural":       "Menu Items",
+    "record.new":          "Add new Menu Item"
+  },
   "entity_types": [
     {
       "key": "menu_items",

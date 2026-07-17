@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useAutoTour } from "@/lib/tourManager";
+import { useTabTitle } from "@/lib/tabs";
 
 function humanBytes(b) {
   if (!b) return "0 B";
@@ -100,6 +102,9 @@ export default function DashboardPage() {
   const [layout, setLayout] = useState(DEFAULT_LAYOUT);
   const [customizing, setCustomizing] = useState(false);
   const navigate = useNavigate();
+
+  useAutoTour("dashboard");
+  useTabTitle("Home", "home");
 
   // Guard so an in-flight PUT doesn't clobber user edits after remount.
   const layoutLoadedRef = useRef(false);

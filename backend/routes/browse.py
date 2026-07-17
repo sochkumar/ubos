@@ -153,7 +153,9 @@ async def browse_records(
 
     # Collect field defs only for entity_types actually present in the response.
     et_ids_in_page = sorted({r["entity_type_id"] for r in rows if r.get("entity_type_id")})
-    field_defs_by_et: dict[str, list[dict]] = {}
+    # Seed every present et with an empty list so the client can rely on the
+    # bundle keying every collection it sees, even ones with zero fields.
+    field_defs_by_et: dict[str, list[dict]] = {etid: [] for etid in et_ids_in_page}
     if et_ids_in_page:
         fd_cursor = db.field_definitions.find(
             tenant_filter(ctx.org_id, {"entity_type_id": {"$in": et_ids_in_page}}),

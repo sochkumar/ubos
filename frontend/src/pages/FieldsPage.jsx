@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
 import { slugifyKey as slugify } from "@/lib/slugify";
 import { useTerminology } from "@/lib/terminology";
+import { useTabTitle } from "@/lib/tabs";
 
 const FIELD_TYPES = [
   { value: "text", group: "Basic" },
@@ -87,6 +88,8 @@ export default function FieldsPage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [keyTouched, setKeyTouched] = useState(false);
+
+  useTabTitle(et ? `${et.name_plural} · Fields` : null, "layers");
 
   const load = async () => {
     try {

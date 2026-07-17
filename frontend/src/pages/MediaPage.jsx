@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { useTerminology, t as tPure } from "@/lib/terminology";
+import { useTabTitle } from "@/lib/tabs";
 import { PageBody, PageHeader, EmptyState } from "@/components/PageChrome";
 import { MediaUploadZone } from "@/components/MediaUploadZone";
 import { StorageQuotaBar, humanBytes } from "@/components/StorageQuotaBar";
@@ -159,6 +160,8 @@ export default function MediaPage() {
   const [selected, setSelected] = useState(new Set());
   const [openId, setOpenId] = useState(null);
   const [storage, setStorage] = useState(null);
+
+  useTabTitle("Files", "image");
 
   const load = async () => {
     setLoading(true);

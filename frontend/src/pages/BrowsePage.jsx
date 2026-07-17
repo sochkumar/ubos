@@ -36,6 +36,7 @@ import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { useTerminology } from "@/lib/terminology";
 import { useTabTitle } from "@/lib/tabs";
+import { useAutoTour } from "@/lib/tourManager";
 import { PageHeader, PageBody, EmptyState } from "@/components/PageChrome";
 import { formatCellValue } from "@/components/RecordLayouts";
 
@@ -457,6 +458,7 @@ export default function BrowsePage() {
   const { t } = useTerminology();
   const [searchParams, setSearchParams] = useSearchParams();
   useTabTitle(t("nav.browse") || "All Items", "compass");
+  useAutoTour("browse");
 
   // Query state — hydrated from URL params so tabs/refresh preserve filters.
   const [q, setQ] = useState(searchParams.get("q") || "");

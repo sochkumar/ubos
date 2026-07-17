@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { useTabTitle } from "@/lib/tabs";
 
 const KIND_ICONS = {
   record: Database,
@@ -53,6 +54,8 @@ const KIND_TO_URL = {
 export default function SearchPage() {
   const [sp, setSp] = useSearchParams();
   const navigate = useNavigate();
+
+  useTabTitle("Search", "search");
 
   const q = sp.get("q") || "";
   // Parse `types=` from URL — supports both singular + plural tokens, dedupes

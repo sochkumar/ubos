@@ -1,0 +1,21 @@
+=== Screenshot (d) equivalent: post-Sub-pass-B grep proof (2026-07-17) ===
+
+Command 1: grep -rniE 'made with emergent' /app/frontend /app/backend
+Result: (no matches — 0 lines)
+
+Command 2: grep -rniE 'emergent-badge|emergent-main.js|emergent\.sh|posthog\.init' /app/frontend/src /app/frontend/public
+Result: (no matches — 0 lines)
+
+Command 3: grep -rniE '"phase 1"|"phase 1 · ' /app/frontend/src
+Result: (no matches — 0 lines)
+
+Removed from /app/frontend/public/index.html:
+- <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+- <a id="emergent-badge">…Made with Emergent…</a>
+- Posthog analytics init block (belonged to Emergent's telemetry project)
+
+Removed from React source:
+- "phase 1" chip in /app/frontend/src/layouts/AppLayout.jsx (line 184 → now "Business OS")
+- "phase 1 · auth + orgs" chip in /app/frontend/src/layouts/AuthLayout.jsx (line 35 → now "Universal Business Operating System")
+
+New favicon at /app/frontend/public/icons/favicon.svg — 4-square grid on teal, no Emergent mark.

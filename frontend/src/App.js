@@ -40,6 +40,7 @@ import PublicViewRecordPage from "@/pages/PublicViewRecordPage";
 import DashboardPage from "@/pages/DashboardPage";
 import SearchPage from "@/pages/SearchPage";
 import BrowsePage from "@/pages/BrowsePage";
+import HelpPage from "@/pages/HelpPage";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 
 /** Small wrapper — per-page ErrorBoundary so a broken page keeps sidebar/topbar. */
@@ -82,6 +83,7 @@ function App() {
               </Route>
 
               {/* Standalone (no chrome) */}
+              <Route path="/help" element={<HelpPage />} />
               <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
               <Route path="/s/:token" element={<PublicRecordPage />} />
               <Route path="/v/:token" element={<PublicViewPage />} />

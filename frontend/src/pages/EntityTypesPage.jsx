@@ -4,6 +4,7 @@ import { Boxes, Plus, Trash2, Layers, ListChecks, FolderTree, Tags, GitBranch } 
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { useTerminology } from "@/lib/terminology";
+import { useTabTitle } from "@/lib/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +45,7 @@ export default function EntityTypesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTerminology();
   const newCollectionLabel = t("collection.new");
+  useTabTitle(t("nav.data") || "My Data", "boxes");
 
   // Sidebar "+ Add new Collection" navigates here with ?new=1 to auto-open the dialog.
   useEffect(() => {

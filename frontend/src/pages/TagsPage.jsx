@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useTabTitle } from "@/lib/tabs";
 import { Plus, Tag as TagIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,8 @@ export default function TagsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", color: "", entity_type_scoped: true });
   const [q, setQ] = useState("");
+
+  useTabTitle(et ? `${et.name_plural} · Tags` : "Tags", "tag");
 
   const load = async () => {
     try {

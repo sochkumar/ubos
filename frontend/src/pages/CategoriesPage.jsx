@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTabTitle } from "@/lib/tabs";
 import { Plus, Trash2, FolderTree, MoveRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,8 @@ export default function CategoriesPage() {
   const [newName, setNewName] = useState("");
   const [confirmDel, setConfirmDel] = useState(null);
   const [cascade, setCascade] = useState(false);
+
+  useTabTitle(et ? `${et.name_plural} · Categories` : null, "folder-tree");
 
   const flat = useMemo(() => flatten(tree), [tree]);
 

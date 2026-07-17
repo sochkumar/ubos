@@ -4,6 +4,14 @@
   "description": "Furniture, rooms, customers, orders, deliveries, and suppliers — plus a Furniture→Room link.",
   "icon": "Armchair",
   "cover_image": null,
+  "terminology": {
+    "collection.singular": "Category",
+    "collection.plural":   "Categories",
+    "collection.new":      "Add new Category",
+    "record.singular":     "Piece",
+    "record.plural":       "Pieces",
+    "record.new":          "Add new Piece"
+  },
   "entity_types": [
     {
       "key": "furniture",

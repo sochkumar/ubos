@@ -31,8 +31,8 @@ export default function AuthLayout() {
             <span className="px-2 py-1 rounded bg-muted">no-code schema</span>
           </div>
         </div>
-        <div className="text-[11px] text-muted-foreground font-mono">
-          phase 1 · auth + orgs
+        <div className="text-[11px] text-muted-foreground">
+          Universal Business Operating System
         </div>
       </aside>
 
