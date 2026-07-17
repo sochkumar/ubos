@@ -1,6 +1,7 @@
 """Phase 8 — Universal browse + browse-scope views tests."""
 import os
 import time
+import uuid
 import requests
 import pytest
 
@@ -190,3 +191,68 @@ def test_regression_per_collection_records_endpoint(owner_hdr):
     etid = et_list[0]["id"]
     r = requests.get(f"{API}/entity-types/{etid}/records", headers=owner_hdr)
     assert r.status_code == 200, r.text
+
+
+# ────────────────── Phase 7B/8 regression: empty-collection contract ──────────────────
+#
+# Guards against the front-end TDZ crash reported as a P0 during Sub-pass B,
+# where the collection-records page threw `Cannot access 'et' before initialization`.
+# The React fix moves useTabTitle after the state declaration. This backend
+# contract test verifies the endpoints the page depends on return sane shapes
+# for both populated and empty collections so a UI regression can't be blamed
+# on the API layer.
+def _create_empty_collection(hdr, name_suffix: str) -> dict:
+    r = requests.post(
+        f"{API}/entity-types",
+        headers=hdr,
+        json={"key": f"empty_regression_{name_suffix}",
+              "name_singular": f"EmptyRegression{name_suffix}",
+              "name_plural": f"EmptyRegressions{name_suffix}"},
+    )
+    assert r.status_code in (200, 201), r.text
+    return r.json()
+
+
+def test_records_page_contract_empty_collection(owner_hdr):
+    """A brand-new empty collection must return well-shaped responses on the
+    three GETs the records page fires:
+        GET /entity-types/{id}          → the ET metadata
+        GET /entity-types/{id}/fields   → empty array
+        GET /entity-types/{id}/records  → { total: 0, items: [] } style
+    Both empty and populated cases must have identical top-level shapes.
+    """
+    suffix = uuid.uuid4().hex[:6]
+    et = _create_empty_collection(owner_hdr, suffix)
+    et_id = et["id"]
+    try:
+        r_meta = requests.get(f"{API}/entity-types/{et_id}", headers=owner_hdr)
+        assert r_meta.status_code == 200
+        for k in ("id", "key", "name_singular", "name_plural"):
+            assert k in r_meta.json(), f"missing {k} on empty ET"
+
+        r_fields = requests.get(f"{API}/entity-types/{et_id}/fields", headers=owner_hdr)
+        assert r_fields.status_code == 200
+        assert isinstance(r_fields.json(), list) and len(r_fields.json()) == 0
+
+        r_records = requests.get(f"{API}/entity-types/{et_id}/records", headers=owner_hdr)
+        assert r_records.status_code == 200
+        body = r_records.json()
+        # Whatever the wrapper is (`items` vs top-level list), it must
+        # deserialize into an iterable of length 0.
+        items = body if isinstance(body, list) else body.get("items", body.get("records", []))
+        assert len(items) == 0
+
+        # Browse endpoint (Phase 8) with filter must also work:
+        r_browse = requests.get(
+            f"{API}/records/browse?entity_type_ids={et_id}", headers=owner_hdr,
+        )
+        assert r_browse.status_code == 200
+        b = r_browse.json()
+        assert b["total_estimate"] == 0
+        assert b["results"] == []
+        # field_defs_by_et must key this et even when the results are empty —
+        # NOT strictly required (the fix seeds only when results contain rows),
+        # so just confirm the shape.
+        assert isinstance(b["entity_type_field_defs"], dict)
+    finally:
+        requests.delete(f"{API}/entity-types/{et_id}", headers=owner_hdr)

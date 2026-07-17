@@ -53,13 +53,15 @@ export default function RecordsPage() {
   const { t } = useTerminology();
   const canShare = ["owner", "admin"].includes(activeRole);
 
-  useAutoTour("collection");
-  useTabTitle(et?.name_plural || null, "boxes");
-
   const [et, setEt] = useState(null);
   const [fields, setFields] = useState([]);
   const [tagsById, setTagsById] = useState({});
   const [catsById, setCatsById] = useState({});
+
+  // Trigger the first-run coach mark for this route. Must live AFTER `et` so
+  // the tab-title update doesn't hit the TDZ before the state is initialised.
+  useAutoTour("collection");
+  useTabTitle(et?.name_plural || null, "boxes");
 
   // Query state
   const [layout, setLayout] = useState("table");
