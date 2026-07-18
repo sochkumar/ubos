@@ -50,7 +50,7 @@ class LabelConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
     preset: str = "avery_5160"
     preset_id: str | None = None   # references a `label_presets` doc (Phase 6-A)
-    code_mode: Literal["qr_and_barcode", "qr_only", "barcode_only"] = "qr_and_barcode"
+    code_mode: Literal["qr_and_barcode", "qr_only", "barcode_only", "none"] = "qr_and_barcode"
     show_title: bool = True
     show_record_number: bool = True
     show_fields: list[str] = Field(default_factory=list)

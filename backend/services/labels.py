@@ -74,6 +74,52 @@ PRESETS = {
 }
 
 
+def _fit_and_render_fields(
+    c, *, x, y_top, y_bot, width, entries, min_font=5, start_font=7,
+):
+    """Render as many field entries as fit inside the vertical band
+    [y_bot, y_top] with width `width`. Progressive shrink from `start_font`
+    down to `min_font`; if still too many lines to fit, truncate with ellipsis.
+
+    entries: list of preformatted strings like "label: value".
+    Returns the y-cursor after rendering (bottom of the last line drawn).
+    """
+    if not entries:
+        return y_top
+    avail_h = y_top - y_bot
+    if avail_h <= 0:
+        return y_top
+    # Try font sizes 7 → min_font until every entry fits.
+    for size in range(start_font, min_font - 1, -1):
+        line_h = size + 1.5  # small leading
+        max_lines = int(avail_h // line_h)
+        if max_lines <= 0:
+            continue
+        if len(entries) <= max_lines:
+            break
+    else:
+        size = min_font
+        line_h = size + 1.5
+        max_lines = max(1, int(avail_h // line_h))
+
+    c.setFont("Helvetica", size)
+    # Approx characters that fit at this font size — Helvetica avg char width ≈ 0.5 * size.
+    max_chars = max(6, int(width / (0.5 * size)))
+    cursor = y_top
+    drawn = 0
+    for s in entries:
+        if drawn >= max_lines:
+            break
+        if drawn == max_lines - 1 and len(entries) > max_lines:
+            s = "…"  # last visible slot is an overflow marker
+        if len(s) > max_chars:
+            s = s[: max_chars - 1] + "…"
+        cursor -= line_h
+        c.drawString(x, cursor, s)
+        drawn += 1
+    return cursor
+
+
 def _draw_label(c, x, y, w, h, *, record, config):
     """Draw a single label at (x,y) top-left. Reportlab origin is bottom-left,
     so we flip inside this helper."""
@@ -90,7 +136,8 @@ def _draw_label(c, x, y, w, h, *, record, config):
     show_rn = config.get("show_record_number", True)
     show_fields = config.get("show_fields") or []
 
-    # Reserve space for the code(s) on the right side
+    # Reserve space for the code(s) on the right side — SKIPPED when
+    # code_mode == "none", so the text block gets the full width.
     code_area = 0
     if code_mode in ("qr_and_barcode", "qr_only"):
         qr_size = min(h - 2 * pad, 72)  # cap at 1 inch
@@ -126,22 +173,30 @@ def _draw_label(c, x, y, w, h, *, record, config):
         title = record["title"]
         # simple ellipsis to fit
         max_chars = int(text_width / 5)
-        if len(title) > max_chars:
+        if max_chars > 0 and len(title) > max_chars:
             title = title[: max_chars - 1] + "…"
         c.drawString(text_left, cursor_y, title)
+
+    # Extra fields — no cap. Use full width when code_mode="none"; otherwise
+    # the text_width already excludes the reserved code column. When barcodes
+    # are drawn along the bottom, reserve that band so text doesn't overlap.
     if show_fields:
-        c.setFont("Helvetica", 7)
-        for fk in show_fields[:3]:
-            v = (record.get("fields") or {}).get(fk)
+        bottom_reserved = 0
+        if code_mode in ("qr_and_barcode", "barcode_only"):
+            bc_h = max(18, min(h * 0.28, 42))
+            bottom_reserved = bc_h + pad
+        field_y_bot = y_bl + pad + bottom_reserved
+        entries = []
+        record_fields = record.get("fields") or {}
+        for fk in show_fields:
+            v = record_fields.get(fk)
             if v in (None, ""):
                 continue
-            s = f"{fk}: {v}"
-            if len(s) > int(text_width / 4):
-                s = s[: int(text_width / 4) - 1] + "…"
-            cursor_y -= 8.5
-            if cursor_y < y_bl + 4:
-                break
-            c.drawString(text_left, cursor_y, s)
+            entries.append(f"{fk}: {v}")
+        _fit_and_render_fields(
+            c, x=text_left, y_top=cursor_y, y_bot=field_y_bot,
+            width=text_width, entries=entries,
+        )
 
 
 def render_labels_pdf(records: list[dict], config: dict) -> bytes:

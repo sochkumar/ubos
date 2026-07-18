@@ -19,6 +19,7 @@ const CODE_MODES = [
   { value: "qr_and_barcode", label: "QR + Code128" },
   { value: "qr_only", label: "QR only" },
   { value: "barcode_only", label: "Code128 only" },
+  { value: "none", label: "None (fields only)" },
 ];
 
 /**
@@ -81,8 +82,10 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
   const pageCount = Math.max(1, Math.ceil((totalLabels + startPos) / perPage));
 
   const toggleField = (k) => {
+    // No cap — user can pick as many fields as the collection has. The PDF
+    // renderer progressively shrinks/truncates to fit the physical label.
     setShowFields((prev) =>
-      prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k].slice(0, 3),
+      prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k],
     );
   };
 
@@ -219,7 +222,7 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
           {printableFields.length > 0 && (
             <div className="col-span-2">
               <Label className="text-sm">
-                Extra fields on label <span className="text-muted-foreground text-xs">(max 3)</span>
+                Extra fields on label <span className="text-muted-foreground text-xs">— pick any</span>
               </Label>
               <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid="labels-extra-fields">
                 {printableFields.map((f) => {
