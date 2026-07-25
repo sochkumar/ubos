@@ -1,28 +1,23 @@
 """
-Phase D0 — Database Adapter POC.
+Phase D0 · Database Adapter layer (LANDED to main).
 
-Purpose: prove (or disprove) that `mongita` can serve UBOS's real query
-patterns. Provides a Motor-DB-shaped facade so existing callsites remain
-unchanged: `get_database_adapter().records.insert_one(...)` continues to
-work the same way `db.records.insert_one(...)` does today.
+**Introduced in Desktop Phase D0** as the foundation for offline-mode support.
+`MotorAdapter` is a strict passthrough for online mode — behaviorally
+identical to today's direct-Motor callsites. Additional adapters (mongita,
+montydb, and — as fallback — bundled `mongod`) are evaluated separately;
+the winner will be selected in D0.5 / D1. Until then, all three
+`*Adapter` classes coexist here so the parametrized capability suite can
+drive them side-by-side.
 
 Environment:
     UBOS_DB_MODE           = "online" (default) | "offline"
+    UBOS_OFFLINE_ENGINE    = "mongita" | "montydb"   (D0.5+, offline only)
     UBOS_OFFLINE_DATA_DIR  = filesystem path (default: ~/.ubos/data)
 
-Motor is unchanged — the MotorAdapter is a strict passthrough. Mongita
-support is emulated: every mongita call runs on `asyncio.to_thread` so
-it doesn't block the loop, and cursor chaining (`.sort().skip().limit()`)
+Motor is unchanged — the MotorAdapter is a strict passthrough. Non-Motor
+adapters are emulated: every mongita/montydb call runs on `asyncio.to_thread`
+so it doesn't block the loop, and cursor chaining (`.sort().skip().limit()`)
 is deferred until `to_list()` / iteration.
-
-Known mongita limitations (surfaced during D0 probing):
-    - `aggregate()` is not implemented at all
-    - No `$text` / `$regex` filters
-    - No `projection` argument to `find()`
-    - Compound and text indexes rejected
-    - Various operator gaps
-The adapter surfaces these as clear NotImplementedError / MongitaError,
-so calling code fails loudly rather than silently returning wrong data.
 """
 from __future__ import annotations
 
@@ -306,6 +301,131 @@ class MongitaAdapter(DatabaseAdapter):
         return await asyncio.to_thread(self._db.list_collection_names)
 
 
+class _MontyDBCollection:
+    """Async wrapper around a montydb collection. Same shape as
+    `_MongitaCollection` but delegates to montydb's more complete
+    Mongo API (projections + compound indexes + $regex all work).
+    Aggregate however is NOT implemented in montydb 2.5.x."""
+
+    def __init__(self, coll, name: str):
+        self._c = coll
+        self.name = name
+
+    # writes
+    async def insert_one(self, doc): return await asyncio.to_thread(self._c.insert_one, doc)
+    async def insert_many(self, docs): return await asyncio.to_thread(self._c.insert_many, docs)
+    async def update_one(self, f, u, upsert=False):
+        return await asyncio.to_thread(lambda: self._c.update_one(f, u, upsert=upsert))
+    async def update_many(self, f, u): return await asyncio.to_thread(self._c.update_many, f, u)
+    async def delete_one(self, f): return await asyncio.to_thread(self._c.delete_one, f)
+    async def delete_many(self, f): return await asyncio.to_thread(self._c.delete_many, f)
+    async def replace_one(self, f, r, upsert=False):
+        return await asyncio.to_thread(lambda: self._c.replace_one(f, r, upsert=upsert))
+
+    # reads — montydb supports projection natively
+    async def find_one(self, f=None, projection=None):
+        return await asyncio.to_thread(self._c.find_one, f or {}, projection)
+
+    def find(self, f=None, projection=None):
+        return _MontyDBAsyncCursor(self._c, f, projection)
+
+    async def count_documents(self, f=None):
+        return await asyncio.to_thread(self._c.count_documents, f or {})
+
+    def aggregate(self, pipeline):
+        # montydb 2.5.6 raises NotImplementedError from Collection.aggregate.
+        # Surface eagerly with pipeline context for diagnostics.
+        raise NotImplementedError(
+            "montydb.aggregate() is not implemented in montydb 2.5.x. "
+            "Pipeline (first 2 stages): " + str(pipeline[:2])
+        )
+
+    async def create_index(self, spec, **kwargs):
+        clean = {k: v for k, v in kwargs.items() if k in ("unique", "name", "sparse")}
+        return await asyncio.to_thread(lambda: self._c.create_index(spec, **clean))
+
+
+class _MontyDBAsyncCursor:
+    """Same lazy-materialize pattern as `_MongitaAsyncCursor`, but montydb
+    supports multi-key sort and projection natively — no special-casing."""
+
+    def __init__(self, coll, filt, projection):
+        self._coll = coll
+        self._filt = filt or {}
+        self._proj = projection
+        self._sort = None
+        self._skip = 0
+        self._limit = None
+        self._materialized: list | None = None
+        self._idx = 0
+
+    def sort(self, spec, direction=None):
+        if isinstance(spec, str) and direction is not None:
+            self._sort = [(spec, direction)]
+        else:
+            self._sort = list(spec)
+        return self
+
+    def skip(self, n): self._skip = n; return self
+    def limit(self, n): self._limit = n; return self
+
+    def _sync(self):
+        c = self._coll.find(self._filt, self._proj) if self._proj is not None else self._coll.find(self._filt)
+        if self._sort:
+            c = c.sort(self._sort)
+        if self._skip:
+            c = c.skip(self._skip)
+        if self._limit is not None:
+            c = c.limit(self._limit)
+        return list(c)
+
+    async def _mat(self):
+        if self._materialized is None:
+            self._materialized = await asyncio.to_thread(self._sync)
+        return self._materialized
+
+    async def to_list(self, length):
+        docs = await self._mat()
+        return docs if length is None else docs[:length]
+
+    def __aiter__(self): return self
+
+    async def __anext__(self):
+        docs = await self._mat()
+        if self._idx >= len(docs):
+            raise StopAsyncIteration
+        d = docs[self._idx]; self._idx += 1
+        return d
+
+
+class MontyDBAdapter(DatabaseAdapter):
+    """Wraps `montydb.MontyClient` on disk-persisted storage.
+    Full Mongo API (finds, projections, indexes, $regex, multi-sort) — but
+    aggregate is not implemented in montydb 2.5.x. Same blast radius as
+    mongita for pipeline-heavy code paths."""
+    mode = "offline"
+
+    def __init__(self, data_dir: str | Path, db_name: str = "ubos"):
+        from montydb import MontyClient, set_storage  # lazy import
+        self._data_dir = str(Path(data_dir).expanduser())
+        Path(self._data_dir).mkdir(parents=True, exist_ok=True)
+        # SQLite storage is the default in montydb 2.x and gives real ACID.
+        set_storage(self._data_dir, storage="sqlite")
+        self._client = MontyClient(self._data_dir)
+        self._db = self._client[db_name]
+        self._cache: dict[str, _MontyDBCollection] = {}
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if name not in self._cache:
+            self._cache[name] = _MontyDBCollection(self._db[name], name)
+        return self._cache[name]
+
+    async def list_collection_names(self):
+        return await asyncio.to_thread(self._db.list_collection_names)
+
+
 # ══════════════════════════════════════════════════════════════════════
 # Factory
 # ══════════════════════════════════════════════════════════════════════
@@ -326,7 +446,17 @@ def get_database_adapter() -> DatabaseAdapter:
     if mode == "offline":
         data_dir = os.environ.get("UBOS_OFFLINE_DATA_DIR", "~/.ubos/data")
         db_name  = os.environ.get("DB_NAME", "ubos")
-        _ADAPTER_INSTANCE = MongitaAdapter(data_dir, db_name=db_name)
+        # montydb is the D0.5 default — mongita retained for comparison only
+        engine   = os.environ.get("UBOS_OFFLINE_ENGINE", "montydb").lower()
+        if engine == "mongita":
+            _ADAPTER_INSTANCE = MongitaAdapter(data_dir, db_name=db_name)
+        elif engine == "montydb":
+            _ADAPTER_INSTANCE = MontyDBAdapter(data_dir, db_name=db_name)
+        else:
+            raise ValueError(
+                f"UBOS_OFFLINE_ENGINE={engine!r} not recognised. "
+                "Use 'mongita' or 'montydb'.",
+            )
     else:
         from motor.motor_asyncio import AsyncIOMotorClient
         client = AsyncIOMotorClient(os.environ["MONGO_URL"])

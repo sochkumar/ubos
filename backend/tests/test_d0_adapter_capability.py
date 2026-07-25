@@ -25,7 +25,8 @@ from dotenv import load_dotenv
 load_dotenv("/app/backend/.env")
 
 from core.db_adapter import (
-    MotorAdapter, MongitaAdapter, DatabaseAdapter, reset_adapter_for_tests,
+    MotorAdapter, MongitaAdapter, MontyDBAdapter, DatabaseAdapter,
+    reset_adapter_for_tests,
 )
 
 
@@ -33,7 +34,7 @@ from core.db_adapter import (
 # Motor's AsyncIOMotorClient binds to whichever event loop is running at
 # construction time. Using a factory that instantiates the adapter INSIDE
 # the test's asyncio.run() keeps Motor + the test on the same loop.
-@pytest.fixture(params=["motor", "mongita"])
+@pytest.fixture(params=["motor", "mongita", "montydb"])
 def make_adapter(request, tmp_path):
     kind = request.param
 
@@ -44,8 +45,12 @@ def make_adapter(request, tmp_path):
             client = AsyncIOMotorClient(os.environ["MONGO_URL"])
             db = client[os.environ["DB_NAME"] + "_d0test"]
             return MotorAdapter(db)
-        d = tmp_path / f"mongita_{uuid.uuid4().hex[:6]}"
-        return MongitaAdapter(d, db_name="ubos_d0test")
+        if kind == "mongita":
+            d = tmp_path / f"mongita_{uuid.uuid4().hex[:6]}"
+            return MongitaAdapter(d, db_name="ubos_d0test")
+        # montydb
+        d = tmp_path / f"montydb_{uuid.uuid4().hex[:6]}"
+        return MontyDBAdapter(d, db_name="ubos_d0test")
 
     factory.kind = kind
     return factory

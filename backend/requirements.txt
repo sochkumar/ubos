@@ -148,3 +148,5 @@ zipp==4.1.0
 
 mongita==1.2.0
 sortedcontainers==2.4.0
+
+montydb==2.5.6
