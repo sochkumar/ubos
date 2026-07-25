@@ -457,6 +457,16 @@ def get_database_adapter() -> DatabaseAdapter:
                 f"UBOS_OFFLINE_ENGINE={engine!r} not recognised. "
                 "Use 'mongita' or 'montydb'.",
             )
+    elif mode == "bundled":
+        # D0.6 path — spin up a local mongod, point Motor at it.
+        # The database adapter is still `MotorAdapter`; the difference is
+        # WHERE the Mongo server lives.
+        from core.mongod_launcher import get_or_start_bundled_mongod
+        from motor.motor_asyncio import AsyncIOMotorClient
+        launcher = get_or_start_bundled_mongod()
+        db_name  = os.environ.get("DB_NAME", "ubos")
+        client   = AsyncIOMotorClient(launcher.uri)
+        _ADAPTER_INSTANCE = MotorAdapter(client[db_name])
     else:
         from motor.motor_asyncio import AsyncIOMotorClient
         client = AsyncIOMotorClient(os.environ["MONGO_URL"])
