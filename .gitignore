@@ -31,6 +31,9 @@ dist/
 dist
 
 # Environment files (comprehensive coverage)
+.env
+.env.*
+!.env.example
 
 *token.json*
 *credentials.json*
@@ -77,6 +80,10 @@ agenthub/agents/youtube/db
 .cache/
 
 memory/test_credentials.md
+
+# Runtime test/dev artifacts (do not push to remote)
+backend/uploads/
+backend/dev_emails.log
 
 # Mobile development
 android-sdk/
