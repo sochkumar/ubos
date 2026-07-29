@@ -2,7 +2,7 @@
 
 This document is the single source of truth for a new engineer taking over the UBOS codebase. It covers what the product is, how the code is laid out, what secrets it needs, and everything that is currently unfinished, wired up "for later", or known to be broken. Read this before you touch anything.
 
-Last updated: 2026-02-29 (after Desktop-workstream cancellation and revert).
+Last updated: 2026-02-29 (Desktop workstream cancelled and reverted; unused `emergentintegrations` + `litellm` pin removed to fix `pip install`).
 
 ---
 
@@ -288,7 +288,7 @@ MongoDB must be running locally (Docker: `docker run -d -p 27017:27017 mongo:7`)
 
 ```bash
 cd /app/backend
-python -m pytest tests/ -q -n 0     # SERIAL — recommended, see Known Issues #7
+python -m pytest tests/ -q -n 0     # SERIAL — recommended, see Known Issues #6
 ```
 
 Serial run takes ~4-5 minutes. Parallel `-n 2 --dist loadfile` (the `pytest.ini` default) is faster but occasionally hangs in this pod's environment — see [Known Issues](#6-known-issues) item 7.
@@ -311,6 +311,9 @@ Ordered by impact. Prod-blockers first.
 8. **Legacy pytest files carry pre-Phase-5 auth patterns.** `test_ubos_phase0.py`, `test_ubos_phase3a.py`, `test_ubos_phase5a_hotfix.py` were partially rewritten to JWT during the aborted "hygiene sprint" and still have a handful of failing / flaky cases (approx. 6 tests). Harmless — none block prod, none exercise a broken code path. Suggested fix: either finish the JWT rewrite or delete the obsolete cases outright. See git log around 2026-02-29 for context.
 9. **Rate-limit tests are flaky under parallel worker load.** They share the server's in-memory `_RL` bucket. `POST /api/dev/reset-rate-limits` exists as a targeted reset (owner-scoped RBAC). Tests that need a clean bucket must opt in via the `reset_rate_limits` fixture in `tests/conftest.py`; do not add it as autouse or you break cross-worker isolation.
 10. **`login_attempts` collection is never trimmed.** The brute-force lockout writes rows and only expires them lazily on read. Not a correctness bug (5-fail lockout still fires correctly) but the collection grows monotonically. Add a TTL index on `expires_at`.
+
+**Resolved during handoff (2026-02-29):**
+- ~~`pip install -r requirements.txt` fails on `emergentintegrations==0.2.0` vs `litellm==1.80.0`.~~ **Fixed.** `emergentintegrations` was zero-referenced in the codebase (verified by grep) and was pulled in as boilerplate. Removed from `requirements.txt`. `litellm` remains as a top-level pin but is also zero-referenced — kept because removal is out of scope for the handoff; safe to delete when convenient.
 
 ---
 
