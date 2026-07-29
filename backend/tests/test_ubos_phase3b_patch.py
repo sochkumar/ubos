@@ -245,32 +245,23 @@ class TestAuditFilters:
 
 # ─────────────────────── BONUS — fresh org quota ──────────────────────
 class TestFreshOrgQuota:
-    def test_new_org_has_default_storage_quota(self, owner):
-        # Owner creates a brand new org
-        name = f"TEST_QuotaOrg_{uuid.uuid4().hex[:6]}"
-        r = requests.post(f"{API}/orgs", json={"name": name},
-                          headers=_h(owner), timeout=15)
-        assert r.status_code == 201, r.text
-        body = r.json()
-        org = body.get("org") or body
-        assert (org.get("settings") or {}).get("storage_quota_bytes") == DEFAULT_QUOTA, org
+    def test_new_org_has_default_storage_quota(self, fresh_org):
+        """A newly-created org must ship with the default storage quota.
 
-        # Access via GET /api/orgs/{id}
-        oid = org["id"] if "id" in org else org.get("_id")
-        r = requests.get(f"{API}/orgs/{oid}", headers=_h(owner), timeout=15)
+        Uses the `fresh_org` fixture (a brand-new user + org) instead of the
+        shared Acme owner: creating an org via `POST /api/orgs` sets the
+        caller's `default_org_id`, so previously this test poisoned owner's
+        active org and made downstream tests (Phase 2 templates etc.) flaky.
+        """
+        # The fresh_org fixture already gave us a newly-created org.
+        oid = fresh_org.org_id
+        r = requests.get(f"{API}/orgs/{oid}", headers=fresh_org.h(), timeout=15)
         assert r.status_code == 200, r.text
         got = r.json()
         assert (got.get("settings") or {}).get("storage_quota_bytes") == DEFAULT_QUOTA, got
 
-        # Switch to that org and check /api/media/storage
-        tok2 = {"access_token": body.get("access_token") or body.get("token")}
-        if not tok2["access_token"]:
-            # fallback to switch endpoint
-            sw = requests.post(f"{API}/orgs/{oid}/switch",
-                               headers=_h(owner), timeout=15)
-            assert sw.status_code == 200, sw.text
-            tok2 = sw.json()
-        r = requests.get(f"{API}/media/storage", headers=_h(tok2), timeout=15)
+        # Media storage for the fresh org reflects the same quota.
+        r = requests.get(f"{API}/media/storage", headers=fresh_org.h(), timeout=15)
         assert r.status_code == 200, r.text
         st = r.json()
         assert st.get("quota_bytes") == DEFAULT_QUOTA, st

@@ -53,6 +53,45 @@ def owner_uid(owner_auth):
     return j.get("_id") or j.get("id") or j.get("user_id") or (j.get("user") or {}).get("id")
 
 
+# Module-scoped store for the custom preset created by TestLabelPresetsCRUD
+# and consumed by TestLabelPresetDelete. Under xdist loadscope the whole
+# module runs on a single worker so a plain dict is safe; class-level state
+# was NOT safe because different classes may collect into different orders.
+_module_state: dict = {}
+
+
+def _get_or_create_shared_preset(owner_auth: dict, acme_org_id: str) -> tuple[str, str]:
+    """Return (preset_id, preset_key) for a custom preset in Acme.
+
+    Under `pytest -n 2 --dist loadscope`, each class in this module may run
+    on a different worker. That means Python-level module state (a plain
+    module dict, class attributes, etc.) is NOT shared between classes.
+    Instead, discover the preset via the API — the DB is the shared source
+    of truth.
+    """
+    r = requests.get(f"{API}/orgs/{acme_org_id}/label-presets",
+                     headers=h(owner_auth), timeout=15)
+    r.raise_for_status()
+    customs = r.json().get("custom", [])
+    for c in customs:
+        if c.get("key", "").startswith("qa-preset-"):
+            return c.get("id") or c.get("_id"), c["key"]
+    # None exists yet — create one.
+    import uuid as _uuid
+    key = f"qa-preset-{_uuid.uuid4().hex[:6]}"
+    body = {
+        "key": key, "name": "QA Preset", "page_size": "A4",
+        "cols": 3, "rows": 3, "label_w_mm": 60, "label_h_mm": 40,
+        "margin_top_mm": 10, "margin_left_mm": 10,
+        "gutter_h_mm": 2, "gutter_v_mm": 2,
+    }
+    r = requests.post(f"{API}/orgs/{acme_org_id}/label-presets",
+                      json=body, headers=h(owner_auth), timeout=15)
+    r.raise_for_status()
+    d = r.json()
+    return d.get("id") or d.get("_id"), d["key"]
+
+
 # ─────────────────────── label presets CRUD ───────────────────────
 class TestLabelPresetsCRUD:
     _created_id = None
@@ -89,6 +128,8 @@ class TestLabelPresetsCRUD:
         assert d.get("is_system") is False
         TestLabelPresetsCRUD._created_id = d.get("id") or d.get("_id")
         assert TestLabelPresetsCRUD._created_id
+        _module_state["created_preset_id"] = TestLabelPresetsCRUD._created_id
+        _module_state["created_preset_key"] = TestLabelPresetsCRUD._key
 
     def test_list_contains_custom_with_dimensions(self, owner_auth, acme_org_id):
         r = requests.get(f"{API}/orgs/{acme_org_id}/label-presets",
@@ -182,9 +223,10 @@ class TestLabelRenderCustom:
                 return sr.json()["items"][0]["id"]
         pytest.skip("no records found in Acme to render labels for")
 
-    def test_render_custom_preset(self, owner_auth, any_record_id):
-        # Grab the custom preset just created
-        pid = TestLabelPresetsCRUD._created_id
+    def test_render_custom_preset(self, owner_auth, acme_org_id, any_record_id):
+        # Look up the custom preset via API (cross-class scheduling means we
+        # cannot rely on Python state from TestLabelPresetsCRUD).
+        pid, _ = _get_or_create_shared_preset(owner_auth, acme_org_id)
         r = requests.post(
             f"{API}/records/labels",
             json={"record_ids": [any_record_id],
@@ -209,14 +251,13 @@ class TestLabelRenderCustom:
 
 
 class TestLabelPresetDelete:
-    def test_delete_custom(self, owner_auth):
-        pid = TestLabelPresetsCRUD._created_id
+    def test_delete_custom(self, owner_auth, acme_org_id):
+        # Cross-class scheduling: look up the preset in the DB rather than
+        # rely on Python-level module state that xdist may not share.
+        pid, _ = _get_or_create_shared_preset(owner_auth, acme_org_id)
         r = requests.delete(f"{API}/label-presets/{pid}",
                             headers=h(owner_auth), timeout=15)
         assert r.status_code == 204
-        # subsequent GET on list should not include it
-        r2 = requests.get(f"{API}/orgs/{__import__('os').environ.get('_ACME','')}",
-                         headers=h(owner_auth), timeout=5) if False else None
 
 
 # ─────────────────────── owner-self-collab 409 ───────────────────────

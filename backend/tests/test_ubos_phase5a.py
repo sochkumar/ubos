@@ -23,7 +23,6 @@ def _get_backend_url():
 BASE_URL = _get_backend_url()
 assert BASE_URL
 API = f"{BASE_URL}/api"
-PRODUCTS_ET = "c3ac360b-cba4-44bd-bf00-7658025b3dad"
 
 
 def _login(email, password):
@@ -50,6 +49,48 @@ def _h(tok):
 
 def _hjson(tok):
     return {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+
+
+# Resolve the Acme "products" entity_type id lazily and cache it. The old
+# suite hardcoded a UUID from an early seed; that ID changes whenever the
+# demo org is re-seeded, so look it up dynamically.
+_PRODUCTS_ET_CACHE: dict[str, str] = {}
+
+
+def _resolve_products_et() -> str:
+    if "id" in _PRODUCTS_ET_CACHE:
+        return _PRODUCTS_ET_CACHE["id"]
+    d = _login("owner@ubos.test", "OwnerPass!123")
+    tok = d["access_token"]
+    r = requests.get(f"{API}/entity-types", headers=_h(tok), timeout=15)
+    assert r.status_code == 200, r.text
+    for et in r.json():
+        if et["key"] == "products":
+            _PRODUCTS_ET_CACHE["id"] = et["id"]
+            return et["id"]
+    pytest.skip("Acme seed missing the `products` entity type")
+
+
+class _LazyProductsET(str):
+    """A str proxy that resolves the products entity_type id on first use."""
+
+    def __str__(self):  # type: ignore[override]
+        return _resolve_products_et()
+
+    def __repr__(self):  # noqa: D401
+        return _resolve_products_et()
+
+    def __eq__(self, other):
+        return _resolve_products_et() == other
+
+    def __hash__(self):
+        return hash(_resolve_products_et())
+
+    def __format__(self, spec):
+        return format(_resolve_products_et(), spec)
+
+
+PRODUCTS_ET = _LazyProductsET()
 
 
 @pytest.fixture(scope="session")
@@ -396,7 +437,7 @@ class TestPasswordShares:
         r = requests.get(f"{API}/public/records/{token}", timeout=15)
         assert r.status_code == 200
 
-    def test_rate_limit_5_attempts(self, owner_tok, product_record_id_for_share):
+    def test_rate_limit_5_attempts(self, reset_rate_limits, owner_tok, product_record_id_for_share):
         tok, _, _ = owner_tok
         r = requests.post(f"{API}/records/{product_record_id_for_share}/shares",
                           headers=_hjson(tok),

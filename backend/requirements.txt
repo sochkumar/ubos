@@ -145,8 +145,3 @@ Werkzeug==3.1.8
 wrapt==2.2.2
 yarl==1.24.2
 zipp==4.1.0
-
-mongita==1.2.0
-sortedcontainers==2.4.0
-
-montydb==2.5.6

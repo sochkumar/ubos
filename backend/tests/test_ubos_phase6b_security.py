@@ -315,7 +315,7 @@ class TestShareVisibility:
 # 4. RATE LIMITING
 # ============================================================
 class TestRateLimiting:
-    def test_login_bruteforce_lockout(self):
+    def test_login_bruteforce_lockout(self, reset_rate_limits):
         """5 failed logins → 6th returns 429 with Retry-After."""
         # Use a unique email so we don't clobber a real user's lockout state
         bad_email = f"TEST_lockout_{uuid.uuid4().hex[:8]}@ubos.test"
@@ -330,7 +330,7 @@ class TestRateLimiting:
         assert r6.status_code == 429, f"expected 429 after 5 fails; got {r6.status_code}. codes={codes}"
         assert r6.headers.get("Retry-After"), "Retry-After header missing"
 
-    def test_public_unlock_rate_limit(self, sensitive_share):
+    def test_public_unlock_rate_limit(self, reset_rate_limits, sensitive_share):
         """5 wrong unlock attempts → 6th returns 429."""
         token = sensitive_share["pshare"]["token"]
         for _ in range(5):
@@ -344,16 +344,23 @@ class TestRateLimiting:
         detail = body.get("detail", {})
         assert isinstance(detail, dict) and "retry_after" in detail, f"body missing retry_after: {body}"
 
-    def test_public_read_rate_limit(self, sensitive_share):
-        """PUBLIC_READ_RATE_LIMIT (default 60/min) — fire 61 requests, expect at least one 429."""
+    def test_public_read_rate_limit(self, reset_rate_limits, sensitive_share):
+        """PUBLIC_READ_RATE_LIMIT — fire limit+5 requests, expect at least one 429.
+
+        Uses a unique X-Forwarded-For to isolate this test's bucket from
+        other files running in parallel (`X-Forwarded-For` gives the test
+        its own rate-limit key, avoiding cross-file interference).
+        """
         token = sensitive_share["share"]["token"]
-        # Read env-configured limit; default is 60
+        # Read env-configured limit
         limit = int(os.environ.get("PUBLIC_READ_RATE_LIMIT", "60/min").split("/")[0])
-        # Fire limit+5 requests, count 429s
+        # Unique client IP → dedicated bucket
+        xff = f"8.8.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}"
         s = requests.Session()
         codes = []
         for _ in range(limit + 5):
-            r = s.get(f"{API}/public/records/{token}", timeout=15)
+            r = s.get(f"{API}/public/records/{token}",
+                      headers={"X-Forwarded-For": xff}, timeout=15)
             codes.append(r.status_code)
             if r.status_code == 429:
                 break

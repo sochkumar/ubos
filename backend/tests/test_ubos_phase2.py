@@ -56,11 +56,16 @@ def viewer_tok(s):
 # ============================================================================
 class TestTemplates:
     def test_list_returns_5_builtins(self, s, owner_tok):
+        # NOTE: the catalog has grown well past the original 5 seeded
+        # templates (bakery/furniture/jewellery store etc.). Assert the
+        # core keys are present and every entry has the required shape.
         r = s.get(f"{API}/templates", headers=_hdr(owner_tok), timeout=15)
         assert r.status_code == 200
         items = r.json()
-        keys = sorted(t["key"] for t in items)
-        assert keys == ["assets", "catalog", "crm_lite", "demo_basic", "inventory_lite"], keys
+        keys = {t["key"] for t in items}
+        # The 5 originals must still be there — anything else is welcome.
+        expected_core = {"assets", "catalog", "crm_lite", "demo_basic", "inventory_lite"}
+        assert expected_core.issubset(keys), f"missing core templates: {expected_core - keys}"
         for t in items:
             assert "entity_type_count" in t
             assert "relationship_count" in t
@@ -80,10 +85,13 @@ class TestTemplates:
         assert et["categories"][0]["name"] == "Furniture"
         assert len(et["categories"][0]["children"]) == 3
 
-    def test_dry_run_no_writes(self, s, owner_tok):
+    def test_dry_run_no_writes(self, s, fresh_org):
+        # Uses a fresh isolated org so we can assert the "no products yet"
+        # invariant. Acme has products pre-applied by seed.
+        hdr = fresh_org.hj()
         r = s.post(f"{API}/templates/catalog/apply",
                    json={"dry_run": True, "conflict_policy": "skip"},
-                   headers=_hdr(owner_tok), timeout=15)
+                   headers=hdr, timeout=15)
         assert r.status_code == 200
         plan = r.json()
         assert plan["dry_run"] is True
@@ -92,13 +100,15 @@ class TestTemplates:
         assert plan["entity_types"][0]["categories"] == 4  # Furniture + 3 children
         assert plan["tags"] == 2
         # Verify no products entity was created
-        et_list = s.get(f"{API}/entity-types", headers=_hdr(owner_tok)).json()
+        et_list = s.get(f"{API}/entity-types", headers=hdr).json()
         assert not any(e["key"] == "products" for e in et_list)
 
-    def test_apply_skip_creates_entities(self, s, owner_tok):
+    def test_apply_skip_creates_entities(self, s, fresh_org):
+        hdr = fresh_org.hj()
+        # First apply — nothing to conflict with since we're in a fresh org.
         r = s.post(f"{API}/templates/catalog/apply",
                    json={"dry_run": False, "conflict_policy": "skip"},
-                   headers=_hdr(owner_tok), timeout=30)
+                   headers=hdr, timeout=30)
         assert r.status_code == 200, r.text
         res = r.json()
         assert res["dry_run"] is False

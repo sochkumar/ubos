@@ -305,14 +305,22 @@ class TestRateLimit:
         url = f"{API}/public/records/{s['token']}"
         # Use unique XFF to isolate this test's bucket
         xff = f"9.9.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}"
+        # Dynamically match the server's configured limit (env-driven).
+        import os as _os
+        limit = int(_os.environ.get("PUBLIC_READ_RATE_LIMIT", "60/min").split("/")[0])
+        max_hits = limit + 20
+        # Use a Session with keep-alive to keep total wall-clock under the
+        # rate limiter's 60-second sliding window even at ~500ms per request
+        # (unpooled requests otherwise stretch to >60s and never trip 429).
+        sess = requests.Session()
         hits = []
-        for _ in range(80):
-            r = requests.get(url, headers={"X-Forwarded-For": xff})
+        for _ in range(max_hits):
+            r = sess.get(url, headers={"X-Forwarded-For": xff})
             hits.append(r.status_code)
             if r.status_code == 429:
                 assert r.json().get("detail", {}).get("code") == "rate_limited"
                 break
-        assert 429 in hits, f"expected a 429 in {len(hits)} hits, got {set(hits)}"
+        assert 429 in hits, f"expected a 429 in {len(hits)} hits (limit={limit}), got {set(hits)}"
 
     def test_rate_limit_buckets_per_ip(self, owner_token, record_id):
         s = requests.post(f"{API}/records/{record_id}/shares", headers=_h(owner_token),

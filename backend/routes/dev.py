@@ -25,6 +25,52 @@ async def seed_demo(ctx: AuthContext = Depends(require_permission("entity_types.
     )
 
 
+@router.post("/reset-rate-limits")
+async def reset_rate_limits(
+    ctx: AuthContext = Depends(require_permission("org.update")),
+):
+    """Clear in-memory rate-limit and lockout buckets used by the test suite.
+
+    Only clears the buckets that individual tests need to reset — namely the
+    per-share `unlock:*` buckets, the per-view `unlock:*` buckets, and the
+    persistent `login_attempts` collection. Public-read (`pub_read:*`) and
+    barcode/QR (`pub_bc:*`) buckets are NOT cleared here because parallel
+    test files rely on their own IP-isolated buckets (via `X-Forwarded-For`),
+    and stomping them mid-run makes rate-limit tests non-deterministic.
+    """
+    cleared: dict[str, int] = {}
+
+    try:
+        from routes import shares as shares_mod
+        keep = {k: v for k, v in shares_mod._RL.items()
+                if not k.startswith("unlock:")}
+        cleared["shares_unlock_buckets"] = len(shares_mod._RL) - len(keep)
+        shares_mod._RL.clear()
+        shares_mod._RL.update(keep)
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not reset shares rate limits: %s", e)
+
+    try:
+        from routes import view_shares as vs_mod
+        rl = getattr(vs_mod, "_RL", None)
+        if rl is not None:
+            keep = {k: v for k, v in rl.items() if not k.startswith("unlock:")}
+            cleared["view_shares_unlock_buckets"] = len(rl) - len(keep)
+            rl.clear()
+            rl.update(keep)
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not reset view_shares rate limits: %s", e)
+
+    # Persistent login-attempts collection — safe to nuke in test contexts.
+    try:
+        res = await get_db().login_attempts.delete_many({})
+        cleared["login_attempts"] = res.deleted_count
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not clear login_attempts: %s", e)
+
+    return {"cleared": cleared}
+
+
 @router.get("/whoami-ip")
 async def whoami_ip(
     request: Request,

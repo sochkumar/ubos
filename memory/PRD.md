@@ -883,3 +883,5 @@ Help modal (`GlobalHotkeys.jsx`) updated with a new "Tabs" section.
 - Between-test contamination — several older test files create test
   entity_types on Acme without cleanup, polluting the seed. Cleaning by
   hand between test runs is needed; not addressed here.
+
+2026-02-29: Desktop workstream (Phases D0-D5) was cancelled. All D0-era artifacts reverted from source tree.

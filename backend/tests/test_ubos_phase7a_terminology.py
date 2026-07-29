@@ -7,6 +7,7 @@ Covers:
 - REGRESSION: entity-types / records / fields / views / audit-logs GET still 2xx
 """
 import os
+import uuid
 import pytest
 import requests
 
@@ -139,11 +140,22 @@ class TestPhase7ARegression:
 
     def test_records_flow_create_read_update_delete(self, owner_session):
         s, _ = owner_session
-        # Get first entity type
+        # Grab an entity type whose required fields we know how to satisfy.
         r = s.get(f"{API}/entity-types")
         ets = r.json() if isinstance(r.json(), list) else r.json().get("items", [])
         assert len(ets) > 0, "No entity types in Acme"
-        et = ets[0]
+        # Prefer "products" since we know its required fields; else pick one
+        # with no required fields at all.
+        et = next((e for e in ets if e.get("key") == "products"), None)
+        if et is None:
+            for candidate in ets:
+                fields_resp = s.get(f"{API}/entity-types/{candidate['id']}/fields")
+                assert fields_resp.status_code == 200
+                required = [f for f in fields_resp.json() if f.get("required")]
+                if not required:
+                    et = candidate
+                    break
+        assert et is not None, "no entity type with satisfiable requirements found"
         et_id = et["id"]
 
         # List records
@@ -154,11 +166,16 @@ class TestPhase7ARegression:
         r = s.get(f"{API}/entity-types/{et_id}/fields")
         assert r.status_code == 200
 
+        # Build a payload that satisfies required fields for the chosen ET.
+        payload = {"fields": {}, "name": "TEST_phase7a_record"}
+        if et.get("key") == "products":
+            payload["fields"] = {
+                "sku": f"TEST_P7A_{uuid.uuid4().hex[:6]}",
+                "price": 1.23,
+            }
+
         # Create record
-        r = s.post(f"{API}/entity-types/{et_id}/records", json={
-            "values": {},
-            "name": "TEST_phase7a_record",
-        })
+        r = s.post(f"{API}/entity-types/{et_id}/records", json=payload)
         assert r.status_code in (200, 201), r.text
         rec_id = r.json()["id"]
 
