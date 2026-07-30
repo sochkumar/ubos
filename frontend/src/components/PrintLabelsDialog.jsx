@@ -36,9 +36,10 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
   const [presets, setPresets] = useState({ system: [], custom: [] });
   const [preset, setPreset] = useState("avery_5160");
   const [presetId, setPresetId] = useState(null);
-  const [codeMode, setCodeMode] = useState("qr_and_barcode");
+  const [codeMode, setCodeMode] = useState("none");
   const [showTitle, setShowTitle] = useState(true);
   const [showRecNum, setShowRecNum] = useState(true);
+  const [showValueIcons, setShowValueIcons] = useState(false);
   const [showFields, setShowFields] = useState([]);
   const [copies, setCopies] = useState(1);
   const [startPos, setStartPos] = useState(0);
@@ -96,6 +97,7 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
         code_mode: codeMode,
         show_title: showTitle,
         show_record_number: showRecNum,
+        show_value_icons: showValueIcons,
         show_fields: showFields,
         copies_per_record: Math.max(1, Number(copies) || 1),
         start_position: Math.max(0, Number(startPos) || 0),
@@ -215,6 +217,10 @@ export function PrintLabelsDialog({ open, onOpenChange, recordIds, fields = [] }
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Switch checked={showRecNum} onCheckedChange={setShowRecNum} data-testid="labels-show-recnum" />
               Show record #
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Switch checked={showValueIcons} onCheckedChange={setShowValueIcons} data-testid="labels-show-icons" />
+              Show icons
             </label>
           </div>
 
