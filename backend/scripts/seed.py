@@ -106,11 +106,11 @@ async def _ensure_org(db, owner_user: dict) -> dict:
     org = await db.organizations.find_one({"slug": ORG_SLUG})
     if org:
         return org
-    org_id = await create_organization(
-        db, name=ORG_NAME, slug=ORG_SLUG, owner_user_id=owner_user["_id"],
+    # create_organization returns the org document (not an id).
+    org = await create_organization(
+        db, name=ORG_NAME, slug=ORG_SLUG, creator_user_id=owner_user["_id"],
     )
-    log.info("created org %s (%s)", ORG_NAME, org_id)
-    org = await db.organizations.find_one({"_id": org_id})
+    log.info("created org %s (%s)", ORG_NAME, org["_id"])
     return org
 
 

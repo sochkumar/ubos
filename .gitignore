@@ -108,3 +108,7 @@ secret/
 *.pem
 ubos_private_key*
 ubos.lic
+
+# PyInstaller build outputs
+backend/build/
+backend/dist/

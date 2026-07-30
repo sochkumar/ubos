@@ -1,0 +1,98 @@
+name: Build Windows installer
+
+# Push a tag like v0.1.0 to produce a signed-less installer and attach it to a
+# GitHub Release. Or run manually (workflow_dispatch) to get it as an artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      MONGO_VER: "7.0.14"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── Frontend: build same-origin (backend serves it) ──
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          REACT_APP_BACKEND_URL: ""
+          REACT_APP_ENABLE_SW: "0"
+          NODE_OPTIONS: "--openssl-legacy-provider"
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile --network-timeout 600000
+          yarn build
+
+      - name: Stage frontend
+        run: |
+          New-Item -ItemType Directory -Force -Path desktop/resources/frontend | Out-Null
+          Copy-Item -Recurse -Force frontend/build/* desktop/resources/frontend/
+
+      # ── Backend: freeze to an exe (onedir) with PyInstaller ──
+      - name: Build backend exe
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+          pyinstaller ubos-backend.spec --noconfirm
+
+      - name: Stage backend
+        run: |
+          New-Item -ItemType Directory -Force -Path desktop/resources/backend | Out-Null
+          Copy-Item -Recurse -Force backend/dist/ubos-backend/* desktop/resources/backend/
+
+      # ── Bundle MongoDB (mongod.exe) ──
+      - name: Fetch MongoDB
+        run: |
+          $url = "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-$env:MONGO_VER.zip"
+          Invoke-WebRequest -Uri $url -OutFile mongo.zip
+          Expand-Archive -Path mongo.zip -DestinationPath mongo_extract -Force
+          New-Item -ItemType Directory -Force -Path desktop/resources/mongodb | Out-Null
+          $mongod = Get-ChildItem -Recurse mongo_extract -Filter mongod.exe | Select-Object -First 1
+          Copy-Item $mongod.FullName desktop/resources/mongodb/mongod.exe
+
+      # ── Bake the vendor license public key (repo secret) into main.js ──
+      - name: Embed license public key
+        env:
+          PUBKEY: ${{ secrets.UBOS_LICENSE_PUBLIC_KEY }}
+        run: |
+          if ($env:PUBKEY) {
+            (Get-Content desktop/main.js) -replace 'REPLACE_WITH_YOUR_ED25519_PUBLIC_KEY', $env:PUBKEY | Set-Content desktop/main.js
+            Write-Host "License public key embedded."
+          } else {
+            Write-Host "::warning::UBOS_LICENSE_PUBLIC_KEY secret not set - the installer will not be able to verify licenses."
+          }
+
+      # ── Package with electron-builder (NSIS) ──
+      - name: Build installer
+        working-directory: desktop
+        run: |
+          npm install
+          npm run dist
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UBOS-Windows-Installer
+          path: desktop/dist/*.exe
+
+      - name: Attach installer to Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/dist/*.exe

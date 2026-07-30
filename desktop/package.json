@@ -21,8 +21,7 @@
     "files": [
       "main.js",
       "license-preload.js",
-      "license.html",
-      "assets/**"
+      "license.html"
     ],
     "extraResources": [
       { "from": "resources/backend", "to": "backend" },
@@ -30,8 +29,7 @@
       { "from": "resources/frontend", "to": "frontend" }
     ],
     "win": {
-      "target": ["nsis"],
-      "icon": "assets/icon.ico"
+      "target": ["nsis"]
     },
     "nsis": {
       "oneClick": false,
