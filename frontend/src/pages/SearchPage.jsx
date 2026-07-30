@@ -67,25 +67,67 @@ export default function SearchPage() {
   const etIds = (sp.get("entity_type") || "").split(",").filter(Boolean);
 
   const [inputVal, setInputVal] = useState(q);
-  const [data, setData] = useState(null);
+  const [results, setResults] = useState([]);
+  const [facets, setFacets] = useState({ kinds: [], entity_types: [] });
+  const [totals, setTotals] = useState({});
+  const [tookMs, setTookMs] = useState(0);
+  const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Sync local input with URL param (e.g. on back/forward)
   useEffect(() => { setInputVal(q); }, [q]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!q.trim()) { setData(null); return; }
-    setLoading(true);
-    const params = { q, limit: 20 };
+  // A ref-free page runner: `cursor=null` starts a fresh search (replaces the
+  // list); a cursor appends the next page so ALL matching items are reachable.
+  const baseParams = () => {
+    const params = { q, limit: 50 };
     if (kinds.length && kinds.length < ALL_KINDS.length) {
-      // Send plural forms — backend accepts both, spec says plural
       params.types = kinds.map((k) => KIND_TO_URL[k]).join(",");
     }
     if (etIds.length) params.entity_type_ids = etIds.join(",");
-    api.get("/search", { params })
-      .then((r) => { if (!cancelled) setData(r.data); })
-      .catch(() => { if (!cancelled) setData(null); })
+    return params;
+  };
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await api.get("/search", { params: { ...baseParams(), cursor: nextCursor } });
+      setResults((prev) => {
+        const seen = new Set(prev.map((x) => `${x.kind}:${x.id}`));
+        const merged = [...prev];
+        (r.data.results || []).forEach((x) => {
+          if (!seen.has(`${x.kind}:${x.id}`)) merged.push(x);
+        });
+        return merged;
+      });
+      setNextCursor(r.data.next_cursor || null);
+    } catch { /* ignore */ }
+    finally { setLoadingMore(false); }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!q.trim()) {
+      setResults([]); setFacets({ kinds: [], entity_types: [] });
+      setTotals({}); setNextCursor(null); setTookMs(0);
+      return;
+    }
+    setLoading(true);
+    api.get("/search", { params: baseParams() })
+      .then((r) => {
+        if (cancelled) return;
+        setResults(r.data.results || []);
+        setFacets(r.data.facets || { kinds: [], entity_types: [] });
+        setTotals(r.data.totals || {});
+        setTookMs(r.data.took_ms || 0);
+        setNextCursor(r.data.next_cursor || null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setResults([]); setNextCursor(null);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [q, sp.toString()]);
@@ -128,9 +170,9 @@ export default function SearchPage() {
     } else if (r.kind === "media") navigate("/media");
   };
 
-  const kindsFacet = data?.facets?.kinds || [];
-  const etFacet = data?.facets?.entity_types || [];
-  const results = data?.results || [];
+  const kindsFacet = facets?.kinds || [];
+  const etFacet = facets?.entity_types || [];
+  const totalMatches = Object.values(totals || {}).reduce((a, b) => a + b, 0);
 
   return (
     <div className="max-w-6xl mx-auto p-6" data-testid="search-page">
@@ -154,9 +196,9 @@ export default function SearchPage() {
             {loading ? "Searching…" : (
               <>
                 {results.length > 0 ? (
-                  <span>Showing {results.length} of {Object.values(data?.totals || {}).reduce((a, b) => a + b, 0)} results</span>
+                  <span>Showing {results.length} of {Object.values(totals || {}).reduce((a, b) => a + b, 0)} results</span>
                 ) : "No results"}
-                {data?.took_ms > 0 && <span className="ml-2 font-mono">· {data.took_ms}ms</span>}
+                {tookMs > 0 && <span className="ml-2 font-mono">· {tookMs}ms</span>}
               </>
             )}
           </div>
@@ -273,6 +315,26 @@ export default function SearchPage() {
               );
             })}
           </div>
+
+          {/* Load more — keeps paging until every match is reachable */}
+          {results.length > 0 && (
+            <div className="mt-4 flex items-center justify-center">
+              {nextCursor ? (
+                <Button
+                  variant="outline"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  data-testid="search-load-more"
+                >
+                  {loadingMore ? "Loading…" : `Load more (${totalMatches - results.length} more)`}
+                </Button>
+              ) : (
+                <div className="text-xs text-muted-foreground" data-testid="search-all-loaded">
+                  All {results.length} results shown
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>
