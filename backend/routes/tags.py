@@ -39,15 +39,14 @@ async def list_tags(
     q: str | None = Query(default=None),
     ctx: AuthContext = Depends(require_permission("records.read")),
 ):
+    # Phase 3: tags are org-global — return the whole org's tags regardless of
+    # the entity_type_id hint (kept for backward compatibility).
     db = get_db()
-    scope: dict = {}
-    if entity_type_id:
-        scope["$or"] = [{"entity_type_id": None}, {"entity_type_id": entity_type_id}]
-    filt = tenant_filter(ctx.org_id, scope)
+    filt = tenant_filter(ctx.org_id)
     if q:
         filt["name"] = {"$regex": re.escape(q), "$options": "i"}
-    cursor = db.tags.find(filt).sort([("usage_count", -1), ("name", 1)]).limit(100)
-    return [strip_id(d) for d in await cursor.to_list(100)]
+    cursor = db.tags.find(filt).sort([("usage_count", -1), ("name", 1)]).limit(200)
+    return [strip_id(d) for d in await cursor.to_list(200)]
 
 
 @router.post("", status_code=201)
@@ -58,20 +57,15 @@ async def create_tag(
     ctx: AuthContext = Depends(require_permission("records.create")),
 ):
     db = get_db()
-    et_id = payload.entity_type_id
-    if et_id:
-        et = await db.entity_types.find_one(tenant_filter(ctx.org_id, {"_id": et_id}), {"_id": 1})
-        if not et:
-            raise HTTPException(status_code=404, detail="entity type not found")
+    # Phase 3: tags are org-global. New tags are not homed to a catalogue, and
+    # dedupe is org-wide by slug (so the same tag isn't recreated per catalogue).
     slug = _slug(payload.name)
-    conflict = await db.tags.find_one(tenant_filter(ctx.org_id, {
-        "entity_type_id": et_id, "slug": slug,
-    }))
+    conflict = await db.tags.find_one(tenant_filter(ctx.org_id, {"slug": slug}))
     if conflict:
         return strip_id(conflict)  # idempotent create — return existing
     tid = str(uuid.uuid4())
     doc = {
-        "_id": tid, "org_id": ctx.org_id, "entity_type_id": et_id,
+        "_id": tid, "org_id": ctx.org_id, "entity_type_id": None,
         "name": payload.name.strip(), "slug": slug,
         "color": payload.color or _hex_color_for(payload.name),
         "usage_count": 0,
@@ -80,7 +74,7 @@ async def create_tag(
     await db.tags.insert_one(doc)
     audit(bg, action="tag.created", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="tag", target_id=tid,
-          diff={"name": payload.name, "entity_type_id": et_id}, request=request)
+          diff={"name": payload.name, "global": True}, request=request)
     return strip_id(doc)
 
 

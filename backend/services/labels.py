@@ -177,6 +177,40 @@ def _draw_label(c, x, y, w, h, *, record, config):
             title = title[: max_chars - 1] + "…"
         c.drawString(text_left, cursor_y, title)
 
+    # Per-value icons (e.g. End Use → curtain / blind / upholstery). Drawn as a
+    # horizontal strip under the title; wraps within the text column.
+    value_icons = config.get("_value_icons") if config.get("show_value_icons") else None
+    icon_pngs = config.get("_icon_pngs") or {}
+    if value_icons and icon_pngs:
+        record_fields = record.get("fields") or {}
+        media_ids = []
+        for fk, mapping in value_icons.items():
+            v = record_fields.get(fk)
+            vals = v if isinstance(v, list) else [v]
+            for val in vals:
+                mid = mapping.get(val)
+                if mid and mid in icon_pngs and mid not in media_ids:
+                    media_ids.append(mid)
+        if media_ids:
+            icon_sz = max(12, min(h * 0.22, 20))
+            gap = 3
+            ix = text_left
+            iy_top = cursor_y - 2
+            for mid in media_ids:
+                if ix + icon_sz > text_left + text_width:  # wrap to next row
+                    ix = text_left
+                    iy_top -= icon_sz + gap
+                try:
+                    c.drawImage(
+                        ImageReader(io.BytesIO(icon_pngs[mid])),
+                        ix, iy_top - icon_sz, width=icon_sz, height=icon_sz,
+                        preserveAspectRatio=True, mask="auto",
+                    )
+                except Exception:
+                    pass
+                ix += icon_sz + gap
+            cursor_y = iy_top - icon_sz - 2  # push subsequent fields below icons
+
     # Extra fields — no cap. Use full width when code_mode="none"; otherwise
     # the text_width already excludes the reserved code column. When barcodes
     # are drawn along the bottom, reserve that band so text doesn't overlap.

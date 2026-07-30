@@ -61,6 +61,21 @@ async def ensure_indexes() -> None:
     await db.field_definitions.create_index(
         [("org_id", 1), ("entity_type_id", 1), ("order", 1)]
     )
+    await db.field_definitions.create_index([("org_id", 1), ("library_id", 1)])
+    # Org-level reusable field library (Phase 1). One entry per key per org.
+    await db.field_library.create_index(
+        [("org_id", 1), ("key", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_org_library_key_active",
+    )
+    # User-defined custom field types (Phase 2). Unique name per org.
+    await db.custom_field_types.create_index(
+        [("org_id", 1), ("name", 1)],
+        unique=True,
+        partialFilterExpression={"deleted_at": None},
+        name="uniq_org_custom_type_name_active",
+    )
     await db.records.create_index(
         [("org_id", 1), ("entity_type_id", 1), ("deleted_at", 1)]
     )

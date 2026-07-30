@@ -30,16 +30,16 @@ async def list_categories(
     flat: bool = Query(default=False),
     ctx: AuthContext = Depends(require_permission("records.read")),
 ):
+    # Phase 3: categories are org-global — every catalogue sees the same set.
+    # The {et_id} in the path is kept for URL compatibility but no longer scopes
+    # the result; we return the whole org's categories.
     db = get_db()
-    et = await db.entity_types.find_one(tenant_filter(ctx.org_id, {"_id": et_id}), {"_id": 1})
-    if not et:
-        raise HTTPException(status_code=404, detail="entity type not found")
     if flat:
         cursor = db.categories.find(
-            tenant_filter(ctx.org_id, {"entity_type_id": et_id})
+            tenant_filter(ctx.org_id)
         ).sort([("depth", 1), ("order", 1)])
         return [_clean(d) for d in await cursor.to_list(10000)]
-    return await get_tree(db, org_id=ctx.org_id, entity_type_id=et_id)
+    return await get_tree(db, org_id=ctx.org_id)
 
 
 @router.post("/entity-types/{et_id}/categories", status_code=201)

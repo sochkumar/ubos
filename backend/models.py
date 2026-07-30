@@ -100,6 +100,11 @@ class FieldDefBase(BaseModel):
     order: int = 0
     group: str | None = None
     help_text: str | None = None
+    # Display unit rendered after the value (e.g. "GSM", "CMS"). Inherited from
+    # the linked library field / custom field type.
+    unit: str | None = None
+    # Optional reference to the user-defined custom field type this was made from.
+    custom_type_id: str | None = None
 
 
 class FieldDefCreate(FieldDefBase):
@@ -116,12 +121,16 @@ class FieldDefUpdate(BaseModel):
     order: int | None = None
     group: str | None = None
     help_text: str | None = None
+    unit: str | None = None
 
 
 class FieldDef(FieldDefBase):
     id: str = Field(default_factory=_uuid, alias="_id")
     org_id: str
     entity_type_id: str
+    # Link to the org-level reusable field (Phase-1 library). Edits to the
+    # library field fan out to every FieldDef sharing this library_id.
+    library_id: str | None = None
     created_at: str = Field(default_factory=_now)
     updated_at: str = Field(default_factory=_now)
     deleted_at: str | None = None
@@ -130,6 +139,72 @@ class FieldDef(FieldDefBase):
 
 class ReorderPayload(BaseModel):
     order: list[str]
+
+
+# ─────────────────────── Field Library (org-level reusable fields) ─────────
+class FieldLibraryBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    key: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
+    label: str = Field(..., min_length=1, max_length=200)
+    type: FieldType
+    config: dict[str, Any] = Field(default_factory=dict)
+    unit: str | None = None
+    help_text: str | None = None
+    custom_type_id: str | None = None
+
+
+class FieldLibraryCreate(FieldLibraryBase):
+    pass
+
+
+class FieldLibraryUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    label: str | None = None
+    type: FieldType | None = None
+    config: dict[str, Any] | None = None
+    unit: str | None = None
+    help_text: str | None = None
+
+
+class FieldLibrary(FieldLibraryBase):
+    id: str = Field(default_factory=_uuid, alias="_id")
+    org_id: str
+    created_at: str = Field(default_factory=_now)
+    updated_at: str = Field(default_factory=_now)
+    deleted_at: str | None = None
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+
+# ─────────────────── Custom Field Types (user-defined, Phase 2) ────────────
+# A named preset over a built-in base type, e.g. "GSM" = number + unit "GSM".
+# Applied at field-creation time (prefills base type / unit / config).
+class CustomFieldTypeBase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = Field(..., min_length=1, max_length=60)
+    base_type: FieldType
+    unit: str | None = None
+    default_config: dict[str, Any] = Field(default_factory=dict)
+
+
+class CustomFieldTypeCreate(CustomFieldTypeBase):
+    pass
+
+
+class CustomFieldTypeUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = None
+    base_type: FieldType | None = None
+    unit: str | None = None
+    default_config: dict[str, Any] | None = None
+
+
+class CustomFieldType(CustomFieldTypeBase):
+    id: str = Field(default_factory=_uuid, alias="_id")
+    org_id: str
+    created_at: str = Field(default_factory=_now)
+    updated_at: str = Field(default_factory=_now)
+    deleted_at: str | None = None
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
 # ─────────────────────── Records ───────────────────────

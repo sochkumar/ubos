@@ -210,10 +210,13 @@ async def move_category(db, *, org_id: str, cat_id: str, new_parent_id: str | No
 
 
 async def descendant_ids_including_self(
-    db, *, org_id: str, entity_type_id: str, cat_id: str,
+    db, *, org_id: str, entity_type_id: str | None = None, cat_id: str,
 ) -> list[str]:
+    # Categories are org-global (Phase 3): a category id is globally unique, so
+    # the subtree is resolved by `path` alone, independent of entity_type_id.
+    # The param is kept for call-site compatibility but no longer scopes.
     cursor = db.categories.find(
-        tenant_filter(org_id, {"entity_type_id": entity_type_id, "path": cat_id}),
+        tenant_filter(org_id, {"path": cat_id}),
         {"_id": 1},
     )
     return [d["_id"] for d in await cursor.to_list(10000)]
@@ -234,10 +237,9 @@ async def soft_delete_category(
             {"_id": {"$in": ids}},
             {"$set": {"deleted_at": now, "updated_at": now}},
         )
-        # also remove them from any records
+        # also remove them from any records (org-wide — categories are global)
         await db.records.update_many(
-            tenant_filter(org_id, {"entity_type_id": cat["entity_type_id"],
-                                    "category_ids": {"$in": ids}}),
+            tenant_filter(org_id, {"category_ids": {"$in": ids}}),
             {"$pull": {"category_ids": {"$in": ids}}},
         )
     else:
@@ -253,17 +255,19 @@ async def soft_delete_category(
             {"_id": cat_id},
             {"$set": {"deleted_at": now, "updated_at": now}},
         )
-        # remove this cat id from any records
+        # remove this cat id from any records (org-wide — categories are global)
         await db.records.update_many(
-            tenant_filter(org_id, {"entity_type_id": cat["entity_type_id"],
-                                    "category_ids": cat_id}),
+            tenant_filter(org_id, {"category_ids": cat_id}),
             {"$pull": {"category_ids": cat_id}},
         )
 
 
-async def get_tree(db, *, org_id: str, entity_type_id: str) -> list[dict]:
+async def get_tree(db, *, org_id: str, entity_type_id: str | None = None) -> list[dict]:
+    # Phase 3: categories are org-global. `entity_type_id=None` returns the whole
+    # org tree (all catalogues merged); a specific id still narrows if needed.
+    scope = {"entity_type_id": entity_type_id} if entity_type_id else {}
     cursor = db.categories.find(
-        tenant_filter(org_id, {"entity_type_id": entity_type_id})
+        tenant_filter(org_id, scope)
     ).sort([("depth", 1), ("order", 1)])
     docs = await cursor.to_list(10000)
     by_id: dict[str, dict] = {}

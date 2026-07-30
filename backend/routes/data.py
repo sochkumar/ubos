@@ -17,8 +17,9 @@ from db import get_db, tenant_filter
 from models import (
     BulkAction, BulkAssignCategoriesAction, BulkAssignTagsAction,
     BulkDeleteAction, BulkUpdateFieldAction,
+    CustomFieldType, CustomFieldTypeCreate, CustomFieldTypeUpdate,
     EntityType, EntityTypeCreate, EntityTypeUpdate,
-    FieldDef, FieldDefCreate, FieldDefUpdate,
+    FieldDef, FieldDefCreate, FieldDefUpdate, FieldLibrary,
     Record, RecordCreate, RecordSearchBody, RecordUpdate, ReorderPayload,
     strip_id,
 )
@@ -156,8 +157,35 @@ async def create_field(
         next_order = (last[0]["order"] + 1) if last else 1
     else:
         next_order = payload.order
-    fd = FieldDef(org_id=ctx.org_id, entity_type_id=et_id,
-                  **{**payload.model_dump(), "order": next_order})
+
+    # ── Link to (or create) the org-level reusable library field for this key.
+    # Shared attributes (label/type/config/unit/help_text) come from the library
+    # so every catalogue using the key stays consistent.
+    lib = await db.field_library.find_one(tenant_filter(ctx.org_id, {"key": payload.key}))
+    if lib:
+        library_id = lib["_id"]
+        shared = {
+            "label": lib["label"], "type": lib["type"],
+            "config": lib.get("config") or {}, "unit": lib.get("unit"),
+            "help_text": lib.get("help_text"),
+        }
+    else:
+        lib_doc = FieldLibrary(
+            org_id=ctx.org_id, key=payload.key, label=payload.label,
+            type=payload.type, config=payload.config, unit=payload.unit,
+            help_text=payload.help_text, custom_type_id=payload.custom_type_id,
+        ).model_dump(by_alias=True)
+        await db.field_library.insert_one(lib_doc)
+        library_id = lib_doc["_id"]
+        shared = {
+            "label": payload.label, "type": payload.type, "config": payload.config,
+            "unit": payload.unit, "help_text": payload.help_text,
+        }
+
+    fd = FieldDef(
+        org_id=ctx.org_id, entity_type_id=et_id,
+        **{**payload.model_dump(), **shared, "order": next_order, "library_id": library_id},
+    )
     doc = fd.model_dump(by_alias=True)
     await db.field_definitions.insert_one(doc)
     audit(bg, action="field.created", actor_id=ctx.user["_id"], org_id=ctx.org_id,
@@ -172,19 +200,43 @@ async def update_field(
     ctx: AuthContext = Depends(require_permission("fields.manage")),
 ):
     db = get_db()
+    existing = await db.field_definitions.find_one(tenant_filter(ctx.org_id, {"_id": field_id}))
+    if not existing:
+        raise HTTPException(status_code=404, detail="field not found")
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not updates:
-        doc = await db.field_definitions.find_one(tenant_filter(ctx.org_id, {"_id": field_id}))
-        if not doc:
-            raise HTTPException(status_code=404, detail="field not found")
-        return strip_id(doc)
-    updates["updated_at"] = _now()
-    doc = await db.field_definitions.find_one_and_update(
-        tenant_filter(ctx.org_id, {"_id": field_id}), {"$set": updates},
-        return_document=ReturnDocument.AFTER,
-    )
-    if not doc:
-        raise HTTPException(status_code=404, detail="field not found")
+        return strip_id(existing)
+    now = _now()
+
+    # Shared attributes live on the library field and fan out to every catalogue
+    # using it. Per-catalogue attributes (required/unique/sensitive/order/group)
+    # stay local to this attachment.
+    SHARED = ("label", "type", "config", "unit", "help_text")
+    shared_updates = {k: v for k, v in updates.items() if k in SHARED}
+    local_updates = {k: v for k, v in updates.items() if k not in SHARED}
+    library_id = existing.get("library_id")
+
+    if shared_updates and library_id:
+        await db.field_library.update_one(
+            tenant_filter(ctx.org_id, {"_id": library_id}),
+            {"$set": {**shared_updates, "updated_at": now}},
+        )
+        await db.field_definitions.update_many(
+            tenant_filter(ctx.org_id, {"library_id": library_id}),
+            {"$set": {**shared_updates, "updated_at": now}},
+        )
+
+    set_local = dict(local_updates)
+    if shared_updates and not library_id:
+        # Legacy field with no library link — apply shared attrs locally.
+        set_local.update(shared_updates)
+    if set_local:
+        set_local["updated_at"] = now
+        await db.field_definitions.update_one(
+            tenant_filter(ctx.org_id, {"_id": field_id}), {"$set": set_local},
+        )
+
+    doc = await db.field_definitions.find_one(tenant_filter(ctx.org_id, {"_id": field_id}))
     audit(bg, action="field.updated", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="field", target_id=field_id, diff=updates, request=request)
     return strip_id(doc)
@@ -226,6 +278,118 @@ async def reorder_fields(
         tenant_filter(ctx.org_id, {"entity_type_id": et_id})
     ).sort("order", 1)
     return [strip_id(d) for d in await cursor.to_list(1000)]
+
+
+# ─────────────────────── field library (org-level reusable fields) ─────────
+@router.get("/field-library")
+async def list_field_library(ctx: AuthContext = Depends(require_permission("fields.read"))):
+    """All reusable fields defined for this org, for the attach picker."""
+    db = get_db()
+    cursor = db.field_library.find(tenant_filter(ctx.org_id)).sort([("label", 1)])
+    return [strip_id(d) for d in await cursor.to_list(2000)]
+
+
+# ─────────────────────── custom field types (Phase 2) ─────────────────────
+@router.get("/field-types")
+async def list_field_types(ctx: AuthContext = Depends(require_permission("fields.read"))):
+    """User-defined field types for this org (e.g. GSM, CMS)."""
+    db = get_db()
+    cursor = db.custom_field_types.find(tenant_filter(ctx.org_id)).sort([("name", 1)])
+    return [strip_id(d) for d in await cursor.to_list(500)]
+
+
+@router.post("/field-types", status_code=201)
+async def create_field_type(
+    payload: CustomFieldTypeCreate, bg: BackgroundTasks, request: Request,
+    ctx: AuthContext = Depends(require_permission("fields.manage")),
+):
+    db = get_db()
+    if await db.custom_field_types.find_one(tenant_filter(ctx.org_id, {"name": payload.name})):
+        raise HTTPException(status_code=409, detail=f"a field type named '{payload.name}' already exists")
+    doc = CustomFieldType(org_id=ctx.org_id, **payload.model_dump()).model_dump(by_alias=True)
+    await db.custom_field_types.insert_one(doc)
+    audit(bg, action="field_type.created", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+          target_type="field_type", target_id=doc["_id"],
+          diff={"name": payload.name, "base_type": payload.base_type}, request=request)
+    return strip_id(doc)
+
+
+@router.patch("/field-types/{type_id}")
+async def update_field_type(
+    type_id: str, payload: CustomFieldTypeUpdate, bg: BackgroundTasks, request: Request,
+    ctx: AuthContext = Depends(require_permission("fields.manage")),
+):
+    db = get_db()
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if not updates:
+        doc = await db.custom_field_types.find_one(tenant_filter(ctx.org_id, {"_id": type_id}))
+        if not doc:
+            raise HTTPException(status_code=404, detail="field type not found")
+        return strip_id(doc)
+    updates["updated_at"] = _now()
+    doc = await db.custom_field_types.find_one_and_update(
+        tenant_filter(ctx.org_id, {"_id": type_id}), {"$set": updates},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="field type not found")
+    audit(bg, action="field_type.updated", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+          target_type="field_type", target_id=type_id, diff=updates, request=request)
+    return strip_id(doc)
+
+
+@router.delete("/field-types/{type_id}", status_code=204)
+async def delete_field_type(
+    type_id: str, bg: BackgroundTasks, request: Request,
+    ctx: AuthContext = Depends(require_permission("fields.manage")),
+):
+    db = get_db()
+    res = await db.custom_field_types.update_one(
+        tenant_filter(ctx.org_id, {"_id": type_id}),
+        {"$set": {"deleted_at": _now(), "updated_at": _now()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="field type not found")
+    audit(bg, action="field_type.deleted", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+          target_type="field_type", target_id=type_id, request=request)
+    return None
+
+
+@router.post("/entity-types/{et_id}/fields/attach", status_code=201)
+async def attach_library_field(
+    et_id: str, payload: dict, bg: BackgroundTasks, request: Request,
+    ctx: AuthContext = Depends(require_permission("fields.manage")),
+):
+    """Attach an existing library field to this catalogue (creates a linked row)."""
+    db = get_db()
+    library_id = (payload or {}).get("library_id")
+    if not library_id:
+        raise HTTPException(status_code=422, detail="library_id is required")
+    if not await db.entity_types.find_one(tenant_filter(ctx.org_id, {"_id": et_id}), {"_id": 1}):
+        raise HTTPException(status_code=404, detail="entity type not found")
+    lib = await db.field_library.find_one(tenant_filter(ctx.org_id, {"_id": library_id}))
+    if not lib:
+        raise HTTPException(status_code=404, detail="library field not found")
+    if await db.field_definitions.find_one(
+        tenant_filter(ctx.org_id, {"entity_type_id": et_id, "key": lib["key"]})
+    ):
+        raise HTTPException(status_code=409, detail=f"field '{lib['key']}' already on this catalogue")
+    last = await db.field_definitions.find(
+        tenant_filter(ctx.org_id, {"entity_type_id": et_id})
+    ).sort("order", -1).limit(1).to_list(1)
+    next_order = (last[0]["order"] + 1) if last else 1
+    fd = FieldDef(
+        org_id=ctx.org_id, entity_type_id=et_id, library_id=library_id,
+        key=lib["key"], label=lib["label"], type=lib["type"],
+        config=lib.get("config") or {}, unit=lib.get("unit"),
+        help_text=lib.get("help_text"), order=next_order,
+    )
+    doc = fd.model_dump(by_alias=True)
+    await db.field_definitions.insert_one(doc)
+    audit(bg, action="field.attached", actor_id=ctx.user["_id"], org_id=ctx.org_id,
+          target_type="field", target_id=doc["_id"],
+          diff={"key": lib["key"], "library_id": library_id, "entity_type_id": et_id}, request=request)
+    return strip_id(doc)
 
 
 # ─────────────────────── records ───────────────────────
