@@ -102,3 +102,9 @@ frontend/node_modules/.cache/default-development/14.pack
 frontend/node_modules/.cache/default-development/10.pack
 frontend/node_modules/.cache/default-development/12.pack
 frontend/node_modules/.cache/default-development/1.pack
+
+# License signing secrets (never commit private keys)
+secret/
+*.pem
+ubos_private_key*
+ubos.lic
