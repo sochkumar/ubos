@@ -42,6 +42,7 @@ from routes.label_presets import router as label_presets_router
 from routes.dashboard_layout import router as dashboard_layout_router
 from routes.browse import router as browse_router
 from routes.workspace import router as workspace_router
+from routes.license_api import router as license_router, status as license_status_dict, is_desktop
 from routes._org_helpers import create_organization, add_membership
 from security import hash_password
 
@@ -112,6 +113,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ─────────────────────── license gate (desktop build only) ───────────────────────
+class LicenseGateMiddleware(BaseHTTPMiddleware):
+    """In desktop mode, block the API until a valid license is loaded. Always
+    allows /api/health, /api/license/*, and non-API (static/SPA) requests so the
+    activation screen can render. No-op in cloud mode."""
+    async def dispatch(self, request: Request, call_next):
+        if is_desktop():
+            path = request.url.path
+            gated = (
+                path.startswith("/api/")
+                and not path.startswith("/api/license")
+                and path != "/api/health"
+                and path != "/api/openapi.json"
+            )
+            if gated and not license_status_dict().get("licensed"):
+                st = license_status_dict()
+                return JSONResponse(
+                    status_code=402,
+                    content={"code": "license_required", "detail": st["reason"],
+                             "machine_id": st["machine_id"]},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(LicenseGateMiddleware)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("ubos")
 
@@ -134,6 +162,7 @@ api.include_router(oauth_router)
 api.include_router(orgs_router)
 api.include_router(browse_router)
 api.include_router(workspace_router)
+api.include_router(license_router)
 api.include_router(data_router)
 api.include_router(categories_router)
 api.include_router(tags_router)
@@ -156,6 +185,33 @@ api.include_router(label_presets_router)
 api.include_router(dashboard_layout_router)
 
 app.include_router(api)
+
+
+# ─────────────────────── static frontend (desktop build) ───────────────────────
+# When FRONTEND_DIR points at a built React app, serve it from this backend so
+# the desktop shell loads UI + API from one origin. No effect in cloud/dev where
+# the frontend is served separately. Registered AFTER the /api router so API
+# routes always win; a catch-all returns index.html for client-side routes.
+_FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "")
+if _FRONTEND_DIR and os.path.isdir(_FRONTEND_DIR):
+    from pathlib import Path as _Path
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    _fd = _Path(_FRONTEND_DIR)
+    if (_fd / "static").is_dir():
+        app.mount("/static", StaticFiles(directory=str(_fd / "static")), name="static")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa_fallback(full_path: str):
+        if full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "not found"})
+        candidate = _fd / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(_fd / "index.html"))
+
+    log.info("Serving static frontend from %s", _FRONTEND_DIR)
 
 
 # ─────────────────────── startup ───────────────────────
