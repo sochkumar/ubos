@@ -238,6 +238,7 @@ export default function RecordsPage() {
 
   return (
     <>
+      <div className="h-full flex flex-col min-h-0">
       <PageHeader
         title={et?.name_plural || "Items"}
         subtitle={et
@@ -275,15 +276,18 @@ export default function RecordsPage() {
           </div>
         }
       />
-      <PageBody>
-        {fields.length === 0 ? (
+      {fields.length === 0 ? (
+        <PageBody>
           <EmptyState
             icon={Layers} title="Define fields first"
             description="Add at least one field first — you need something to fill in before you can add items."
             action={<Button onClick={() => nav(`/entity-types/${etId}/fields`)}><Layers className="w-4 h-4 mr-1.5" /> Go to fields</Button>}
           />
-        ) : (
-          <div className="space-y-4">
+        </PageBody>
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col w-full max-w-[1400px] px-8 py-6 gap-4">
+          {/* ── Fixed controls: stay put while only the records list scrolls ── */}
+          <div className="shrink-0 space-y-4">
             {canShare && <AfterImportNudge onInviteClick={() => setInviteOpen(true)} />}
             {/* Top row: view picker + layout switch + search */}
             <div className="flex items-center gap-3 flex-wrap">
@@ -367,8 +371,10 @@ export default function RecordsPage() {
                 onClear={clearSelection}
               />
             )}
+          </div>
 
-            {/* Content */}
+          {/* ── Scroll region: only the records content scrolls ── */}
+          <div className="flex-1 min-h-0 overflow-auto pb-2" data-testid="records-scroll">
             {loading ? (
               <div className="text-sm text-muted-foreground">Loading…</div>
             ) : items.length === 0 ? (
@@ -393,8 +399,9 @@ export default function RecordsPage() {
               />
             )}
           </div>
-        )}
-      </PageBody>
+        </div>
+      )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto" data-testid="record-dialog">

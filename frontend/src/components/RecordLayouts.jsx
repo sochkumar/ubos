@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function formatCellValue(field, value) {
   if (value === null || value === undefined || value === "") return "—";
+  const unit = field.unit ? ` ${field.unit}` : "";
   switch (field.type) {
     case "boolean": return value ? "Yes" : "No";
     case "currency":
@@ -19,7 +20,8 @@ export function formatCellValue(field, value) {
     case "longtext":
     case "richtext":
       return typeof value === "string" && value.length > 60 ? value.slice(0, 60) + "…" : value;
-    default: return String(value);
+    case "number": return `${value}${unit}`;
+    default: return `${String(value)}${unit}`;
   }
 }
 
@@ -58,23 +60,27 @@ function TagsInline({ record, tagsById, max = 3 }) {
 
 export function TableLayout({ records, columns, selected, onToggle, onToggleAll, catsById, tagsById, onEdit, onDelete }) {
   const allSelected = records.length > 0 && records.every((r) => selected.has(r.id));
+  // Header cells are sticky so they stay pinned while only the rows scroll
+  // (the scroll region is the RecordsPage content area). `overflow-hidden`
+  // is intentionally omitted here — it would trap position:sticky.
+  const headClass = "sticky top-0 z-10 bg-white";
   return (
-    <div className="rounded-lg border border-border bg-white overflow-hidden" data-testid="layout-table">
-      <Table>
+    <div className="rounded-lg border border-border bg-white" data-testid="layout-table">
+      <Table wrapperClassName="overflow-visible">
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className={`w-10 ${headClass}`}>
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={onToggleAll}
                 data-testid="select-all"
               />
             </TableHead>
-            <TableHead className="w-28">Record #</TableHead>
-            {columns.map((c) => <TableHead key={c.id}>{c.label}</TableHead>)}
-            <TableHead>Category</TableHead>
-            <TableHead>Tags</TableHead>
-            <TableHead className="text-right w-32">Actions</TableHead>
+            <TableHead className={`w-28 ${headClass}`}>Record #</TableHead>
+            {columns.map((c) => <TableHead key={c.id} className={headClass}>{c.label}</TableHead>)}
+            <TableHead className={headClass}>Category</TableHead>
+            <TableHead className={headClass}>Tags</TableHead>
+            <TableHead className={`text-right w-32 ${headClass}`}>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -84,6 +84,9 @@ export default function AppLayout() {
   useHotkeys("mod+shift+t", () => reopenLastClosed());
   useHotkeys("mod+tab",       () => nextTab(), [nextTab]);
   useHotkeys("mod+shift+tab", () => prevTab(), [prevTab]);
+  // Excel-style tab switching: Ctrl+Alt+Up = previous, Ctrl+Alt+Down = next.
+  useHotkeys("ctrl+alt+arrowup",   () => prevTab(), [prevTab]);
+  useHotkeys("ctrl+alt+arrowdown", () => nextTab(), [nextTab]);
   useHotkeys("mod+1", () => jumpTo(1));
   useHotkeys("mod+2", () => jumpTo(2));
   useHotkeys("mod+3", () => jumpTo(3));
@@ -167,7 +170,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background" data-testid="app-shell">
+    <div className="h-screen overflow-hidden flex bg-background" data-testid="app-shell">
       {/* ────── Sidebar ────── */}
       <aside
         className="w-[240px] shrink-0 border-r border-border bg-white flex flex-col"

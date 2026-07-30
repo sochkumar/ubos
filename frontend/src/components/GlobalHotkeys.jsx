@@ -26,6 +26,8 @@ const GROUPS = [
       { keys: [`${HOTKEY_META}`, "Shift", "T"], label: "Reopen last closed tab" },
       { keys: [`${HOTKEY_META}`, "Tab"], label: "Next tab" },
       { keys: [`${HOTKEY_META}`, "Shift", "Tab"], label: "Previous tab" },
+      { keys: ["Ctrl", "Alt", "↓"], label: "Next tab (Excel-style)" },
+      { keys: ["Ctrl", "Alt", "↑"], label: "Previous tab (Excel-style)" },
       { keys: [`${HOTKEY_META}`, "1‥9"], label: "Jump to Nth tab" },
     ],
   },
