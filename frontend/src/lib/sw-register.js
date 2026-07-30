@@ -9,8 +9,12 @@ let refreshing = false;
 export function registerServiceWorker() {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
-  // Skip in dev unless explicitly enabled — CRA hot-reload conflicts with SW caching.
-  if (process.env.NODE_ENV !== "production" && !process.env.REACT_APP_ENABLE_SW) return;
+  // Skip in dev unless explicitly enabled — CRA hot-reload conflicts with SW
+  // caching. Note: env vars are strings, so "0"/"false" must count as disabled
+  // (a bare truthy-check treats the string "0" as enabled).
+  const swFlag = String(process.env.REACT_APP_ENABLE_SW || "").toLowerCase();
+  const swEnabled = ["1", "true", "yes", "on"].includes(swFlag);
+  if (process.env.NODE_ENV !== "production" && !swEnabled) return;
 
   window.addEventListener("load", async () => {
     try {
