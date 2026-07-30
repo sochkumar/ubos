@@ -1,0 +1,43 @@
+{
+  "name": "ubos-desktop",
+  "version": "0.1.0",
+  "description": "UBOS desktop shell (Electron).",
+  "main": "main.js",
+  "author": "UBOS",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "in.aariko.ubos",
+    "productName": "UBOS",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "license-preload.js",
+      "license.html",
+      "assets/**"
+    ],
+    "extraResources": [
+      { "from": "resources/backend", "to": "backend" },
+      { "from": "resources/mongodb", "to": "mongodb" },
+      { "from": "resources/frontend", "to": "frontend" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "UBOS-Setup-${version}.${ext}"
+    }
+  }
+}
