@@ -83,6 +83,7 @@ jobs:
           $env:JWT_SECRET = "smoke-secret"
           $env:SECRET_KEY = "smoke-secret"
           $env:UBOS_DESKTOP = "true"
+          $env:UBOS_SINGLE_BUSINESS = "true"   # match the friend's furnishing build
           $env:UBOS_LICENSE_PUBLIC_KEY = $pub
           $env:UBOS_LICENSE_PATH = "$tmp\ubos.lic"
           $env:LOCAL_STORAGE_ROOT = "$tmp\uploads"
@@ -135,4 +136,20 @@ jobs:
             Write-Host "gate open after activation (got $code, expected 401)"
           }
 
-          Write-Host "SMOKE TEST PASSED: install + engine + license activation all OK on Windows."
+          # single-business build: app-config + furnishing first-run seed
+          $cfg = Invoke-RestMethod "http://127.0.0.1:8799/api/app-config"
+          Write-Host "app-config: single_business=$($cfg.single_business) global_fields=$($cfg.global_fields)"
+          if (-not $cfg.single_business) { throw "expected single_business=true" }
+
+          $lg = Invoke-RestMethod -Method Post "http://127.0.0.1:8799/api/auth/login" `
+            -Body (@{ email = "owner@ubos.test"; password = "OwnerPass!123" } | ConvertTo-Json) `
+            -ContentType "application/json"
+          $hdr = @{ Authorization = "Bearer $($lg.access_token)" }
+          $ets = Invoke-RestMethod "http://127.0.0.1:8799/api/entity-types" -Headers $hdr
+          $fabrics = $ets | Where-Object { $_.key -eq "fabrics" } | Select-Object -First 1
+          if (-not $fabrics) { throw "furnishing seed missing: no Fabrics catalogue" }
+          $fields = Invoke-RestMethod "http://127.0.0.1:8799/api/entity-types/$($fabrics.id)/fields" -Headers $hdr
+          Write-Host "Fabrics catalogue seeded with $($fields.Count) fields: $(( $fields | ForEach-Object { $_.key }) -join ', ')"
+          if ($fields.Count -lt 10) { throw "expected the fabric field set (>=10), got $($fields.Count)" }
+
+          Write-Host "SMOKE TEST PASSED: install + engine + license activation + furnishing seed all OK on Windows."
