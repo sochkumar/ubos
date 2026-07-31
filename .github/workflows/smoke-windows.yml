@@ -1,0 +1,128 @@
+name: Smoke test installer (Windows)
+
+# Downloads the released installer, silently installs it on a windows-latest
+# runner (an ephemeral Windows VM), then boots the bundled MongoDB + backend and
+# runs a full offline license activation round-trip.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to test"
+        default: "v0.1.1"
+        required: true
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install crypto tooling
+        run: pip install cryptography
+
+      - name: Download the released installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download ${{ github.event.inputs.tag }} --pattern "*.exe" --dir installer
+
+      - name: Silent install
+        run: |
+          $exe = Get-ChildItem installer -Filter *.exe | Select-Object -First 1
+          Write-Host "Installing $($exe.Name) …"
+          Start-Process -FilePath $exe.FullName -ArgumentList "/S" -Wait
+          Start-Sleep -Seconds 6
+
+      - name: Verify install layout
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\UBOS"
+          $need = @(
+            "$dir\UBOS.exe",
+            "$dir\resources\backend\ubos-backend.exe",
+            "$dir\resources\mongodb\mongod.exe",
+            "$dir\resources\frontend\index.html"
+          )
+          foreach ($p in $need) {
+            if (!(Test-Path $p)) { throw "MISSING: $p" }
+            Write-Host "  ok: $p"
+          }
+          "INSTALL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Boot engine + full license activation round-trip
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dir = $env:INSTALL_DIR
+          $tmp = $env:RUNNER_TEMP
+
+          # throwaway vendor keypair (tests the mechanism, not the real key)
+          python desktop/licensing/keygen.py --out "$tmp\keys"
+          $pub = (Get-Content "$tmp\keys\ubos_public_key.txt").Trim()
+
+          # start bundled mongod
+          $db = "$tmp\ubosdb"; New-Item -ItemType Directory -Force $db | Out-Null
+          Start-Process -FilePath "$dir\resources\mongodb\mongod.exe" `
+            -ArgumentList "--dbpath","$db","--port","27099","--bind_ip","127.0.0.1"
+          Start-Sleep -Seconds 6
+
+          # start bundled backend in desktop mode with our test public key
+          $env:MONGO_URL = "mongodb://127.0.0.1:27099"
+          $env:DB_NAME = "ubos"
+          $env:JWT_SECRET = "smoke-secret"
+          $env:SECRET_KEY = "smoke-secret"
+          $env:UBOS_DESKTOP = "true"
+          $env:UBOS_LICENSE_PUBLIC_KEY = $pub
+          $env:UBOS_LICENSE_PATH = "$tmp\ubos.lic"
+          $env:LOCAL_STORAGE_ROOT = "$tmp\uploads"
+          $env:SEED_USERS = "true"
+          Start-Process -FilePath "$dir\resources\backend\ubos-backend.exe" `
+            -ArgumentList "--host","127.0.0.1","--port","8799"
+
+          # wait for health (frozen cold start can be slow)
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            try {
+              $h = Invoke-RestMethod "http://127.0.0.1:8799/api/health" -TimeoutSec 3
+              if ($h.status -eq "ok") { $ok = $true; break }
+            } catch { }
+            Start-Sleep -Seconds 3
+          }
+          if (-not $ok) { throw "backend /api/health never came up" }
+          Write-Host "HEALTH ok, db=$($h.db)"
+
+          # unlicensed: gate must block the API
+          $st = Invoke-RestMethod "http://127.0.0.1:8799/api/license/status"
+          Write-Host "license before: licensed=$($st.licensed) machine=$($st.machine_id)"
+          if ($st.licensed) { throw "expected unlicensed before activation" }
+          $mid = $st.machine_id
+          try {
+            Invoke-WebRequest "http://127.0.0.1:8799/api/entity-types" -TimeoutSec 5 | Out-Null
+            throw "expected 402 on gated endpoint while unlicensed"
+          } catch {
+            $code = $_.Exception.Response.StatusCode.value__
+            if ($code -ne 402) { throw "expected 402, got $code" }
+            Write-Host "gated endpoint returned 402 (correct)"
+          }
+
+          # issue a license for THIS machine id, then activate
+          python desktop/licensing/issue_license.py `
+            --private-key "$tmp\keys\ubos_private_key.pem" `
+            --licensee "CI Smoke" --machine "$mid" --out "$tmp\ubos.lic"
+          $lic = (Get-Content "$tmp\ubos.lic" -Raw).Trim()
+          $res = Invoke-RestMethod -Method Post "http://127.0.0.1:8799/api/license/load" `
+            -Body (@{ license = $lic } | ConvertTo-Json) -ContentType "application/json"
+          Write-Host "license after load: licensed=$($res.licensed) licensee=$($res.licensee)"
+          if (-not $res.licensed) { throw "activation failed" }
+
+          # gate must now be open (401 = needs auth, not 402)
+          try {
+            Invoke-WebRequest "http://127.0.0.1:8799/api/entity-types" -TimeoutSec 5 | Out-Null
+          } catch {
+            $code = $_.Exception.Response.StatusCode.value__
+            if ($code -eq 402) { throw "still gated after activation" }
+            Write-Host "gate open after activation (got $code, expected 401)"
+          }
+
+          Write-Host "SMOKE TEST PASSED: install + engine + license activation all OK on Windows."
