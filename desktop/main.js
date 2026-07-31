@@ -32,10 +32,12 @@ let backendProc = null;
 let mongoProc = null;
 let mainWindow = null;
 let licenseWindow = null;
+let splashWindow = null;
 let BACKEND_PORT = 0;
 let MONGO_PORT = 0;
 
 const userData = () => app.getPath("userData"); // %APPDATA%\UBOS
+const APP_ICON = () => path.join(__dirname, "assets", "icon.png");
 
 function resourcePath(...p) {
   return isDev
@@ -199,11 +201,34 @@ async function startServices() {
   return ok;
 }
 
+function createSplash() {
+  splashWindow = new BrowserWindow({
+    width: 360,
+    height: 300,
+    frame: false,
+    resizable: false,
+    center: true,
+    backgroundColor: "#0d9488",
+    icon: APP_ICON(),
+    webPreferences: { contextIsolation: true },
+  });
+  splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.on("closed", () => (splashWindow = null));
+}
+
+function closeSplash() {
+  if (splashWindow) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+}
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
     title: "UBOS",
+    icon: APP_ICON(),
     webPreferences: { contextIsolation: true },
   });
   mainWindow.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
@@ -216,6 +241,7 @@ function createLicenseWindow() {
     height: 540,
     title: "UBOS — Activation",
     resizable: false,
+    icon: APP_ICON(),
     webPreferences: {
       preload: path.join(__dirname, "license-preload.js"),
       contextIsolation: true,
@@ -246,8 +272,10 @@ ipcMain.handle("license:load", async () => {
 });
 
 app.whenReady().then(async () => {
+  createSplash();
   const ok = await startServices();
   if (!ok) {
+    closeSplash();
     dialog.showErrorBox("UBOS", "The UBOS engine failed to start. Please reinstall or contact support.");
     app.quit();
     return;
@@ -258,6 +286,7 @@ app.whenReady().then(async () => {
   } else {
     createMainWindow();
   }
+  closeSplash();
 });
 
 // ── shutdown: tree-kill both children ──

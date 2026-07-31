@@ -63,6 +63,45 @@ export default function OrgSettingsPage() {
     finally { setSavingQuota(false); }
   };
 
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const exportWorkspace = async () => {
+    setExporting(true);
+    try {
+      const r = await api.get("/workspace/export", { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([r.data], { type: "application/zip" }));
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `ubos-workspace-${ts}.ubos`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Workspace exported");
+    } catch (e) { toast.error(extractErrorMessage(e)); }
+    finally { setExporting(false); }
+  };
+
+  const importWorkspace = async (file) => {
+    if (!file) return;
+    if (!window.confirm(
+      "Import will REPLACE all data in this workspace with the contents of the file. " +
+      "This cannot be undone.\n\nContinue?"
+    )) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await api.post("/workspace/import?mode=replace", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const n = Object.values(r.data?.imported || {}).reduce((a, b) => a + (b || 0), 0);
+      toast.success(`Workspace imported (${n} items)`);
+      loadAll();
+    } catch (e) { toast.error(extractErrorMessage(e)); }
+    finally { setImporting(false); }
+  };
+
   return (
     <>
       <PageHeader
@@ -132,6 +171,42 @@ export default function OrgSettingsPage() {
                 data-testid="link-manage-media">
                 Manage in Media Library →
               </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="workspace-panel">
+          <CardHeader>
+            <CardTitle className="text-lg">Workspace backup &amp; sharing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Export your entire workspace (collections, fields, categories, tags, items and files)
+              to a single <code>.ubos</code> file — for backups, or to move an updated dataset to
+              another machine. Importing <b>replaces</b> everything in this workspace with the file.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={exportWorkspace} disabled={exporting} data-testid="workspace-export">
+                {exporting ? "Exporting…" : "Export workspace"}
+              </Button>
+              {canManage && (
+                <label className="inline-flex">
+                  <Button
+                    variant="outline"
+                    disabled={importing}
+                    data-testid="workspace-import"
+                    onClick={(e) => e.currentTarget.nextElementSibling?.click()}
+                  >
+                    {importing ? "Importing…" : "Import workspace…"}
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".ubos,.zip"
+                    className="hidden"
+                    onChange={(e) => { importWorkspace(e.target.files?.[0]); e.target.value = ""; }}
+                  />
+                </label>
+              )}
             </div>
           </CardContent>
         </Card>
