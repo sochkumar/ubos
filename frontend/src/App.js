@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
+import { AppConfigProvider } from "@/lib/appConfig";
 import { TerminologyProvider } from "@/lib/terminology";
 import { TabsProvider } from "@/lib/tabs";
 import { RequireAuth, RequireGuest } from "@/components/RequireAuth";
@@ -57,6 +58,7 @@ function App() {
     <ErrorBoundary name="root" variant="fullscreen">
       <div className="App">
         <BrowserRouter>
+          <AppConfigProvider>
           <AuthProvider>
             <GlobalHotkeys />
             <Routes>
@@ -133,6 +135,7 @@ function App() {
               </Route>
             </Routes>
           </AuthProvider>
+          </AppConfigProvider>
         </BrowserRouter>
         <Toaster
           position="top-right"

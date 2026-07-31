@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pymongo import ReturnDocument
 
+import app_flags
 from audit import audit
 from auth_deps import AuthContext, require_permission
 from db import get_db, tenant_filter
@@ -59,6 +60,13 @@ async def create_entity_type(
     et = EntityType(org_id=ctx.org_id, **payload.model_dump())
     doc = et.model_dump(by_alias=True)
     await db.entity_types.insert_one(doc)
+
+    # Global-fields mode: a new catalogue starts with the whole field library.
+    if app_flags.global_fields():
+        libs = await db.field_library.find(tenant_filter(ctx.org_id)).sort([("label", 1)]).to_list(2000)
+        for lib in libs:
+            await _attach_lib_field_to_catalogue(db, ctx.org_id, doc["_id"], lib)
+
     audit(bg, action="entity_type.created", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="entity_type", target_id=doc["_id"],
           diff={"key": payload.key, "name": payload.name_plural}, request=request)
@@ -129,6 +137,29 @@ async def delete_entity_type(
 
 
 # ─────────────────────── fields ───────────────────────
+async def _attach_lib_field_to_catalogue(db, org_id: str, et_id: str, lib: dict):
+    """Create a field_definition on `et_id` from a library entry, if the
+    catalogue doesn't already have that key. Used by global-fields mode."""
+    if await db.field_definitions.find_one(
+        tenant_filter(org_id, {"entity_type_id": et_id, "key": lib["key"]})
+    ):
+        return None
+    last = await db.field_definitions.find(
+        tenant_filter(org_id, {"entity_type_id": et_id})
+    ).sort("order", -1).limit(1).to_list(1)
+    next_order = (last[0]["order"] + 1) if last else 1
+    fd = FieldDef(
+        org_id=org_id, entity_type_id=et_id, library_id=lib["_id"],
+        key=lib["key"], label=lib["label"], type=lib["type"],
+        config=lib.get("config") or {}, unit=lib.get("unit"),
+        help_text=lib.get("help_text"), custom_type_id=lib.get("custom_type_id"),
+        order=next_order,
+    )
+    doc = fd.model_dump(by_alias=True)
+    await db.field_definitions.insert_one(doc)
+    return doc
+
+
 @router.get("/entity-types/{et_id}/fields")
 async def list_fields(et_id: str, ctx: AuthContext = Depends(require_permission("fields.read"))):
     db = get_db()
@@ -188,6 +219,17 @@ async def create_field(
     )
     doc = fd.model_dump(by_alias=True)
     await db.field_definitions.insert_one(doc)
+
+    # Global-fields mode: this field belongs on every catalogue, not just this one.
+    if app_flags.global_fields():
+        lib_entry = await db.field_library.find_one(tenant_filter(ctx.org_id, {"_id": library_id}))
+        if lib_entry:
+            others = await db.entity_types.find(
+                tenant_filter(ctx.org_id, {"_id": {"$ne": et_id}}), {"_id": 1}
+            ).to_list(10000)
+            for e in others:
+                await _attach_lib_field_to_catalogue(db, ctx.org_id, e["_id"], lib_entry)
+
     audit(bg, action="field.created", actor_id=ctx.user["_id"], org_id=ctx.org_id,
           target_type="field", target_id=doc["_id"],
           diff={"key": payload.key, "type": payload.type, "entity_type_id": et_id}, request=request)

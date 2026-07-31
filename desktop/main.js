@@ -186,6 +186,9 @@ async function startServices() {
     LOCAL_STORAGE_ROOT: path.join(userData(), "uploads"),
     CORS_ORIGINS: `http://127.0.0.1:${BACKEND_PORT}`,
     UBOS_DESKTOP: "true",
+    // Single-vertical (furnishing) build for the friend: global fields, no
+    // industry starter packs/demo, one workspace, furnishing first-run seed.
+    UBOS_SINGLE_BUSINESS: "true",
     UBOS_LICENSE_PUBLIC_KEY: LICENSE_PUBLIC_KEY,
     UBOS_LICENSE_PATH: path.join(userData(), "ubos.lic"),
     FRONTEND_DIR: resourcePath("frontend"),

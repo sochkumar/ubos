@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import { useAppConfig } from "@/lib/appConfig";
 import { useTerminology } from "@/lib/terminology";
 import { api } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
@@ -59,8 +60,13 @@ const NAV_GROUPS = [
   },
 ];
 
+// Nav items hidden in single-business (furnishing) mode — universal-product
+// scaffolding that a single business doesn't need.
+const SINGLE_BUSINESS_HIDDEN_NAV = new Set(["nav.templates", "settings.terminology"]);
+
 export default function AppLayout() {
   const { user, orgs, activeOrgId, activeRole, logout, switchOrg, refreshMe } = useAuth();
+  const { singleBusiness } = useAppConfig();
   const { t } = useTerminology();
   const location = useLocation();
   const nav = useNavigate();
@@ -200,6 +206,7 @@ export default function AppLayout() {
               </div>
               <div className="space-y-0.5">
                 {group.items.map((item) => {
+                  if (singleBusiness && SINGLE_BUSINESS_HIDDEN_NAV.has(item.key)) return null;
                   const Icon = item.icon;
                   // Prefer the translated label; fall back to the hard-coded
                   // fallback when the key isn't in the vocabulary (avoids
@@ -274,16 +281,18 @@ export default function AppLayout() {
         </nav>
 
         <div className="p-3 border-t border-border">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={runSeed}
-            disabled={seeding || !activeOrgId}
-            data-testid="seed-demo-btn"
-          >
-            <Sparkles className="w-4 h-4" />
-            {seeding ? "Loading…" : "Load sample data"}
-          </Button>
+          {!singleBusiness && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={runSeed}
+              disabled={seeding || !activeOrgId}
+              data-testid="seed-demo-btn"
+            >
+              <Sparkles className="w-4 h-4" />
+              {seeding ? "Loading…" : "Load sample data"}
+            </Button>
+          )}
           <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground font-mono px-1">
             <span className="truncate" title={activeOrg?.name}>
               {activeOrg?.name || ""}
@@ -300,7 +309,15 @@ export default function AppLayout() {
           className="h-14 border-b border-border bg-white flex items-center gap-3 px-6 shrink-0"
           data-testid="app-topbar"
         >
-          {/* Org switcher */}
+          {/* Org switcher — a plain label in single-business mode (one workspace) */}
+          {singleBusiness ? (
+            <div className="h-9 flex items-center gap-2 -ml-2 pl-2 pr-2 text-sm max-w-[280px]" data-testid="org-label">
+              <div className="w-6 h-6 rounded bg-primary/15 text-primary text-[11px] font-semibold flex items-center justify-center shrink-0">
+                {activeOrg?.name?.slice(0, 1) || "—"}
+              </div>
+              <span className="truncate font-medium">{activeOrg?.name || "Workspace"}</span>
+            </div>
+          ) : (
           <DropdownMenu open={orgMenuOpen} onOpenChange={setOrgMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -372,6 +389,7 @@ export default function AppLayout() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           {/* Global search — opens the ⌘K palette */}
           <div className="relative flex-1 max-w-md ml-3">

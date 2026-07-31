@@ -53,18 +53,25 @@ async def lifespan(app: FastAPI):
     log_ = logging.getLogger("ubos")
     await _dedupe_record_versions()  # BEFORE ensure_indexes so unique index can build
     await ensure_indexes()
+    import app_flags
     await _wipe_phase0_demo_org()
-    await _seed_demo_users_and_org()
+    if not app_flags.single_business():
+        # Universal build: seed the Acme demo users/org.
+        await _seed_demo_users_and_org()
     await _backfill_qr_payload()
     await _backfill_org_storage_fields()
-    # First-boot auto-seed: if DB is empty (no users at all), invoke the
-    # standalone seed script for consistent test data.
+    # First-boot auto-seed on an empty DB.
     try:
         db = get_db()
         if await db.users.count_documents({}) == 0:
-            log_.info("empty DB → running scripts.seed")
-            from scripts.seed import run_seed
-            await run_seed(reset=False, minimal=False)
+            if app_flags.single_business():
+                log_.info("empty DB (single-business) → furnishing seed")
+                from scripts.seed_furnishing import run_furnishing_seed
+                await run_furnishing_seed()
+            else:
+                log_.info("empty DB → running scripts.seed")
+                from scripts.seed import run_seed
+                await run_seed(reset=False, minimal=False)
     except Exception as e:
         log_.warning("auto-seed skipped: %s", e)
     log_.info(
@@ -155,6 +162,13 @@ async def health():
         return {"status": "ok", "db": "up", "version": "0.2.0-phase1"}
     except Exception as e:  # pragma: no cover
         return JSONResponse({"status": "degraded", "db": "down", "error": str(e)}, status_code=503)
+
+
+@api.get("/app-config", tags=["health"])
+async def app_config():
+    """Public deployment flags the SPA reads on load (single-business mode, etc.)."""
+    import app_flags
+    return app_flags.as_dict()
 
 
 api.include_router(auth_router)
