@@ -33,21 +33,31 @@ jobs:
         run: |
           $exe = Get-ChildItem installer -Filter *.exe | Select-Object -First 1
           Write-Host "Installing $($exe.Name) …"
-          Start-Process -FilePath $exe.FullName -ArgumentList "/S" -Wait
-          Start-Sleep -Seconds 6
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList "/S" -Wait -PassThru
+          Write-Host "installer exit code: $($p.ExitCode)"
+          Start-Sleep -Seconds 12
 
       - name: Verify install layout
         run: |
-          $dir = "$env:LOCALAPPDATA\Programs\UBOS"
-          $need = @(
-            "$dir\UBOS.exe",
-            "$dir\resources\backend\ubos-backend.exe",
-            "$dir\resources\mongodb\mongod.exe",
-            "$dir\resources\frontend\index.html"
-          )
-          foreach ($p in $need) {
-            if (!(Test-Path $p)) { throw "MISSING: $p" }
-            Write-Host "  ok: $p"
+          # discover the install dir (electron-builder per-user NSIS location can vary)
+          $roots = @("$env:LOCALAPPDATA\Programs", "$env:ProgramFiles", "${env:ProgramFiles(x86)}", "$env:LOCALAPPDATA")
+          $found = $null
+          foreach ($r in $roots) {
+            if (Test-Path $r) {
+              $found = Get-ChildItem -Path $r -Recurse -Filter "UBOS.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) { break }
+            }
+          }
+          if (-not $found) {
+            Write-Host "UBOS.exe not found. Contents of %LOCALAPPDATA%\Programs:"
+            Get-ChildItem "$env:LOCALAPPDATA\Programs" -ErrorAction SilentlyContinue | Format-Table Name | Out-String | Write-Host
+            throw "UBOS.exe not found after install"
+          }
+          $dir = $found.DirectoryName
+          Write-Host "Install dir: $dir"
+          foreach ($rel in @("resources\backend\ubos-backend.exe", "resources\mongodb\mongod.exe", "resources\frontend\index.html")) {
+            if (!(Test-Path "$dir\$rel")) { throw "MISSING: $dir\$rel" }
+            Write-Host "  ok: $rel"
           }
           "INSTALL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
