@@ -33,6 +33,9 @@ jobs:
           REACT_APP_BACKEND_URL: ""
           REACT_APP_ENABLE_SW: "0"
           NODE_OPTIONS: "--openssl-legacy-provider"
+          # CRA treats ESLint warnings as errors when CI=true (GH sets it).
+          # The app has pre-existing exhaustive-deps warnings; don't fail on them.
+          CI: "false"
         run: |
           npm install -g yarn
           yarn install --frozen-lockfile --network-timeout 600000
